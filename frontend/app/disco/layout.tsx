@@ -2,10 +2,8 @@
 
 import { useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { useHelpChat } from '@/contexts/HelpChatContext'
 import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/PageHeader'
-import HelpChat from '@/components/HelpChat'
 import LoadingSpinner from '@/components/LoadingSpinner'
 
 interface DiscoLayoutProps {
@@ -14,7 +12,6 @@ interface DiscoLayoutProps {
 
 export default function DiscoLayout({ children }: DiscoLayoutProps) {
   const { user, profile, loading, hasDiscoAccess } = useAuth()
-  const { isOpen: helpPanelOpen } = useHelpChat()
   const router = useRouter()
 
   // Check DISCo access
@@ -63,12 +60,11 @@ export default function DiscoLayout({ children }: DiscoLayoutProps) {
       {/* Top Navigation - using shared PageHeader */}
       <PageHeader showHelpToggle />
 
-      {/* Main Content with optional Help Sidebar */}
+      {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto">
           {children}
         </main>
-        {helpPanelOpen && <HelpChat />}
       </div>
     </div>
   )

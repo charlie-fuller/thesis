@@ -5,8 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/PageHeader';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import HelpChat from '@/components/HelpChat';
-import { useHelpChat } from '@/contexts/HelpChatContext';
 
 export default function AdminLayout({
   children,
@@ -14,7 +12,6 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { user, profile, loading, isAdmin } = useAuth();
-  const { isOpen: helpChatOpen } = useHelpChat();
   const router = useRouter();
 
   // Check admin access
@@ -63,17 +60,13 @@ export default function AdminLayout({
       {/* Top Navigation - using shared PageHeader with help panel toggle */}
       <PageHeader showHelpToggle />
 
-      {/* Main Content Area with Help Panel */}
+      {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Main Content */}
         <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
         </main>
-
-        {/* Help Chat Sidebar */}
-        {helpChatOpen && <HelpChat />}
       </div>
     </div>
   );

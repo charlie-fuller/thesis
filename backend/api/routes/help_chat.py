@@ -43,6 +43,47 @@ _indexing_lock = Lock()
 claude_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 
+HELP_DOCS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "docs", "help", "user")
+
+# Mapping of slug -> filename for the Features tab
+FEATURE_DOCS = {
+    "chat": "02-chat.md",
+    "documents": "04-knowledge-base.md",
+    "disco-pipeline": "09-disco-initiatives.md",
+    "projects-tasks": "06-projects.md",
+    "profile": "07-stakeholders.md",
+}
+
+
+@router.get("/docs")
+@limiter.limit("60/minute")
+async def get_help_docs(request: Request, current_user: dict = Depends(get_current_user)):
+    """Get help markdown documents for the Features tab.
+
+    Returns a list of {slug, title, content} from docs/help/user/.
+    """
+    docs = []
+    docs_dir = os.path.normpath(HELP_DOCS_DIR)
+
+    for slug, filename in FEATURE_DOCS.items():
+        filepath = os.path.join(docs_dir, filename)
+        if not os.path.exists(filepath):
+            continue
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Extract title from first # heading
+        title = slug.replace("-", " ").title()
+        for line in content.split("\n"):
+            if line.startswith("# "):
+                title = line[2:].strip()
+                break
+
+        docs.append({"slug": slug, "title": title, "content": content})
+
+    return docs
+
+
 class HelpChatRequest(BaseModel):
     """Request model for help chat."""
 

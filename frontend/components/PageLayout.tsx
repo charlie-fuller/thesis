@@ -1,8 +1,6 @@
 'use client'
 
-import { useHelpChat } from '@/contexts/HelpChatContext'
 import PageHeader from './PageHeader'
-import HelpChat from './HelpChat'
 
 interface PageLayoutProps {
   children: React.ReactNode
@@ -14,7 +12,7 @@ interface PageLayoutProps {
   showRightPanel?: boolean
   onToggleLeftPanel?: () => void
   onToggleRightPanel?: () => void
-  // Set to false to disable help sidebar on specific pages
+  // Set to false to hide the "?" help button in header
   showHelpSidebar?: boolean
 }
 
@@ -28,10 +26,7 @@ export default function PageLayout({
   onToggleRightPanel,
   showHelpSidebar = true,
 }: PageLayoutProps) {
-  const { isOpen: helpPanelOpen } = useHelpChat()
-
   // If the page manages its own panels (like chat), use those props
-  // Otherwise, use the context-based help toggle
   const useOwnPanelControls = showPanelToggles && onToggleRightPanel
 
   return (
@@ -43,15 +38,12 @@ export default function PageLayout({
         onToggleLeftPanel={onToggleLeftPanel}
         onToggleRightPanel={onToggleRightPanel}
         tabSwitcher={tabSwitcher}
-        // Show help toggle only if page doesn't manage its own panels
         showHelpToggle={showHelpSidebar && !useOwnPanelControls}
       />
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 overflow-auto">
           {children}
         </div>
-        {/* Show help sidebar when open (and enabled for this page) */}
-        {showHelpSidebar && helpPanelOpen && !useOwnPanelControls && <HelpChat />}
       </div>
     </div>
   )

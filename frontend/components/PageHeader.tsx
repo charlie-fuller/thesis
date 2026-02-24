@@ -1,10 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
-import { useHelpChat } from '@/contexts/HelpChatContext'
 import UserMenu from './UserMenu'
 
 interface PageHeaderProps {
@@ -27,10 +26,10 @@ export default function PageHeader({
   tabSwitcher,
   showHelpToggle = false,
 }: PageHeaderProps) {
-  const { isOpen: helpPanelOpen, toggleOpen: toggleHelpPanel } = useHelpChat()
   const { isAdmin, hasDiscoAccess } = useAuth()
   const { theme } = useTheme()
   const pathname = usePathname()
+  const router = useRouter()
 
   // Navigation links
   const userLinks = [
@@ -43,6 +42,7 @@ export default function PageHeader({
     // Conditionally add DISCo link for users with access
     ...(hasDiscoAccess ? [{ href: '/disco', label: 'DISCo' }] : []),
     { href: '/manifesto', label: 'Manifesto' },
+    { href: '/help', label: 'Help' },
   ]
 
   const isActive = (href: string) => {
@@ -158,20 +158,18 @@ export default function PageHeader({
                 </svg>
               </button>
             )}
-            {/* Standalone help toggle (uses context) */}
+            {/* Help button - navigates to /help?tab=ask */}
             {showHelpToggle && (
               <button
-                onClick={toggleHelpPanel}
-                className={`p-1.5 rounded transition-colors ${helpPanelOpen ? 'text-primary' : 'text-muted hover:text-primary'}`}
-                aria-label={helpPanelOpen ? 'Hide Help' : 'Show Help'}
-                title={helpPanelOpen ? 'Hide Help' : 'Show Help'}
+                onClick={() => router.push('/help?tab=ask')}
+                className="p-1.5 rounded transition-colors text-muted hover:text-primary"
+                aria-label="Open Help"
+                title="Open Help"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                  <rect x="3" y="4" width="18" height="16" rx="2" />
-                  <line x1="15" y1="4" x2="15" y2="20" />
-                  <line x1="17" y1="8" x2="19" y2="8" />
-                  <line x1="17" y1="11" x2="19" y2="11" />
-                  <line x1="17" y1="14" x2="19" y2="14" />
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
               </button>
             )}

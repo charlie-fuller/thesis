@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { apiGet } from '@/lib/api'
 import ChatInterface from './ChatInterface'
 import ConversationSidebar from './ConversationSidebar'
-import HelpChat from './HelpChat'
 import PageHeader from './PageHeader'
 
 interface UnifiedWorkspaceProps {
@@ -148,8 +147,6 @@ export default function UnifiedWorkspace({
           </div>
         </div>
 
-        {/* Help Chat Sidebar */}
-        {showRightPanel && <HelpChat />}
       </div>
     </div>
   )
