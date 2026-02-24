@@ -1065,6 +1065,7 @@ export default function InitiativeDetailPage() {
         {activeTab === 'outputs' && (
           <OutputViewer
             initiativeId={initiativeId}
+            initiativeTitle={initiative?.name}
             outputs={outputs}
             selectedOutput={selectedOutput}
             onSelectOutput={setSelectedOutput}

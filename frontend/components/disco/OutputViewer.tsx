@@ -110,6 +110,7 @@ interface Output {
 
 interface OutputViewerProps {
   initiativeId: string
+  initiativeTitle?: string
   outputs: Output[]
   selectedOutput: Output | null
   onSelectOutput: (output: Output | null) => void
@@ -261,12 +262,14 @@ function OutputDetail({
   onClose,
   onDelete,
   initiativeId,
+  initiativeTitle,
   onRefresh
 }: {
   output: Output
   onClose: () => void
   onDelete?: (outputId: string) => Promise<void>
   initiativeId: string
+  initiativeTitle?: string
   onRefresh: () => void
 }) {
   const { session } = useAuth()
@@ -315,12 +318,17 @@ function OutputDetail({
     }
   }
 
+  const docTitle = initiativeTitle
+    ? `${initiativeTitle} - ${config.name}`
+    : output.title || config.name
+
   const handleDownload = () => {
     const blob = new Blob([output.content_markdown], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${output.agent_type}_v${output.version}.md`
+    const filename = docTitle.replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-')
+    a.download = `${filename}_v${output.version}.md`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -329,7 +337,7 @@ function OutputDetail({
     const contentEl = contentRef.current
     if (!contentEl) return
 
-    const title = output.title || `${config.name} v${output.version}`
+    const title = `${docTitle} v${output.version}`
     const date = new Date(output.created_at).toLocaleDateString('en-US', {
       year: 'numeric', month: 'long', day: 'numeric'
     })
@@ -383,7 +391,7 @@ function OutputDetail({
 <body>
   <div class="header">
     <h1>${title}</h1>
-    <div class="meta">${config.name} -- ${date}</div>
+    <div class="meta">${date}</div>
   </div>
   ${contentEl.innerHTML}
 </body>
@@ -537,7 +545,7 @@ function OutputDetail({
           </div>
           <div>
             <h3 className="font-semibold text-slate-900 dark:text-white">
-              {config.name}
+              {docTitle}
             </h3>
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <span>Version {output.version}</span>
@@ -999,6 +1007,7 @@ function OutputDetail({
 
 export default function OutputViewer({
   initiativeId,
+  initiativeTitle,
   outputs,
   selectedOutput,
   onSelectOutput,
@@ -1119,6 +1128,7 @@ export default function OutputViewer({
             onClose={() => onSelectOutput(null)}
             onDelete={onDelete}
             initiativeId={initiativeId}
+            initiativeTitle={initiativeTitle}
             onRefresh={onRefresh}
           />
         ) : (
