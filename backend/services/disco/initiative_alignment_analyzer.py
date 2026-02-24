@@ -117,6 +117,10 @@ Finally, identify 2-4 specific questions that, if answered, would most improve c
 - Stakeholder context that would clarify strategic connections
 - Information that would benefit not just this initiative but other projects and initiatives sharing the same strategic pillars
 
+IMPORTANT: Always include this question (adapt the wording to the specific initiative):
+"Are there strategic goals, KPIs, or departmental priorities not currently captured in the system that this initiative meaningfully supports?"
+This is critical because our goal/KPI catalog is often incomplete, and surfacing missing context improves scoring across all related projects and initiatives.
+
 Respond using this exact format:
 PILLAR_1_SCORE: [0-25]
 PILLAR_1_RATIONALE: [1-2 sentences explaining the score]

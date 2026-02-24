@@ -398,21 +398,25 @@ export default function GoalAlignmentSection({
             />
           </div>
           {/* Confidence questions */}
-          {goalAlignmentDetails.confidence_questions && goalAlignmentDetails.confidence_questions.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-              <h5 className="text-xs font-medium text-muted uppercase tracking-wide mb-2">
-                Questions to improve confidence
-              </h5>
-              <ul className="space-y-1.5">
-                {goalAlignmentDetails.confidence_questions.map((question, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-secondary">
-                    <span className="text-xs font-mono text-muted mt-0.5 flex-shrink-0">{i + 1}.</span>
-                    {question}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+            <h5 className="text-xs font-medium text-muted uppercase tracking-wide mb-2">
+              Questions to improve confidence
+            </h5>
+            <ul className="space-y-1.5">
+              {goalAlignmentDetails.confidence_questions?.map((question, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-secondary">
+                  <span className="text-xs font-mono text-muted mt-0.5 flex-shrink-0">{i + 1}.</span>
+                  {question}
+                </li>
+              ))}
+              <li className="flex items-start gap-2 text-sm text-secondary italic">
+                <span className="text-xs font-mono text-muted mt-0.5 flex-shrink-0">
+                  {(goalAlignmentDetails.confidence_questions?.length ?? 0) + 1}.
+                </span>
+                Are there strategic goals, KPIs, or departmental priorities not currently in the system that this initiative meaningfully supports? Adding them would improve scoring accuracy across all related projects and initiatives.
+              </li>
+            </ul>
+          </div>
         </div>
       )}
 
