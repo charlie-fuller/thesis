@@ -270,8 +270,10 @@ function OutputDetail({
   onRefresh: () => void
 }) {
   const { session } = useAuth()
+  const contentRef = useRef<HTMLDivElement>(null)
   const [copied, setCopied] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
   const [generatingSummary, setGeneratingSummary] = useState(false)
   const [summaryStatus, setSummaryStatus] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'output' | 'notes'>('output')
@@ -321,6 +323,81 @@ function OutputDetail({
     a.download = `${output.agent_type}_v${output.version}.md`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleDownloadPDF = () => {
+    const contentEl = contentRef.current
+    if (!contentEl) return
+
+    const title = output.title || `${config.name} v${output.version}`
+    const date = new Date(output.created_at).toLocaleDateString('en-US', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    })
+
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <title>${title}</title>
+  <style>
+    @page { margin: 1in; size: letter; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1e293b;
+      line-height: 1.6;
+      max-width: 100%;
+      padding: 0;
+      margin: 0;
+    }
+    .header {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 12px;
+      margin-bottom: 24px;
+    }
+    .header h1 { font-size: 22px; margin: 0 0 4px 0; color: #0f172a; }
+    .header .meta { font-size: 12px; color: #64748b; }
+    h1 { font-size: 20px; margin: 24px 0 12px; }
+    h2 { font-size: 17px; margin: 20px 0 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+    h3 { font-size: 14px; margin: 16px 0 8px; }
+    p { margin: 8px 0; font-size: 13px; }
+    ul, ol { margin: 8px 0; padding-left: 24px; font-size: 13px; }
+    li { margin: 4px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 12px; }
+    th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; }
+    th { background: #f1f5f9; font-weight: 600; }
+    tr:nth-child(even) { background: #f8fafc; }
+    code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+    pre { background: #f1f5f9; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+    pre code { background: none; padding: 0; }
+    blockquote { border-left: 3px solid #cbd5e1; margin: 12px 0; padding: 4px 16px; color: #475569; }
+    strong { color: #0f172a; }
+    hr { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
+    .mermaid-placeholder { display: none; }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${title}</h1>
+    <div class="meta">${config.name} -- ${date}</div>
+  </div>
+  ${contentEl.innerHTML}
+</body>
+</html>`)
+    printWindow.document.close()
+
+    // Wait for content to render, then trigger print
+    printWindow.onload = () => {
+      printWindow.print()
+    }
+    // Fallback for browsers that don't fire onload reliably
+    setTimeout(() => {
+      printWindow.print()
+    }, 500)
   }
 
   const handleExecutiveSummary = async () => {
@@ -487,13 +564,35 @@ function OutputDetail({
               </>
             )}
           </button>
-          <button
-            onClick={handleDownload}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              onBlur={() => setTimeout(() => setShowExportMenu(false), 150)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Export
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            {showExportMenu && (
+              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 z-50 min-w-[140px]">
+                <button
+                  onClick={() => { handleDownload(); setShowExportMenu(false) }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  Markdown (.md)
+                </button>
+                <button
+                  onClick={() => { handleDownloadPDF(); setShowExportMenu(false) }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  PDF (.pdf)
+                </button>
+              </div>
+            )}
+          </div>
           {!isExecutiveSummary && (
             <button
               onClick={handleExecutiveSummary}
@@ -828,7 +927,7 @@ function OutputDetail({
       {/* Full Content */}
       <div className="p-4 max-h-[calc(100vh-350px)] min-h-[400px] overflow-y-auto">
         {activeTab === 'output' ? (
-          <div className="prose prose-sm dark:prose-invert max-w-none">
+          <div ref={contentRef} className="prose prose-sm dark:prose-invert max-w-none">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
