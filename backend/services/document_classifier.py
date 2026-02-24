@@ -576,7 +576,7 @@ Return JSON with the most relevant agents (max 3):
             prompt = self._build_llm_prompt(sample_text, candidates)
 
             response = self.anthropic.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model="claude-haiku-4-5-20251001",
                 max_tokens=500,
                 messages=[{"role": "user", "content": prompt}],
             )
@@ -709,7 +709,7 @@ Return JSON with the most relevant agents (max 3):
             requires_user_review=needs_review,
             review_reason=review_reason,
             classification_method=method,
-            model_used="claude-3-5-haiku-20241022" if method == "hybrid" else None,
+            model_used="claude-haiku-4-5-20251001" if method == "hybrid" else None,
             tokens_used=tokens_used,
             processing_time_ms=processing_time_ms,
         )

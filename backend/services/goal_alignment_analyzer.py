@@ -20,7 +20,7 @@ from database import get_supabase
 logger = logging.getLogger(__name__)
 
 # Use Haiku for fast, cost-effective analysis
-MODEL = "claude-3-5-haiku-20241022"
+MODEL = "claude-haiku-4-5-20251001"
 
 # IS Team FY27 Strategic Goals Definition (from FY'27 Plan - Top Priorities)
 IS_GOALS = {

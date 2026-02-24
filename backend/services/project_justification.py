@@ -20,7 +20,7 @@ from services.project_confidence import evaluate_project_confidence
 logger = logging.getLogger(__name__)
 
 # Use Haiku for fast, cost-effective generation
-MODEL = "claude-3-5-haiku-20241022"
+MODEL = "claude-haiku-4-5-20251001"
 
 
 def _build_generation_prompt(project: dict) -> str:
