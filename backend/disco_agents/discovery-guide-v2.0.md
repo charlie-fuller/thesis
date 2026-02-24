@@ -232,6 +232,24 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 
 ---
 
+## **Strategic Alignment**
+
+[ONLY include this section if goal alignment data is provided in context AND any pillar scores below 15/25. Otherwise omit entirely.]
+
+**Overall Alignment:** [X/100]
+
+**Low-Scoring Pillars:**
+
+- **[Pillar name]** ([score]/25): [1 sentence on why alignment is weak based on available evidence]
+
+**Alignment Confidence Questions:**
+(Questions that, if answered, would clarify whether this initiative aligns better than the score suggests)
+
+1. [Question targeting a specific low-scoring pillar -- what evidence or connection is missing?]
+2. [Question that could reveal indirect strategic value not captured in current framing]
+
+---
+
 ## **Discovery Plan**
 
 [One sentence introducing the sessions and why the order matters.]

@@ -748,7 +748,7 @@ async def build_agent_context(initiative_id: str, agent_type: str, include_syste
     try:
         initiative_result = await asyncio.to_thread(
             lambda: supabase.table("disco_initiatives")
-            .select("throughline, user_corrections")
+            .select("throughline, user_corrections, goal_alignment_score, goal_alignment_details")
             .eq("id", initiative_id)
             .single()
             .execute()
@@ -758,6 +758,10 @@ async def build_agent_context(initiative_id: str, agent_type: str, include_syste
                 context["throughline"] = initiative_result.data["throughline"]
             if initiative_result.data.get("user_corrections"):
                 context["user_corrections"] = initiative_result.data["user_corrections"]
+            if initiative_result.data.get("goal_alignment_score") is not None:
+                context["goal_alignment_score"] = initiative_result.data["goal_alignment_score"]
+            if initiative_result.data.get("goal_alignment_details"):
+                context["goal_alignment_details"] = initiative_result.data["goal_alignment_details"]
     except Exception as e:
         logger.warning(f"Failed to fetch throughline for initiative {initiative_id}: {e}")
 
@@ -1542,6 +1546,31 @@ def build_full_prompt(agent_type: str, context: Dict) -> str:
         parts.append(context["user_corrections"])
         parts.append("\n")
 
+    # Goal alignment analysis (from initiative-level strategic scoring)
+    if context.get("goal_alignment_score") is not None:
+        parts.append("## Strategic Goal Alignment Analysis\n")
+        score = context["goal_alignment_score"]
+        parts.append(f"Overall alignment score: {score}/100\n")
+        details = context.get("goal_alignment_details", {})
+        pillar_scores = details.get("pillar_scores", {})
+        pillar_names = {
+            "customer_prospect_journey": "Customer and Prospect Journey",
+            "maximize_value": "Maximize Value from Core Systems and AI",
+            "data_first_digital_workforce": "Data-First Digital Workforce",
+            "high_trust_culture": "High-Trust and Communicative IS Culture",
+        }
+        for key, name in pillar_names.items():
+            pillar = pillar_scores.get(key, {})
+            p_score = pillar.get("score", "N/A")
+            rationale = pillar.get("rationale", "")
+            parts.append(f"- {name}: {p_score}/25 -- {rationale}")
+        if details.get("kpi_impacts"):
+            kpis = ", ".join(details["kpi_impacts"])
+            parts.append(f"\nImpacted KPIs: {kpis}")
+        if details.get("summary"):
+            parts.append(f"\nAlignment summary: {details['summary']}")
+        parts.append("\n")
+
     # KB folder documents (for discovery_prep - these are the PRIMARY input)
     if context.get("kb_folder_documents"):
         parts.append("## Stakeholder Documents (from KB Folder)\n")
@@ -1568,8 +1597,9 @@ def build_full_prompt(agent_type: str, context: Dict) -> str:
         # === Consolidated Agents (v2.0) ===
         "discovery_guide": """Please guide this initiative through the Discovery stage.
 
-Produce a single unified output: VERDICT, Current State, Desired State, Discovery Plan, Next Step.
+Produce a single unified output: VERDICT, Current State, Desired State, Strategic Alignment (if applicable), Discovery Plan, Next Step.
 Adapt depth based on available context (documents, prior outputs, session transcripts).
+If Strategic Goal Alignment data is provided and any pillar scores below 15/25, include the Strategic Alignment section identifying weak pillars and questions that would clarify alignment. Omit this section if alignment data is absent or all pillars score 15+.
 Target 600-800 words total. Every section should be self-contained and readable without cross-referencing.""",
         "insight_analyst": """Please analyze all discovery artifacts and create a decision document.
 
