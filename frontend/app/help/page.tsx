@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import PageLayout from '@/components/PageLayout';
@@ -46,6 +46,14 @@ const ARCHITECTURE_CARDS: GuideCard[] = [
 ];
 
 export default function HelpPage() {
+  return (
+    <Suspense fallback={<PageLayout showHelpSidebar={false}><div className="flex justify-center py-12"><LoadingSpinner /></div></PageLayout>}>
+      <HelpPageContent />
+    </Suspense>
+  );
+}
+
+function HelpPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabParam = searchParams.get('tab') as TabId | null;
