@@ -295,6 +295,25 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 **Owner:** [Name]
 
 **By:** [When]
+
+---
+
+## **Appendix: Strategic Goals Reference**
+
+[ONLY include when Strategic Alignment section is present. This helps report consumers who are not system users understand what goals the scoring is based on.]
+
+| Pillar | Description | KPIs |
+|--------|-------------|------|
+| [Pillar 1 name] | [One sentence] | [KPIs] |
+| [Pillar 2 name] | [One sentence] | [KPIs] |
+| [Pillar 3 name] | [One sentence] | [KPIs] |
+| [Pillar 4 name] | [One sentence] | [KPIs] |
+
+[If department-specific goals are available, add:]
+
+**[Department] Goals:** [bullet list of department goals and KPIs]
+
+*These are the goals currently in the system. If this initiative maps to goals or KPIs not listed above, identifying them would improve scoring accuracy.*
 ```
 
 ### Formatting Rules (CRITICAL — READ CAREFULLY)

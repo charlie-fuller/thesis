@@ -748,7 +748,9 @@ async def build_agent_context(initiative_id: str, agent_type: str, include_syste
     try:
         initiative_result = await asyncio.to_thread(
             lambda: supabase.table("disco_initiatives")
-            .select("throughline, user_corrections, goal_alignment_score, goal_alignment_details")
+            .select(
+                "throughline, user_corrections, goal_alignment_score, goal_alignment_details, value_alignment, target_department"
+            )
             .eq("id", initiative_id)
             .single()
             .execute()
@@ -762,6 +764,10 @@ async def build_agent_context(initiative_id: str, agent_type: str, include_syste
                 context["goal_alignment_score"] = initiative_result.data["goal_alignment_score"]
             if initiative_result.data.get("goal_alignment_details"):
                 context["goal_alignment_details"] = initiative_result.data["goal_alignment_details"]
+            if initiative_result.data.get("value_alignment"):
+                context["value_alignment"] = initiative_result.data["value_alignment"]
+            if initiative_result.data.get("target_department"):
+                context["target_department"] = initiative_result.data["target_department"]
     except Exception as e:
         logger.warning(f"Failed to fetch throughline for initiative {initiative_id}: {e}")
 
@@ -1603,10 +1609,10 @@ def build_full_prompt(agent_type: str, context: Dict) -> str:
         # === Consolidated Agents (v2.0) ===
         "discovery_guide": """Please guide this initiative through the Discovery stage.
 
-Produce a single unified output: VERDICT, Current State, Desired State, Strategic Alignment (if applicable), Discovery Plan, Next Step.
+Produce a single unified output: VERDICT, Current State, Desired State, Strategic Alignment (if applicable), Discovery Plan, Next Step, and Appendix (if applicable).
 Adapt depth based on available context (documents, prior outputs, session transcripts).
-If Strategic Goal Alignment data is provided and any pillar scores below 15/25, include the Strategic Alignment section identifying weak pillars and questions that would clarify alignment. Omit this section if alignment data is absent or all pillars score 15+.
-Target 600-800 words total. Every section should be self-contained and readable without cross-referencing.""",
+If Strategic Goal Alignment data is provided and any pillar scores below 15/25 or confidence below 60, include the Strategic Alignment section and the Appendix: Strategic Goals Reference table. The appendix helps report consumers who are not system users understand what goals exist and whether important ones are missing.
+Target 600-800 words total (appendix excluded from word count). Every section should be self-contained and readable without cross-referencing.""",
         "insight_analyst": """Please analyze all discovery artifacts and create a decision document.
 
 Your process:
@@ -1685,6 +1691,33 @@ FINALLY, create the discovery plan with:
 
     parts.append("## Your Task\n")
     parts.append(agent_instructions.get(agent_type, "Please analyze this initiative and provide your assessment."))
+
+    # Add strategic goals reference appendix when alignment data is present
+    if context.get("goal_alignment_score") is not None:
+        from services.goal_alignment_analyzer import IS_GOALS
+
+        parts.append("\n\n## Appendix: Strategic Goals Currently in the System\n")
+        parts.append(
+            "The following IS team FY27 strategic pillars and KPIs are used to score alignment. If this initiative maps to goals or KPIs NOT listed here, note that in your output.\n"
+        )
+        for i, (key, pillar) in enumerate(IS_GOALS.items(), 1):
+            kpis = "; ".join(pillar["kpis"])
+            parts.append(f"{i}. **{pillar['name']}** -- {pillar['description'][:120]}")
+            parts.append(f"   KPIs: {kpis}")
+        # Include initiative-specific department goals if available
+        val_align = context.get("value_alignment", {})
+        if isinstance(val_align, dict):
+            dept = context.get("target_department")
+            dept_goals = val_align.get("department_goals", [])
+            dept_kpis = val_align.get("kpis", [])
+            if dept_goals or dept_kpis:
+                dept_label = f" ({dept})" if dept else ""
+                parts.append(f"\n**Department-Specific Goals{dept_label}:**")
+                for g in dept_goals or []:
+                    parts.append(f"- {g}")
+                if dept_kpis:
+                    parts.append(f"Department KPIs: {'; '.join(dept_kpis)}")
+        parts.append("")
 
     # Add throughline-awareness instructions when throughline is present
     if context.get("throughline"):
