@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react'
-import { Target, RefreshCw, TrendingUp, Database, Users, Building2, X, Edit3, Save } from 'lucide-react'
+import { Target, RefreshCw, TrendingUp, Database, Users, Building2, X, Edit3, Save, HelpCircle } from 'lucide-react'
 
 export interface PillarScore {
   score: number
@@ -25,6 +25,8 @@ export interface GoalAlignmentDetails {
   kpi_impacts: string[]
   summary: string
   analyzed_at: string
+  alignment_confidence?: number | null
+  confidence_questions?: string[]
 }
 
 interface GoalAlignmentSectionProps {
@@ -350,6 +352,69 @@ export default function GoalAlignmentSection({
           </div>
         )}
       </div>
+
+      {/* Confidence Score and Questions */}
+      {goalAlignmentDetails?.alignment_confidence != null && (
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-slate-500" />
+              <h4 className="text-sm font-medium text-primary">Scoring Confidence</h4>
+            </div>
+            <span className={`text-sm font-bold px-2 py-0.5 rounded ${
+              goalAlignmentDetails.alignment_confidence >= 80
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                : goalAlignmentDetails.alignment_confidence >= 60
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                  : goalAlignmentDetails.alignment_confidence >= 40
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+            }`}>
+              {goalAlignmentDetails.alignment_confidence}%
+            </span>
+          </div>
+          <p className="text-xs text-muted">
+            {goalAlignmentDetails.alignment_confidence >= 80
+              ? 'Rich context available for accurate scoring.'
+              : goalAlignmentDetails.alignment_confidence >= 60
+                ? 'Reasonable context but some departmental specifics missing.'
+                : goalAlignmentDetails.alignment_confidence >= 40
+                  ? 'Significant information gaps -- scores may shift with more department/team context.'
+                  : 'Very limited information -- alignment scores are mostly inferred.'}
+          </p>
+          {/* Confidence bar */}
+          <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${
+                goalAlignmentDetails.alignment_confidence >= 80
+                  ? 'bg-green-500'
+                  : goalAlignmentDetails.alignment_confidence >= 60
+                    ? 'bg-blue-500'
+                    : goalAlignmentDetails.alignment_confidence >= 40
+                      ? 'bg-amber-500'
+                      : 'bg-red-500'
+              }`}
+              style={{ width: `${goalAlignmentDetails.alignment_confidence}%` }}
+            />
+          </div>
+          {/* Confidence questions */}
+          {goalAlignmentDetails.confidence_questions && goalAlignmentDetails.confidence_questions.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+              <h5 className="text-xs font-medium text-muted uppercase tracking-wide mb-2">
+                Questions to improve confidence
+              </h5>
+              <ul className="space-y-1.5">
+                {goalAlignmentDetails.confidence_questions.map((question, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-secondary">
+                    <span className="text-xs font-mono text-muted mt-0.5 flex-shrink-0">{i + 1}.</span>
+                    {question}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Summary */}
       {goalAlignmentDetails?.summary && (

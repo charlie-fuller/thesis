@@ -188,10 +188,42 @@ def _parse_analysis_response(response_text: str) -> tuple[int, dict]:
     kpi_impacts = []
     if "KPI_IMPACTS:" in response_text:
         start = response_text.find("KPI_IMPACTS:") + len("KPI_IMPACTS:")
-        end = response_text.find("SUMMARY:", start) if "SUMMARY:" in response_text[start:] else len(response_text)
+        # Find next section marker
+        end = len(response_text)
+        for next_m in ["CONFIDENCE:", "CONFIDENCE_QUESTIONS:", "SUMMARY:"]:
+            if next_m in response_text[start:]:
+                potential_end = response_text.find(next_m, start)
+                if potential_end < end:
+                    end = potential_end
         impacts_text = response_text[start:end].strip()
         if impacts_text and impacts_text.lower() != "none":
             kpi_impacts = [kpi.strip() for kpi in impacts_text.split(",") if kpi.strip()]
+
+    # Parse confidence score (optional -- not present in project-level analysis)
+    alignment_confidence = None
+    if "CONFIDENCE:" in response_text:
+        start = response_text.find("CONFIDENCE:") + len("CONFIDENCE:")
+        end = response_text.find("\n", start)
+        conf_text = response_text[start:end].strip()
+        try:
+            alignment_confidence = min(100, max(0, int(conf_text)))
+        except ValueError:
+            pass
+
+    # Parse confidence questions (optional)
+    confidence_questions = []
+    if "CONFIDENCE_QUESTIONS:" in response_text:
+        start = response_text.find("CONFIDENCE_QUESTIONS:") + len("CONFIDENCE_QUESTIONS:")
+        end = response_text.find("SUMMARY:", start) if "SUMMARY:" in response_text[start:] else len(response_text)
+        questions_text = response_text[start:end].strip()
+        import re
+
+        for line in questions_text.split("\n"):
+            line = line.strip()
+            if line:
+                cleaned = re.sub(r"^\d+\.\s*", "", line).strip()
+                if cleaned:
+                    confidence_questions.append(cleaned)
 
     # Parse summary
     summary = ""
@@ -205,6 +237,12 @@ def _parse_analysis_response(response_text: str) -> tuple[int, dict]:
         "summary": summary,
         "analyzed_at": datetime.now(timezone.utc).isoformat(),
     }
+
+    # Include confidence fields if present
+    if alignment_confidence is not None:
+        details["alignment_confidence"] = alignment_confidence
+    if confidence_questions:
+        details["confidence_questions"] = confidence_questions
 
     return total_score, details
 

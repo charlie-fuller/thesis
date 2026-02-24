@@ -106,6 +106,17 @@ SCORING GUIDANCE:
 Score each pillar and identify which KPIs this initiative could impact.
 Consider the full scope of the initiative including all agent analyses and bundle assessments.
 
+Also assess your confidence in the alignment scoring (0-100). Confidence reflects how much relevant information was available for scoring -- you may be missing departmental KPIs, team-specific goals, or context about how this work connects to broader organizational priorities. Low confidence doesn't mean the initiative is bad; it means the scoring could shift significantly with more information.
+- 80-100: Rich context available (department goals, KPIs, stakeholder input)
+- 60-79: Reasonable context but some departmental specifics missing
+- 40-59: Significant gaps -- scoring based on general descriptions without team/department KPIs
+- 0-39: Very limited information -- mostly inferring alignment from name/description alone
+
+Finally, identify 2-4 specific questions that, if answered, would most improve confidence and potentially raise the alignment score. Focus on:
+- Missing departmental KPIs or goals that could reveal stronger alignment
+- Stakeholder context that would clarify strategic connections
+- Information that would benefit not just this initiative but other projects and initiatives sharing the same strategic pillars
+
 Respond using this exact format:
 PILLAR_1_SCORE: [0-25]
 PILLAR_1_RATIONALE: [1-2 sentences explaining the score]
@@ -116,6 +127,8 @@ PILLAR_3_RATIONALE: [1-2 sentences]
 PILLAR_4_SCORE: [0-25]
 PILLAR_4_RATIONALE: [1-2 sentences]
 KPI_IMPACTS: [comma-separated list of impacted KPIs from the list above]
+CONFIDENCE: [0-100]
+CONFIDENCE_QUESTIONS: [numbered list, one per line, e.g. "1. Question text"]
 SUMMARY: [1-2 sentences summarizing overall strategic alignment]"""
 
 

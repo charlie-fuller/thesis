@@ -234,18 +234,20 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 
 ## **Strategic Alignment**
 
-[ONLY include this section if goal alignment data is provided in context AND any pillar scores below 15/25. Otherwise omit entirely.]
+[ONLY include this section if goal alignment data is provided in context AND either: any pillar scores below 15/25, OR alignment confidence below 60. Otherwise omit entirely.]
 
-**Overall Alignment:** [X/100]
+**Overall Alignment:** [X/100] | **Confidence:** [X]%
+
+[If confidence is low: 1 sentence explaining that scores may be incomplete because departmental KPIs or team-specific goals were not available. Getting this context would improve scoring across all initiatives and projects.]
 
 **Low-Scoring Pillars:**
 
-- **[Pillar name]** ([score]/25): [1 sentence on why alignment is weak based on available evidence]
+- **[Pillar name]** ([score]/25): [1 sentence on why alignment is weak or uncertain based on available evidence]
 
-**Alignment Confidence Questions:**
-(Questions that, if answered, would clarify whether this initiative aligns better than the score suggests)
+**Questions to Raise Confidence and Alignment:**
+(Answering these would improve scoring accuracy for this initiative AND related projects)
 
-1. [Question targeting a specific low-scoring pillar -- what evidence or connection is missing?]
+1. [Question targeting missing departmental KPIs or team goals for a low-scoring pillar]
 2. [Question that could reveal indirect strategic value not captured in current framing]
 
 ---

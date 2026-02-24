@@ -1567,6 +1567,12 @@ def build_full_prompt(agent_type: str, context: Dict) -> str:
         if details.get("kpi_impacts"):
             kpis = ", ".join(details["kpi_impacts"])
             parts.append(f"\nImpacted KPIs: {kpis}")
+        if details.get("alignment_confidence") is not None:
+            parts.append(f"\nAlignment confidence: {details['alignment_confidence']}/100")
+        if details.get("confidence_questions"):
+            parts.append("\nQuestions that would raise confidence:")
+            for q in details["confidence_questions"]:
+                parts.append(f"  - {q}")
         if details.get("summary"):
             parts.append(f"\nAlignment summary: {details['summary']}")
         parts.append("\n")
