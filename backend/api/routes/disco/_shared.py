@@ -422,9 +422,26 @@ async def check_disco_access(user: dict) -> bool:
     if not user_id:
         return False
 
-    result = await asyncio.to_thread(
-        lambda: supabase.table("users").select("app_access").eq("id", user_id).single().execute()
-    )
+    # Retry on transient HTTP/2 connection errors
+    last_error = None
+    for attempt in range(3):
+        try:
+            result = await asyncio.to_thread(
+                lambda: supabase.table("users").select("app_access").eq("id", user_id).single().execute()
+            )
+            break
+        except Exception as e:
+            error_str = str(e)
+            if "ConnectionTerminated" in error_str or "RemoteProtocolError" in error_str:
+                last_error = e
+                logger.warning(
+                    f"Supabase connection error in check_disco_access (attempt {attempt + 1}/3): {error_str}"
+                )
+                await asyncio.sleep(0.3 * (attempt + 1))
+            else:
+                raise
+    else:
+        raise last_error
 
     if not result.data:
         return False

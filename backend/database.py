@@ -97,8 +97,20 @@ def with_db_retry(max_retries: int = 2):
                             continue
                     raise
                 except Exception as e:
-                    # Check if the error message indicates a broken pipe
+                    # Check if the error message indicates a connection issue
                     error_msg = str(e).lower()
+                    error_str = str(e)
+                    if "ConnectionTerminated" in error_str or "RemoteProtocolError" in error_str:
+                        last_error = e
+                        if attempt < max_retries:
+                            logger.warning(
+                                f"HTTP/2 connection error in {func.__name__}, "
+                                f"resetting client and retrying (attempt {attempt + 1}/{max_retries}): {e}"
+                            )
+                            DatabaseService.reset_client()
+                            await asyncio.sleep(0.2 * (attempt + 1))
+                            continue
+                        raise
                     if "broken pipe" in error_msg or "errno 32" in error_msg:
                         last_error = e
                         if attempt < max_retries:
