@@ -158,33 +158,39 @@ function isVariant(agentType: string): boolean {
   return agentType.endsWith('_executive') || agentType.endsWith('_condensed')
 }
 
-const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: string }> = {
-  discovery_prep: { name: 'Discovery Prep', icon: FileText, color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400' },
-  triage: { name: 'Triage', icon: Target, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400' },
-  discovery_planner: { name: 'Discovery Planner', icon: Search, color: 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400' },
-  coverage_tracker: { name: 'Coverage Tracker', icon: BarChart, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' },
-  insight_extractor: { name: 'Insight Extractor', icon: Target, color: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30 dark:text-cyan-400' },
-  consolidator: { name: 'Consolidator', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
-  synthesizer: { name: 'Synthesizer', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
-  strategist: { name: 'Strategist', icon: Target, color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400' },
-  prd_generator: { name: 'PRD Generator', icon: FileText, color: 'text-rose-600 bg-rose-100 dark:bg-rose-900/30 dark:text-rose-400' },
-  tech_evaluation: { name: 'Tech Evaluation', icon: Cpu, color: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400' },
+const AGENT_CONFIG: Record<string, { name: string; reportLabel: string; icon: typeof Target; color: string }> = {
+  // Consolidated agents (v2.0)
+  discovery_guide: { name: 'Discovery Guide', reportLabel: 'Discovery Agent Report', icon: Search, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400' },
+  insight_analyst: { name: 'Insight Analyst', reportLabel: 'Insight Analysis Report', icon: Target, color: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30 dark:text-cyan-400' },
+  initiative_builder: { name: 'Initiative Builder', reportLabel: 'Initiative Builder Report', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
+  requirements_generator: { name: 'Requirements Generator', reportLabel: 'Requirements Report', icon: ListChecks, color: 'text-rose-600 bg-rose-100 dark:bg-rose-900/30 dark:text-rose-400' },
+  // Legacy agents
+  discovery_prep: { name: 'Discovery Prep', reportLabel: 'Discovery Prep Report', icon: FileText, color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400' },
+  triage: { name: 'Triage', reportLabel: 'Triage Report', icon: Target, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400' },
+  discovery_planner: { name: 'Discovery Planner', reportLabel: 'Discovery Planner Report', icon: Search, color: 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400' },
+  coverage_tracker: { name: 'Coverage Tracker', reportLabel: 'Coverage Report', icon: BarChart, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' },
+  insight_extractor: { name: 'Insight Extractor', reportLabel: 'Insight Extraction Report', icon: Target, color: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30 dark:text-cyan-400' },
+  consolidator: { name: 'Consolidator', reportLabel: 'Consolidation Report', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
+  synthesizer: { name: 'Synthesizer', reportLabel: 'Synthesis Report', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
+  strategist: { name: 'Strategist', reportLabel: 'Strategy Report', icon: Target, color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  prd_generator: { name: 'PRD Generator', reportLabel: 'PRD Report', icon: FileText, color: 'text-rose-600 bg-rose-100 dark:bg-rose-900/30 dark:text-rose-400' },
+  tech_evaluation: { name: 'Tech Evaluation', reportLabel: 'Tech Evaluation Report', icon: Cpu, color: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400' },
   // Executive Summary variants (v3.0 - extracts decision-forcing elements)
-  triage_executive: { name: 'Triage (Executive)', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
-  discovery_planner_executive: { name: 'Discovery (Executive)', icon: Minimize2, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
-  coverage_tracker_executive: { name: 'Coverage (Executive)', icon: Minimize2, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400' },
-  insight_extractor_executive: { name: 'Insight (Executive)', icon: Minimize2, color: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20 dark:text-cyan-400' },
-  consolidator_executive: { name: 'Consolidator (Executive)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
-  synthesizer_executive: { name: 'Synthesizer (Executive)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
-  tech_evaluation_executive: { name: 'Tech Eval (Executive)', icon: Minimize2, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400' },
+  triage_executive: { name: 'Triage (Executive)', reportLabel: 'Triage Executive Summary', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
+  discovery_planner_executive: { name: 'Discovery (Executive)', reportLabel: 'Discovery Executive Summary', icon: Minimize2, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
+  coverage_tracker_executive: { name: 'Coverage (Executive)', reportLabel: 'Coverage Executive Summary', icon: Minimize2, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400' },
+  insight_extractor_executive: { name: 'Insight (Executive)', reportLabel: 'Insight Executive Summary', icon: Minimize2, color: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20 dark:text-cyan-400' },
+  consolidator_executive: { name: 'Consolidator (Executive)', reportLabel: 'Consolidation Executive Summary', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
+  synthesizer_executive: { name: 'Synthesizer (Executive)', reportLabel: 'Synthesis Executive Summary', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
+  tech_evaluation_executive: { name: 'Tech Eval (Executive)', reportLabel: 'Tech Eval Executive Summary', icon: Minimize2, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400' },
   // Legacy condensed variants (for backwards compatibility)
-  triage_condensed: { name: 'Triage (Condensed)', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
-  discovery_planner_condensed: { name: 'Discovery (Condensed)', icon: Minimize2, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
-  coverage_tracker_condensed: { name: 'Coverage (Condensed)', icon: Minimize2, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400' },
-  insight_extractor_condensed: { name: 'Insight (Condensed)', icon: Minimize2, color: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20 dark:text-cyan-400' },
-  consolidator_condensed: { name: 'Consolidator (Condensed)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
-  synthesizer_condensed: { name: 'Synthesizer (Condensed)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
-  tech_evaluation_condensed: { name: 'Tech Eval (Condensed)', icon: Minimize2, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400' },
+  triage_condensed: { name: 'Triage (Condensed)', reportLabel: 'Triage Condensed Summary', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
+  discovery_planner_condensed: { name: 'Discovery (Condensed)', reportLabel: 'Discovery Condensed Summary', icon: Minimize2, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
+  coverage_tracker_condensed: { name: 'Coverage (Condensed)', reportLabel: 'Coverage Condensed Summary', icon: Minimize2, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400' },
+  insight_extractor_condensed: { name: 'Insight (Condensed)', reportLabel: 'Insight Condensed Summary', icon: Minimize2, color: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20 dark:text-cyan-400' },
+  consolidator_condensed: { name: 'Consolidator (Condensed)', reportLabel: 'Consolidation Condensed Summary', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
+  synthesizer_condensed: { name: 'Synthesizer (Condensed)', reportLabel: 'Synthesis Condensed Summary', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
+  tech_evaluation_condensed: { name: 'Tech Eval (Condensed)', reportLabel: 'Tech Eval Condensed Summary', icon: Minimize2, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400' },
 }
 
 function formatDate(dateString: string | null | undefined): string {
@@ -204,7 +210,7 @@ function OutputListItem({
   onClick: () => void
 }) {
   const displayType = getDisplayAgentType(output.agent_type)
-  const config = AGENT_CONFIG[displayType] || { name: displayType, icon: FileText, color: 'text-slate-600 bg-slate-100' }
+  const config = AGENT_CONFIG[displayType] || { name: displayType, reportLabel: `${displayType} Report`, icon: FileText, color: 'text-slate-600 bg-slate-100' }
   const Icon = config.icon
 
   return (
@@ -288,7 +294,7 @@ function OutputDetail({
   const [creatingTasks, setCreatingTasks] = useState(false)
   const [createTasksResult, setCreateTasksResult] = useState<{ count: number } | null>(null)
   const displayType = getDisplayAgentType(output.agent_type)
-  const config = AGENT_CONFIG[displayType] || { name: displayType, icon: FileText, color: 'text-slate-600 bg-slate-100' }
+  const config = AGENT_CONFIG[displayType] || { name: displayType, reportLabel: `${displayType} Report`, icon: FileText, color: 'text-slate-600 bg-slate-100' }
   const Icon = config.icon
   const hasNotes = output.synthesis_mode === 'multi_pass' && output.synthesis_notes
   const isExecutiveSummary = displayType?.endsWith('_executive') || displayType?.endsWith('_condensed')
@@ -319,8 +325,8 @@ function OutputDetail({
   }
 
   const docTitle = initiativeTitle
-    ? `${initiativeTitle} - ${config.name}`
-    : output.title || config.name
+    ? `${initiativeTitle} - ${config.reportLabel}`
+    : output.title || config.reportLabel
 
   const handleDownload = () => {
     const blob = new Blob([output.content_markdown], { type: 'text/markdown' })
