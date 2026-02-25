@@ -720,7 +720,7 @@ export default function ProjectDocumentBrowser({
                   <div className="flex flex-col items-center justify-center py-12 text-slate-500 dark:text-slate-400">
                     <Folder className="w-10 h-10 mb-3 text-slate-300 dark:text-slate-600" />
                     <p>No vault folders found</p>
-                    <p className="text-sm">Sync your Obsidian vault to browse folders</p>
+                    <p className="text-sm">Sync your local vault to browse folders</p>
                   </div>
                 ) : (
                   <div className="py-2">

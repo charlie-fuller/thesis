@@ -35,7 +35,7 @@ Go to **KB** (Knowledge Base) in the navigation. Upload PDFs, Word docs, CSV, JS
 
 The system auto-classifies documents by agent relevance. Upload a security policy doc, and Guardian references it. Upload a financial analysis, and Capital pulls from it.
 
-You can also connect Google Drive, Notion, or an Obsidian vault for automatic sync.
+You can also connect Google Drive, Notion, or a local file vault for automatic sync.
 
 The agents become meaningfully better when they have your context. AI advice grounded in your actual documents, your org's language, your specific situation -- that's where the value is.
 

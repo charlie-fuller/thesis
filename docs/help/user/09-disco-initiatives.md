@@ -422,7 +422,7 @@ DISCO uses the Knowledge Base as its single source of truth for documents.
 
 **Source filter:**
 - **All Sources** - Show all documents
-- **Vault** - Obsidian synced documents
+- **Vault** - Local vault synced documents
 - **Google Drive** - Drive imports
 - **Notion** - Notion imports
 - **Uploaded** - Manually uploaded files
@@ -458,7 +458,7 @@ Instead of linking individual documents, you can link entire vault folders. All 
 - Individual document links made separately are not affected by folder operations
 - Linked folders and their document counts are shown in the Linked Folders section
 
-This is useful when your Obsidian vault is organized by topic or initiative - link the whole folder instead of picking individual files.
+This is useful when your local vault is organized by topic or initiative - link the whole folder instead of picking individual files.
 
 ---
 
@@ -489,7 +489,7 @@ When you ask the Discovery Agent to help with framing, it can propose structured
 The agent references existing throughline items and avoids duplicating them. You can iterate multiple times to build up your framing progressively.
 
 **Document save:**
-The Discovery Agent can also save documents directly to the KB during chat. When it produces a substantial artifact (framework, analysis, proposal), it saves it as a KB document linked to the initiative. You'll see a toast notification and a metadata badge on the message. Saved documents are flagged for reverse sync to your local Obsidian vault.
+The Discovery Agent can also save documents directly to the KB during chat. When it produces a substantial artifact (framework, analysis, proposal), it saves it as a KB document linked to the initiative. You'll see a toast notification and a metadata badge on the message. Saved documents are flagged for reverse sync to your local file vault.
 
 **Conversation History:**
 All conversations with discovery context are saved and can be filtered in the main chat sidebar. Select the discovery from the dropdown to see all related conversations.

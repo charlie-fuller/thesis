@@ -25,7 +25,7 @@ const processSteps: ProcessStep[] = [
     title: 'Sync',
     description: 'File synced to Thesis',
     details: [
-      'API endpoint: POST /api/obsidian/sync',
+      'API endpoint: POST /api/vault/sync',
       'File content extracted and stored',
       'Document record created in database',
       'Processing status set to "pending"'

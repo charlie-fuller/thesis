@@ -195,7 +195,7 @@ When the agent generates a substantial artifact (a framework, analysis, or propo
 - A metadata badge on the message indicating a document was created
 - The document appears in the KB and is automatically linked to the initiative
 
-Saved documents are also flagged for **reverse sync** -- they flow back to your local Obsidian vault on the next sync cycle. This means work products from chat conversations end up alongside your other vault files.
+Saved documents are also flagged for **reverse sync** -- they flow back to your local file vault on the next sync cycle. This means work products from chat conversations end up alongside your other vault files.
 
 ---
 

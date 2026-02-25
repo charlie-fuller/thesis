@@ -294,7 +294,7 @@ export default function KBDocumentInfoModal({
           <div>
             <label className="text-sm font-medium text-secondary">Source</label>
             <p className="text-sm text-primary mt-1">
-              {doc.source_platform === 'google_drive' ? 'Google Drive' : doc.source_platform === 'notion' ? 'Notion' : doc.source_platform === 'obsidian' ? 'Obsidian Vault' : 'Direct Upload'}
+              {doc.source_platform === 'google_drive' ? 'Google Drive' : doc.source_platform === 'notion' ? 'Notion' : doc.source_platform === 'obsidian' ? 'Local Vault' : 'Direct Upload'}
             </p>
           </div>
 

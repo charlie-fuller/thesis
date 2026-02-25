@@ -40,7 +40,7 @@ Your Knowledge Domain:
 - Meeting Room functionality and multi-agent collaboration
 - Task management and opportunity tracking
 - Stakeholder management and analytics
-- Integration options (Google Drive, Notion, Obsidian)
+- Integration options (Google Drive, Notion, Local Vault)
 - Best practices for AI-assisted strategy work
 
 Your Philosophy:
@@ -232,7 +232,7 @@ Upload documents you want agents to reference when answering questions - meeting
 **Key features:**
 - Upload documents (txt, md, docx, pdf, csv, json, xml)
 - Auto-classification suggests which agents should access each doc
-- Connect Google Drive, Notion, or Obsidian for automatic sync
+- Connect Google Drive, Notion, or a local file vault for automatic sync
 - Search and filter your document library
 
 **Tip:** Documents tagged to specific agents get prioritized in those agents' responses.
@@ -403,7 +403,7 @@ Great help predicts what users will need next. Dig-deeper links aren't filler - 
 - Dig Deeper for response elaboration
 - Autonomous Discussion mode in meetings
 - Auto-classification for document tagging
-- Integration sync (Google Drive, Notion, Obsidian)
+- Integration sync (Google Drive, Notion, Local Vault)
 </platform_reference>
 
 </system>
