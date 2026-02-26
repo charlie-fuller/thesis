@@ -96,6 +96,7 @@ ALLOWED_FILE_TYPES = {
     "text/csv",  # .csv
     "text/markdown",  # .md
     "text/x-markdown",  # .md (alternative MIME type)
+    "text/html",  # .html
     "application/octet-stream",  # Generic binary - allow for various file types
 }
 
@@ -107,6 +108,7 @@ ALLOWED_EXTENSIONS = {
     ".xml",
     ".csv",
     ".md",
+    ".html",
 }  # Currently supported formats
 
 # Avatar/Image upload constraints
@@ -131,6 +133,7 @@ MAGIC_MIME_MAPPINGS = {
     "text/csv": {"text/csv", "text/plain", "application/csv"},
     "text/markdown": {"text/plain", "text/markdown"},  # Markdown often detected as plain text
     "text/x-markdown": {"text/plain", "text/markdown"},
+    "text/html": {"text/html", "text/plain"},  # HTML often detected as text
     # Images
     "image/jpeg": {"image/jpeg"},
     "image/jpg": {"image/jpeg"},

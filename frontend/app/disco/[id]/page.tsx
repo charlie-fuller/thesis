@@ -596,7 +596,7 @@ export default function InitiativeDetailPage() {
           className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to discoveries
+          Back to initiatives
         </button>
 
         <div className="flex items-start justify-between gap-4">

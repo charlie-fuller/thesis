@@ -321,6 +321,7 @@ class TestFileTypeValidation:
             "ppt",
             "md",
             "rtf",
+            "html",
         }
 
         assert FILE_LIMITS.ALLOWED_EXTENSIONS == expected_extensions

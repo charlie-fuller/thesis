@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from '@/lib/api'
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, authenticatedFetch } from '@/lib/api'
 import { logger } from '@/lib/logger'
 
 interface DocumentTag {
@@ -90,6 +90,11 @@ export default function KBDocumentInfoModal({
   const [removingTag, setRemovingTag] = useState<string | null>(null)
   const [localTags, setLocalTags] = useState<DocumentTag[]>([])
 
+  // HTML preview state
+  const [showHtmlPreview, setShowHtmlPreview] = useState(false)
+  const [htmlContent, setHtmlContent] = useState<string | null>(null)
+  const [loadingHtml, setLoadingHtml] = useState(false)
+
   // Error/success
   const [error, setError] = useState<string | null>(null)
 
@@ -103,6 +108,8 @@ export default function KBDocumentInfoModal({
       setLocalTags(doc.tags || [])
       setNewTagInput('')
       setError(null)
+      setShowHtmlPreview(false)
+      setHtmlContent(null)
 
       // Load agents
       if (allAgents.length === 0) {
@@ -156,6 +163,25 @@ export default function KBDocumentInfoModal({
       }
     } catch (err) {
       logger.error('Error fetching tags:', err)
+    }
+  }
+
+  const isHtmlDoc = doc?.filename?.toLowerCase().endsWith('.html')
+
+  async function loadHtmlPreview() {
+    if (!doc?.storage_url) return
+    setLoadingHtml(true)
+    try {
+      const res = await fetch(doc.storage_url)
+      if (res.ok) {
+        const text = await res.text()
+        setHtmlContent(text)
+        setShowHtmlPreview(true)
+      }
+    } catch (err) {
+      logger.error('Failed to load HTML preview:', err)
+    } finally {
+      setLoadingHtml(false)
     }
   }
 
@@ -261,7 +287,7 @@ export default function KBDocumentInfoModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-card rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className={`bg-card rounded-lg shadow-xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto ${showHtmlPreview ? 'max-w-5xl' : 'max-w-lg'}`} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="heading-3">Document Information</h3>
           <button
@@ -346,6 +372,58 @@ export default function KBDocumentInfoModal({
             <div>
               <label className="text-sm font-medium text-secondary">Vault Path</label>
               <p className="text-sm text-primary mt-1 font-mono">{doc.obsidian_file_path}</p>
+            </div>
+          )}
+
+          {/* HTML Preview Section */}
+          {isHtmlDoc && doc?.storage_url && (
+            <div className="border-t border-default pt-3 mt-3">
+              {!showHtmlPreview ? (
+                <button
+                  onClick={loadHtmlPreview}
+                  disabled={loadingHtml}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
+                >
+                  {loadingHtml ? (
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                  Preview HTML
+                </button>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-secondary">Preview</label>
+                    <button
+                      onClick={() => { setShowHtmlPreview(false); setHtmlContent(null) }}
+                      className="text-xs text-muted hover:text-primary transition-colors"
+                    >
+                      Close preview
+                    </button>
+                  </div>
+                  <div className="border border-default rounded-lg overflow-hidden h-[500px]">
+                    {htmlContent ? (
+                      <iframe
+                        srcDoc={htmlContent}
+                        sandbox="allow-scripts allow-same-origin"
+                        className="w-full h-full border-0"
+                        title={doc.filename}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-sm text-muted">
+                        Failed to load preview
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

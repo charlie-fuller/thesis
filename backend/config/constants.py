@@ -172,6 +172,7 @@ class FileLimits:
             # Other
             "md",
             "rtf",
+            "html",
         }
     )
 
@@ -195,6 +196,7 @@ class FileLimits:
                     "ppt": "application/vnd.ms-powerpoint",
                     "md": "text/markdown",
                     "rtf": "application/rtf",
+                    "html": "text/html",
                 },
             )
 
