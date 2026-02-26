@@ -80,30 +80,32 @@
       display: flex; align-items: flex-start; gap: 0.75rem; padding: 1rem 1.25rem;
       background: var(--gray-50); border: 2px solid var(--gray-200); border-radius: 0.75rem;
       cursor: pointer; transition: all 0.2s ease; text-align: left; width: 100%;
-      border-left: 4px solid var(--gray-300);
     }
     .option-btn:hover {
       border-color: var(--primary); border-left-color: var(--primary);
       background: var(--bg-card, white); transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(99,102,241,0.15);
     }
-    .option-btn.type-continue { border-left-color: var(--success); }
-    .option-btn.type-stop { border-left-color: var(--danger); }
-    .option-btn.type-review { border-left-color: var(--warning); }
+    .option-btn.type-continue, .option-btn.type-stop, .option-btn.type-review { }
 
     .option-content { flex: 1; }
     .option-title { font-weight: 600; color: var(--gray-800); margin-bottom: 0.15rem; font-size: 0.95rem; }
     .option-desc { font-size: 0.8rem; color: var(--gray-600); line-height: 1.4; }
 
     .info-box {
-      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.5rem;
-      padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.8rem;
+      background: transparent; border: 1px dashed var(--info); border-radius: 0.5rem;
+      padding: 0.75rem 1rem; margin-bottom: 1.5rem; font-size: 0.8rem; color: var(--gray-600);
     }
-    .info-box.warning { background: #fef3c7; border-color: #fcd34d; }
-    .info-box.danger { background: #fee2e2; border-color: #fca5a5; }
-    .info-box h4 { font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; }
-    .info-box ul { margin-left: 1.25rem; color: var(--gray-700); font-size: 0.8rem; }
-    .info-box p { color: var(--gray-700); margin-top: 0.35rem; }
+    .info-box.warning { border-color: var(--warning); }
+    .info-box.danger { border-color: var(--danger); }
+    .info-box h4 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--info); }
+    .info-box ul { margin-left: 1.25rem; color: var(--gray-600); font-size: 0.8rem; }
+    .info-box p { color: var(--gray-600); margin-top: 0.35rem; }
+
+    .options-label {
+      font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.75px;
+      color: var(--primary); margin-bottom: 0.5rem;
+    }
 
     .result-card {
       background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
@@ -170,9 +172,9 @@
       box-shadow: 0 4px 12px rgba(99,102,241,0.25);
     }
     html.dark .progress-step { background: var(--bg-card, #111111); border-color: var(--gray-200); }
-    html.dark .info-box { background: var(--gray-100); border-color: var(--gray-300); }
-    html.dark .info-box.warning { background: var(--gray-100); border-color: var(--gray-300); }
-    html.dark .info-box.danger { background: var(--gray-100); border-color: var(--gray-300); }
+    html.dark .info-box { background: transparent; border-color: #3b82f680; }
+    html.dark .info-box.warning { background: transparent; border-color: var(--gray-300); }
+    html.dark .info-box.danger { background: transparent; border-color: var(--gray-300); }
     html.dark .nav-buttons { border-top-color: var(--gray-200); }
     html.dark .btn-outline { color: var(--gray-700); }
     html.dark .btn-white { background: var(--gray-100); color: var(--gray-700); }
@@ -1058,6 +1060,7 @@
         html += '</ul></div>';
       }
 
+      html += '<div class="options-label">Choose one</div>';
       html += '<div class="options-grid">';
       visibleOptions.forEach(function(opt) {
         var typeClass = opt.type ? ' type-' + opt.type : '';
