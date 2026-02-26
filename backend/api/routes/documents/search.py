@@ -567,18 +567,30 @@ async def get_documents_by_folder(
 async def get_obsidian_folders(current_user: dict = Depends(get_current_user)):
     """Get unique Obsidian folder paths for the current user with document counts."""
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("obsidian_file_path")
-            .eq("source_platform", "obsidian")
-            .eq("uploaded_by", current_user["id"])
-            .not_.is_("obsidian_file_path", "null")
-            .execute()
-        )
+        # Fetch all documents - Supabase defaults to 1000 row limit,
+        # so we need to paginate to get complete folder tree
+        all_docs = []
+        page_size = 1000
+        offset = 0
+        while True:
+            page = await asyncio.to_thread(
+                lambda off=offset: supabase.table("documents")
+                .select("obsidian_file_path")
+                .eq("source_platform", "obsidian")
+                .eq("uploaded_by", current_user["id"])
+                .not_.is_("obsidian_file_path", "null")
+                .range(off, off + page_size - 1)
+                .execute()
+            )
+            rows = page.data or []
+            all_docs.extend(rows)
+            if len(rows) < page_size:
+                break
+            offset += page_size
 
         folders = set()
         folder_counts: Counter = Counter()
-        for doc in result.data or []:
+        for doc in all_docs:
             path = doc.get("obsidian_file_path", "")
             if path and "/" in path:
                 if "github" in path.lower():
