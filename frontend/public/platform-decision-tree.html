@@ -22,11 +22,7 @@
       --gray-900: #111827;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
@@ -36,523 +32,151 @@
       line-height: 1.5;
     }
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 2rem;
-    }
+    .container { max-width: 800px; margin: 0 auto; padding: 2rem; }
 
-    header {
-      text-align: center;
-      margin-bottom: 3rem;
-    }
-
-    h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      color: var(--gray-900);
-      margin-bottom: 0.5rem;
-    }
-
-    .subtitle {
-      color: var(--gray-600);
-      font-size: 1rem;
-    }
-
-    .version {
-      color: var(--gray-600);
-      font-size: 0.75rem;
-      margin-top: 0.25rem;
-    }
-
-    .instructions {
-      color: var(--gray-600);
-      font-size: 0.875rem;
-      max-width: 540px;
-      margin: 0.75rem auto 0;
-      line-height: 1.5;
-    }
+    header { text-align: center; margin-bottom: 2.5rem; }
+    h1 { font-size: 1.75rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.25rem; }
+    .subtitle { color: var(--gray-600); font-size: 0.9rem; }
+    .version { color: var(--gray-600); font-size: 0.7rem; margin-top: 0.25rem; }
 
     .progress-bar {
-      display: flex;
-      justify-content: center;
-      gap: 0.5rem;
-      margin: 2rem 0;
-      flex-wrap: wrap;
+      display: flex; justify-content: center; gap: 0.5rem; margin: 1.5rem 0; flex-wrap: wrap;
     }
-
     .progress-step {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 1rem;
-      background: var(--bg-card, white);
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: var(--gray-600);
-      border: 1px solid var(--gray-200);
+      display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem;
+      background: var(--bg-card, white); border-radius: 9999px; font-size: 0.7rem;
+      font-weight: 500; color: var(--gray-600); border: 1px solid var(--gray-200);
       transition: all 0.3s ease;
     }
-
-    .progress-step.active {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
-
-    .progress-step.completed {
-      background: var(--success);
-      color: white;
-      border-color: var(--success);
-    }
-
+    .progress-step.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .progress-step.completed { background: var(--success); color: white; border-color: var(--success); }
     .progress-step .step-number {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: currentColor;
-      color: inherit;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.7rem;
+      width: 18px; height: 18px; border-radius: 50%; background: currentColor;
+      display: flex; align-items: center; justify-content: center; font-size: 0.65rem;
     }
-
     .progress-step.active .step-number,
-    .progress-step.completed .step-number {
-      background: rgba(255,255,255,0.3);
-    }
+    .progress-step.completed .step-number { background: rgba(255,255,255,0.3); }
 
     .decision-card {
-      background: var(--bg-card, white);
-      border-radius: 1rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      padding: 2rem;
-      margin-bottom: 1.5rem;
-      animation: slideIn 0.3s ease;
+      background: var(--bg-card, white); border-radius: 1rem;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      padding: 2rem; margin-bottom: 1.5rem; animation: slideIn 0.3s ease;
     }
-
     @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .stage-badge {
-      display: inline-block;
-      padding: 0.25rem 0.75rem;
-      background: var(--primary-light);
-      color: white;
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
+      display: inline-block; padding: 0.2rem 0.6rem; background: var(--primary-light);
+      color: white; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; margin-bottom: 0.75rem;
     }
 
-    .question {
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--gray-900);
-      margin-bottom: 1.5rem;
-    }
+    .question { font-size: 1.15rem; font-weight: 600; color: var(--gray-900); margin-bottom: 1.25rem; }
 
-    .options-grid {
-      display: grid;
-      gap: 1rem;
-    }
+    .options-grid { display: grid; gap: 0.75rem; }
 
     .option-btn {
-      display: flex;
-      align-items: flex-start;
-      gap: 1rem;
-      padding: 1.25rem;
-      background: var(--gray-50);
-      border: 2px solid var(--gray-200);
-      border-radius: 0.75rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: left;
-      width: 100%;
+      display: flex; align-items: flex-start; gap: 0.75rem; padding: 1rem 1.25rem;
+      background: var(--gray-50); border: 2px solid var(--gray-200); border-radius: 0.75rem;
+      cursor: pointer; transition: all 0.2s ease; text-align: left; width: 100%;
+      border-left: 4px solid var(--gray-300);
     }
-
     .option-btn:hover {
-      border-color: var(--primary);
-      background: var(--bg-card, white);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+      border-color: var(--primary); border-left-color: var(--primary);
+      background: var(--bg-card, white); transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(99,102,241,0.15);
     }
+    .option-btn.type-continue { border-left-color: var(--success); }
+    .option-btn.type-stop { border-left-color: var(--danger); }
+    .option-btn.type-review { border-left-color: var(--warning); }
 
-    .option-btn.selected {
-      border-color: var(--primary);
-      background: rgba(99, 102, 241, 0.05);
-    }
-
-    .option-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 0.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.25rem;
-      flex-shrink: 0;
-    }
-
-    .option-icon.glean { background: #e0f2fe; }
-    .option-icon.google { background: #fef3c7; }
-    .option-icon.gemini { background: #dbeafe; }
-    .option-icon.notebooklm { background: #fef9c3; }
-    .option-icon.custom { background: #f3e8ff; }
-    .option-icon.claude { background: #fce7f3; }
-    .option-icon.mulesoft { background: #ddd6fe; }
-    .option-icon.yes { background: #d1fae5; }
-    .option-icon.no { background: #fee2e2; }
-    .option-icon.maybe { background: #fef3c7; }
-
-    .option-content {
-      flex: 1;
-    }
-
-    .option-title {
-      font-weight: 600;
-      color: var(--gray-800);
-      margin-bottom: 0.25rem;
-    }
-
-    .option-desc {
-      font-size: 0.875rem;
-      color: var(--gray-600);
-    }
+    .option-content { flex: 1; }
+    .option-title { font-weight: 600; color: var(--gray-800); margin-bottom: 0.15rem; font-size: 0.95rem; }
+    .option-desc { font-size: 0.8rem; color: var(--gray-600); line-height: 1.4; }
 
     .info-box {
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      border-radius: 0.5rem;
-      padding: 1rem;
-      margin-top: 1.5rem;
+      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.5rem;
+      padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.8rem;
     }
-
-    .info-box.warning {
-      background: #fef3c7;
-      border-color: #fcd34d;
-    }
-
-    .info-box.danger {
-      background: #fee2e2;
-      border-color: #fca5a5;
-    }
-
-    .info-box h4 {
-      font-size: 0.875rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .info-box ul {
-      font-size: 0.875rem;
-      margin-left: 1.5rem;
-      color: var(--gray-700);
-    }
-
-    .info-box p {
-      font-size: 0.875rem;
-      color: var(--gray-700);
-      margin-top: 0.5rem;
-    }
+    .info-box.warning { background: #fef3c7; border-color: #fcd34d; }
+    .info-box.danger { background: #fee2e2; border-color: #fca5a5; }
+    .info-box h4 { font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; }
+    .info-box ul { margin-left: 1.25rem; color: var(--gray-700); font-size: 0.8rem; }
+    .info-box p { color: var(--gray-700); margin-top: 0.35rem; }
 
     .result-card {
       background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-      color: white;
-      border-radius: 1rem;
-      padding: 2rem;
-      text-align: center;
-      animation: slideIn 0.3s ease;
+      color: white; border-radius: 1rem; padding: 2rem; animation: slideIn 0.3s ease;
     }
+    .result-card.stop { background: linear-gradient(135deg, var(--danger) 0%, #f87171 100%); }
+    .result-card.review { background: linear-gradient(135deg, var(--warning) 0%, #fbbf24 100%); }
 
-    .result-card.stop {
-      background: linear-gradient(135deg, var(--danger) 0%, #f87171 100%);
-    }
-
-    .result-card.review {
-      background: linear-gradient(135deg, var(--warning) 0%, #fbbf24 100%);
-    }
-
-    .result-icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
-
-    .result-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-
-    .result-desc {
-      opacity: 0.9;
-      margin-bottom: 1.5rem;
-    }
+    .result-header { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; margin-bottom: 0.5rem; }
+    .result-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .result-desc { opacity: 0.9; margin-bottom: 1.25rem; font-size: 0.9rem; }
 
     .result-details {
-      background: rgba(255,255,255,0.2);
-      border-radius: 0.5rem;
-      padding: 1rem;
-      text-align: left;
-      margin-bottom: 1.5rem;
+      background: rgba(255,255,255,0.2); border-radius: 0.5rem;
+      padding: 1rem; text-align: left; margin-bottom: 1rem;
     }
-
-    .result-details h4 {
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-
-    .result-details ul {
-      margin-left: 1.25rem;
-      font-size: 0.875rem;
-    }
+    .result-details h4 { font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem; }
+    .result-details ul { margin-left: 1.25rem; font-size: 0.8rem; }
+    .result-details li { margin-bottom: 0.25rem; }
 
     .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.75rem 1.5rem;
-      border-radius: 0.5rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border: none;
-      font-size: 0.875rem;
+      display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem;
+      border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+      border: none; font-size: 0.8rem;
     }
-
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: var(--primary-light);
-    }
-
-    .btn-white {
-      background: var(--bg-card, white);
-      color: var(--gray-800);
-    }
-
-    .btn-white:hover {
-      background: var(--gray-100);
-    }
-
-    .btn-outline {
-      background: transparent;
-      border: 2px solid currentColor;
-    }
+    .btn-white { background: var(--bg-card, white); color: var(--gray-800); }
+    .btn-white:hover { background: var(--gray-100); }
+    .btn-outline { background: transparent; border: 2px solid currentColor; }
 
     .nav-buttons {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 1.5rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--gray-200);
+      display: flex; justify-content: space-between; margin-top: 1.25rem;
+      padding-top: 1.25rem; border-top: 1px solid var(--gray-200);
     }
 
-    .decision-path {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
-    }
-
+    .decision-path { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
     .path-item {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      font-size: 0.75rem;
-      color: var(--gray-600);
+      display: flex; align-items: center; gap: 0.25rem; font-size: 0.7rem; color: var(--gray-600);
     }
+    .path-item::after { content: '\2192'; margin-left: 0.4rem; color: var(--gray-400); }
+    .path-item:last-child::after { display: none; }
+    .path-item strong { color: var(--gray-800); }
 
-    .path-item::after {
-      content: '\2192';
-      margin-left: 0.5rem;
-      color: var(--gray-400);
-    }
-
-    .path-item:last-child::after {
-      display: none;
-    }
-
-    .path-item strong {
-      color: var(--gray-800);
-    }
-
-    .checklist {
-      margin-top: 1.5rem;
-    }
-
-    .checklist-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-      padding: 0.75rem;
-      background: var(--gray-50);
-      border-radius: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .checklist-item input {
-      margin-top: 0.25rem;
-    }
-
-    .platform-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-      margin-top: 1rem;
-    }
-
-    .platform-card {
-      background: var(--gray-50);
-      border: 1px solid var(--gray-200);
-      border-radius: 0.75rem;
-      padding: 1rem;
-      text-align: center;
-    }
-
-    .platform-card h4 {
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-
-    .platform-card p {
-      font-size: 0.75rem;
-      color: var(--gray-600);
-    }
-
-    .hidden {
-      display: none !important;
-    }
+    .hidden { display: none !important; }
 
     @media (max-width: 640px) {
-      .container {
-        padding: 1rem;
-      }
-
-      .progress-bar {
-        gap: 0.25rem;
-      }
-
-      .progress-step {
-        padding: 0.35rem 0.5rem;
-        font-size: 0.65rem;
-      }
-
-      .progress-step .step-label {
-        display: none;
-      }
+      .container { padding: 1rem; }
+      .progress-bar { gap: 0.25rem; }
+      .progress-step { padding: 0.3rem 0.5rem; font-size: 0.6rem; }
+      .progress-step .step-label { display: none; }
     }
 
-    /* Dark mode overrides */
     html.dark {
-      --gray-50: #0a0a0a;
-      --gray-100: #111111;
-      --gray-200: #27272a;
-      --gray-300: #3f3f46;
-      --gray-600: #d4d4d8;
-      --gray-700: #e4e4e7;
-      --gray-800: #f4f4f5;
-      --gray-900: #ffffff;
+      --gray-50: #0a0a0a; --gray-100: #111111; --gray-200: #27272a; --gray-300: #3f3f46;
+      --gray-600: #d4d4d8; --gray-700: #e4e4e7; --gray-800: #f4f4f5; --gray-900: #ffffff;
     }
-
-    html.dark body {
-      background: var(--bg-page, #0a0a0a);
-      color: var(--gray-900);
-    }
-
+    html.dark body { background: var(--bg-page, #0a0a0a); color: var(--gray-900); }
     html.dark .decision-card {
       background: var(--bg-card, #111111);
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3), 0 2px 4px -1px rgba(0,0,0,0.2);
     }
-
-    html.dark .option-btn {
-      background: var(--gray-100);
-      border-color: var(--gray-200);
-    }
-
+    html.dark .option-btn { background: var(--gray-100); border-color: var(--gray-200); }
     html.dark .option-btn:hover {
-      background: var(--bg-card, #111111);
-      border-color: var(--primary);
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+      background: var(--bg-card, #111111); border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(99,102,241,0.25);
     }
-
-    html.dark .option-btn.selected {
-      background: rgba(99, 102, 241, 0.1);
-    }
-
-    html.dark .progress-step {
-      background: var(--bg-card, #111111);
-      border-color: var(--gray-200);
-      color: var(--gray-600);
-    }
-
-    html.dark .info-box {
-      background: var(--gray-100);
-      border-color: var(--gray-300);
-    }
-
-    html.dark .info-box.warning {
-      background: var(--gray-100);
-      border-color: var(--gray-300);
-    }
-
-    html.dark .info-box.danger {
-      background: var(--gray-100);
-      border-color: var(--gray-300);
-    }
-
-    html.dark .nav-buttons {
-      border-top-color: var(--gray-200);
-    }
-
-    html.dark .btn-outline {
-      color: var(--gray-700);
-    }
-
-    html.dark .btn-white {
-      background: var(--gray-100);
-      color: var(--gray-700);
-    }
-
-    html.dark .btn-white:hover {
-      background: var(--gray-200);
-    }
-
-    html.dark .checklist-item {
-      background: var(--gray-100);
-    }
-
-    html.dark .platform-card {
-      background: var(--gray-100);
-      border-color: var(--gray-200);
-    }
-
-    html.dark .option-icon.glean { background: #0e2a33; }
-    html.dark .option-icon.google { background: #2d2009; }
-    html.dark .option-icon.gemini { background: #1e2a4a; }
-    html.dark .option-icon.notebooklm { background: #2d2a09; }
-    html.dark .option-icon.custom { background: #1e1633; }
-    html.dark .option-icon.claude { background: #2d121e; }
-    html.dark .option-icon.mulesoft { background: #1a1533; }
-    html.dark .option-icon.yes { background: #0e261a; }
-    html.dark .option-icon.no { background: #2d1219; }
-    html.dark .option-icon.maybe { background: #2d2009; }
+    html.dark .progress-step { background: var(--bg-card, #111111); border-color: var(--gray-200); }
+    html.dark .info-box { background: var(--gray-100); border-color: var(--gray-300); }
+    html.dark .info-box.warning { background: var(--gray-100); border-color: var(--gray-300); }
+    html.dark .info-box.danger { background: var(--gray-100); border-color: var(--gray-300); }
+    html.dark .nav-buttons { border-top-color: var(--gray-200); }
+    html.dark .btn-outline { color: var(--gray-700); }
+    html.dark .btn-white { background: var(--gray-100); color: var(--gray-700); }
+    html.dark .btn-white:hover { background: var(--gray-200); }
   </style>
 </head>
 <body>
@@ -638,42 +262,29 @@
   } catch (e) {}
 })();
 </script>
+
   <div class="container">
     <header>
       <h1>AI Platform Selection</h1>
-      <p class="subtitle">Decision Tree for Contentful AI Governance</p>
-      <p class="version">v2.0 - Updated Feb 13, 2026</p>
-      <p class="instructions">Click through each stage below to answer questions about your use case. The tree will recommend the right AI platform based on your selections.</p>
+      <p class="subtitle">Find the right AI platform for your use case</p>
+      <p class="version">v4.0 -- Feb 25, 2026</p>
     </header>
 
     <div class="progress-bar">
       <div class="progress-step active" data-stage="1">
-        <span class="step-number">1</span>
-        <span class="step-label">Validation</span>
+        <span class="step-number">1</span><span class="step-label">Use Case</span>
       </div>
       <div class="progress-step" data-stage="2">
-        <span class="step-number">2</span>
-        <span class="step-label">Data</span>
+        <span class="step-number">2</span><span class="step-label">Scope</span>
       </div>
       <div class="progress-step" data-stage="3">
-        <span class="step-number">3</span>
-        <span class="step-label">Access</span>
+        <span class="step-number">3</span><span class="step-label">Compliance</span>
       </div>
       <div class="progress-step" data-stage="4">
-        <span class="step-number">4</span>
-        <span class="step-label">Complexity</span>
+        <span class="step-number">4</span><span class="step-label">Platform</span>
       </div>
       <div class="progress-step" data-stage="5">
-        <span class="step-number">5</span>
-        <span class="step-label">Governance</span>
-      </div>
-      <div class="progress-step" data-stage="6">
-        <span class="step-number">6</span>
-        <span class="step-label">Compliance</span>
-      </div>
-      <div class="progress-step" data-stage="7">
-        <span class="step-number">7</span>
-        <span class="step-label">Result</span>
+        <span class="step-number">5</span><span class="step-label">Result</span>
       </div>
     </div>
 
@@ -681,992 +292,752 @@
   </div>
 
   <script>
+    // ── Platform reference data ──────────────────────────────────────
+    const platformInfo = {
+      glean: {
+        name: "Glean",
+        why: "Your data is in Glean-connected systems and fits within its context window. Glean provides permission-aware search across your company's knowledge base.",
+        capabilities: [
+          "Permission-aware search across 15+ connected systems",
+          "91% monthly active adoption at Contentful",
+          "128K token context (~300 pages per query)",
+          "German Works Council approved (May 2025)"
+        ],
+        limitations: [
+          "4,000 token output limit per response",
+          "Cannot process .md, .zip files, or video content",
+          "No system integration or write-back capabilities"
+        ],
+        opsModel: "Platform managed by Glean -- minimal maintenance required"
+      },
+      gemini: {
+        name: "Gemini",
+        why: "Your use case requires large context analysis or direct work with Google Workspace files. Gemini handles up to 2M tokens and 2GB file uploads.",
+        capabilities: [
+          "2M token context window (~5,000 pages)",
+          "Upload and analyze files up to 2GB, videos up to 2 hours",
+          "Direct integration with Google Drive, Docs, Sheets",
+          "German Works Council approved, included in enterprise license"
+        ],
+        limitations: [
+          "Less precise than Claude for complex multi-step reasoning",
+          "Limited to Google Workspace ecosystem for write actions"
+        ],
+        opsModel: "Platform managed by Google Workspace -- minimal maintenance required"
+      },
+      gems: {
+        name: "Gems (Shared Agents)",
+        why: "You need a reusable, shareable team assistant that can take actions within Google Workspace apps.",
+        capabilities: [
+          "Shareable team-level agents with persistent instructions",
+          "Can edit Google Docs, Sheets, and manage Calendar",
+          "Available to all Google Workspace Enterprise users",
+          "German Works Council approved"
+        ],
+        limitations: [
+          "Limited to Google Workspace actions",
+          "Cannot access external APIs or non-Google systems"
+        ],
+        opsModel: "Platform managed by Google Workspace -- agent configuration maintained by team"
+      },
+      notebooklm: {
+        name: "NotebookLM",
+        why: "You need to analyze uploaded documents or generate SOPs and structured summaries from content including video.",
+        capabilities: [
+          "SOP generation from video content",
+          "Document analysis with citation tracking",
+          "Visual summary and slide generation",
+          "German Works Council approved, included in enterprise license"
+        ],
+        limitations: [
+          "Works with uploaded content only, not live system connections",
+          "Not suited for real-time or frequently changing data"
+        ],
+        opsModel: "Platform managed by Google -- no maintenance required"
+      },
+      claude: {
+        name: "Claude",
+        why: "Your use case requires deep, multi-step reasoning on complex content that benefits from Claude's superior analytical capabilities.",
+        capabilities: [
+          "200K token context window (~500 pages)",
+          "Superior complex reasoning and analysis",
+          "Strong at synthesis across multiple documents",
+          "Projects feature for persistent context"
+        ],
+        limitations: [
+          "NOT approved for German employees (Works Council process required)",
+          "Requires enterprise license (proposed 5-10 seats for stakeholders)",
+          "Not suitable for company-wide (500+) deployment at current licensing"
+        ],
+        opsModel: "Individual licenses -- each user manages their own usage"
+      },
+      mulesoft: {
+        name: "MuleSoft Agent Fabric",
+        why: "Your integration requires enterprise-grade governance with SOC compliance, audit trails, and trace IDs.",
+        capabilities: [
+          "Enterprise MCP hosting with trace IDs and request logging",
+          "SOC 2 Type 2 compliance built in",
+          "Policy enforcement and governance layer",
+          "Already used internally by Business Platforms team"
+        ],
+        limitations: [
+          "Cloud 2.0 contract pending (2-month trial starting Feb 2026)",
+          "Requires partnership with Business Platforms team",
+          "Higher setup complexity than direct API integration"
+        ],
+        opsModel: "Jointly managed -- MuleSoft handles infrastructure, your team handles configuration"
+      },
+      custom: {
+        name: "Custom Build",
+        why: "Your use case requires direct API integration or custom logic that existing platforms cannot provide out of the box.",
+        capabilities: [
+          "Full flexibility in design and implementation",
+          "Can integrate any system with an API",
+          "Custom UX tailored to specific workflows"
+        ],
+        limitations: [
+          "Requires a dedicated builder/maintainer",
+          "Must implement own logging, governance, and monitoring",
+          "Higher ongoing maintenance burden"
+        ],
+        opsModel: "Builder-maintained -- requires dedicated owner with ongoing commitment"
+      },
+      custom_governed: {
+        name: "Custom Build with Governance",
+        why: "You need custom integration but want to maintain enterprise governance standards using your own logging infrastructure.",
+        capabilities: [
+          "Direct API integration with full control",
+          "Custom governance via CloudWatch, Splunk, or similar",
+          "Can match MuleSoft-level auditability with more effort"
+        ],
+        limitations: [
+          "Governance infrastructure must be built and maintained by your team",
+          "Requires dedicated builder with DevOps capabilities",
+          "More effort than using MuleSoft's built-in governance"
+        ],
+        opsModel: "Builder-maintained -- requires owner with DevOps and governance expertise"
+      },
+      custom_chunk: {
+        name: "Custom Build with Chunking",
+        why: "Your content exceeds platform context limits and requires a custom document processing pipeline.",
+        capabilities: [
+          "Process documents of any size via chunking strategies",
+          "Can combine multiple AI providers for different processing stages",
+          "Full control over chunking, embedding, and retrieval logic"
+        ],
+        limitations: [
+          "Significant engineering effort to build and tune",
+          "Requires expertise in RAG (Retrieval Augmented Generation) patterns",
+          "Ongoing maintenance for pipeline health and quality"
+        ],
+        opsModel: "Builder-maintained -- requires ML/AI engineering expertise"
+      },
+      custom_orchestration: {
+        name: "Custom Orchestration",
+        why: "Your use case requires pulling and combining data from systems not connected to Glean, requiring custom integration logic.",
+        capabilities: [
+          "Connect any systems with APIs",
+          "Custom data transformation and combination logic",
+          "Purpose-built for your specific multi-source workflow"
+        ],
+        limitations: [
+          "Requires integration with each data source individually",
+          "Higher maintenance as source systems change",
+          "Must build own data pipeline monitoring"
+        ],
+        opsModel: "Builder-maintained -- requires owner familiar with all connected systems"
+      },
+      glean_action: {
+        name: "Glean with Custom Actions",
+        why: "Your integration is a single API call that can be triggered directly from Glean's search interface.",
+        capabilities: [
+          "API actions triggered from Glean agent interface",
+          "Combines Glean's search with targeted external actions",
+          "Examples: create Confluence page, file Jira ticket, update CRM",
+          "Leverages existing Glean adoption (91% MAU)"
+        ],
+        limitations: [
+          "Limited to single API calls per action",
+          "No complex multi-step workflows",
+          "Action configuration managed via Glean admin"
+        ],
+        opsModel: "Platform managed -- Glean handles infrastructure, actions configured by admin"
+      },
+      glean_mcp: {
+        name: "Glean + MCP Integration",
+        why: "Most of your data is searchable in Glean, but you also need to trigger actions in external systems.",
+        capabilities: [
+          "Glean as the primary search and knowledge hub",
+          "MCP servers for external system actions (read/write)",
+          "Combines broad search with targeted integrations",
+          "Design MCPs per use case, not as 1:1 API replacements"
+        ],
+        limitations: [
+          "MCP server development and hosting required",
+          "Consider MuleSoft Agent Fabric for governed MCP hosting",
+          "Each MCP server adds a maintenance surface"
+        ],
+        opsModel: "Hybrid -- Glean is platform-managed, MCP servers are builder-maintained"
+      }
+    };
+
+    // ── Decision tree ────────────────────────────────────────────────
     const decisionTree = {
+
+      // ── Stage 1: Use Case ──
       start: {
         stage: 1,
-        question: "Is AI the right solution for this problem?",
+        question: "What best describes your situation?",
         info: {
-          title: "Red flags suggesting AI is NOT right:",
+          title: "Think about these factors:",
           items: [
-            "Fewer than 10 uses per week",
-            '"Close enough" is not acceptable',
-            "Regulatory compliance requires human sign-off",
-            "Small volume, high stakes decisions",
-            "Data access is the hard part, not the analysis"
+            "How often will this be used? (daily vs. occasional)",
+            "Is directional accuracy acceptable, or must outputs be exact?",
+            "What happens if the AI gives an incorrect answer?"
           ]
         },
         options: [
           {
-            id: "yes",
-            title: "Yes",
-            desc: "High volume, pattern recognition, summarization, or classification task",
-            icon: "yes",
-            emoji: "\u2713",
-            next: "data_type"
+            id: "high_volume",
+            title: "High volume, repetitive tasks",
+            desc: "Processing many similar items: summarizing documents, classifying tickets, answering repeated questions, or finding patterns across data.",
+            type: "continue",
+            next: "access_scope"
           },
           {
-            id: "no",
-            title: "No",
-            desc: "Low volume, high stakes, requires accountability, or real-time accuracy critical",
-            icon: "no",
-            emoji: "\u2715",
+            id: "high_stakes",
+            title: "Low volume, high-stakes decisions",
+            desc: "A small number of critical items where 'close enough' is not acceptable. Requires full accountability, audit trails, or regulatory sign-off.",
+            type: "stop",
             next: "stop_not_ai"
           },
           {
-            id: "maybe",
-            title: "Maybe / Unsure",
-            desc: "Mixed signals or unclear requirements",
-            icon: "maybe",
-            emoji: "?",
+            id: "exploring",
+            title: "Exploring or evaluating",
+            desc: "Assessing whether AI could improve a process. Requirements are not fully defined yet.",
+            type: "review",
             next: "stop_discuss"
           }
         ]
       },
 
-      data_type: {
+      // ── Stage 2: Scope ──
+      access_scope: {
         stage: 2,
-        question: "What data does this solution need?",
+        question: "How many people will use this solution?",
+        options: [
+          {
+            id: "everyone",
+            title: "The entire company",
+            desc: "500+ employees need access to this solution.",
+            type: "continue",
+            next: "sensitivity_check"
+          },
+          {
+            id: "team",
+            title: "A specific department or team",
+            desc: "10-100 people in a defined group.",
+            type: "continue",
+            next: "sensitivity_check"
+          },
+          {
+            id: "individual",
+            title: "Individual use",
+            desc: "1-5 people for personal productivity.",
+            type: "continue",
+            next: "sensitivity_check"
+          }
+        ]
+      },
+
+      // ── Stage 3: Compliance ──
+      sensitivity_check: {
+        stage: 3,
+        question: "Will this solution process any of the following types of data?",
+        info: {
+          title: "High-sensitivity data includes:",
+          items: [
+            "Employee personal data (PII, salary, performance reviews)",
+            "Customer PII (personal contact info, usage data beyond aggregated metrics)",
+            "Financial records (revenue recognition, pricing, contracts)",
+            "Legal documents (contracts, litigation, regulatory filings)"
+          ]
+        },
+        options: [
+          {
+            id: "high",
+            title: "Yes -- the solution will handle data in these categories",
+            desc: "Any of the above types of sensitive data will be processed by the AI.",
+            type: "stop",
+            next: "stop_legal_review"
+          },
+          {
+            id: "low",
+            title: "No -- only internal documentation, public info, or aggregated data",
+            desc: "Policies, wikis, public information, customer account names, or other non-sensitive content.",
+            type: "continue",
+            next: "data_type"
+          }
+        ]
+      },
+
+      // ── Stage 4: Data & Platform Selection ──
+      data_type: {
+        stage: 4,
+        question: "What does this solution need to work with?",
         options: [
           {
             id: "company_docs",
-            title: "Company Documents Only",
-            desc: "Policies, wikis, Confluence, Google Docs, Notion",
-            icon: "glean",
-            emoji: "\uD83D\uDCC4",
+            title: "Search across company systems",
+            desc: "Find and synthesize information from Confluence, Google Drive, Slack, Jira, Salesforce, GitHub, and other internal tools.",
+            type: "continue",
             next: "glean_check"
           },
           {
             id: "google_data",
-            title: "Google Workspace Data",
-            desc: "Gmail, Calendar, Sheets, Slides, Drive files",
-            icon: "gemini",
-            emoji: "\uD83D\uDCE7",
-            next: "google_tools"
+            title: "Create or edit within Google Workspace",
+            desc: "Write to Docs, edit Sheets, manage Calendar, or take actions within Google apps.",
+            type: "continue",
+            next: "google_needs"
           },
           {
             id: "external_systems",
-            title: "External Systems",
-            desc: "Salesforce, NetSuite, Jira, custom APIs",
-            icon: "custom",
-            emoji: "\uD83D\uDD0C",
+            title: "Connect to external business systems",
+            desc: "Integrate with Salesforce, NetSuite, Jira, or other systems via their APIs.",
+            type: "continue",
             next: "external_check"
           },
           {
             id: "large_files",
-            title: "Large Files / Video / Code",
-            desc: "Videos over 20MB, large codebases, 2GB+ files",
-            icon: "gemini",
-            emoji: "\uD83C\uDFAC",
-            next: "large_context"
+            title: "Analyze large files, long videos, or large codebases",
+            desc: "Work with content that exceeds typical document sizes: 2GB files, 2-hour videos, or extensive code repositories.",
+            type: "continue",
+            next: "large_needs"
           },
           {
             id: "multiple",
-            title: "Multiple Sources",
-            desc: "Combination of the above",
-            icon: "custom",
-            emoji: "\uD83D\uDD04",
-            next: "multiple_sources"
+            title: "Combine data from multiple sources",
+            desc: "Pull information from several different systems and synthesize it together.",
+            type: "continue",
+            next: "multi_check"
           }
         ]
       },
 
+      // ── Company Docs sub-tree ──
       glean_check: {
-        stage: 2,
-        question: "Are all required data sources connected to Glean?",
+        stage: 4,
+        question: "Are all the data sources you need searchable in Glean?",
         info: {
-          title: "Currently connected to Glean:",
+          title: "Currently connected to Glean at Contentful:",
           items: [
-            "Google Drive (6M+ items)",
-            "Confluence, Notion, Slack",
-            "GitHub (Oct 2025)",
-            "Chorus (custom connector built by Raza/Steffen)"
-          ],
-          type: "info"
+            "Confluence, Jira, Google Drive (6M+ items), Gmail, Miro, Salesforce, Slack, Asana, Zendesk, Zoom",
+            "Google Calendar, GitHub, Chorus (custom connector)",
+            "Public web: Contentful.com, Developer Docs",
+            "In progress: Tableau, PagerDuty, Gainsight, Outreach, Loopio, Docusign, Coupa"
+          ]
         },
         options: [
           {
             id: "yes",
-            title: "Yes, all sources connected",
-            desc: "Data is available in Glean",
-            icon: "yes",
-            emoji: "\u2713",
-            next: "context_check"
+            title: "Yes, everything I need is connected",
+            desc: "All my data sources are in the list above.",
+            type: "continue",
+            next: "context_fit"
           },
           {
-            id: "build_connector",
-            title: "No, but connector could be built",
-            desc: "Source has an API - custom Glean connector is feasible (Chorus template exists)",
-            icon: "maybe",
-            emoji: "\uD83D\uDD27",
+            id: "build",
+            title: "Not yet, but the source has an API",
+            desc: "A custom connector could potentially be built to bring this data into Glean.",
+            type: "review",
             next: "stop_connector"
           },
           {
-            id: "no",
-            title: "No, and no API available",
-            desc: "Data source cannot be connected to Glean",
-            icon: "no",
-            emoji: "\u2715",
+            id: "no_api",
+            title: "No, and there is no way to connect it",
+            desc: "The data source has no API and cannot be integrated.",
+            type: "stop",
             next: "stop_no_api"
           }
         ]
       },
 
-      context_check: {
-        stage: 2,
-        question: "Will the required context fit in 128K tokens?",
+      context_fit: {
+        stage: 4,
+        question: "How much content does your solution need to process at once?",
         info: {
-          title: "Context guidelines:",
+          title: "Context size reference:",
           items: [
-            "Glean: 128K tokens (~300 pages of text)",
-            "Gemini: 2M tokens (~5,000 pages) - 15x larger",
-            "Claude: 200K tokens (~500 pages)",
-            "Glean output limit: 4,000 tokens per response",
-            "Glean cannot handle .md files, .zip files, or videos"
+            "~300 pages of text = 128K tokens (Glean's limit)",
+            "If you need to analyze broader sets or unsupported file types (.md, .zip, video), a larger-context platform may be needed"
           ]
         },
         options: [
           {
-            id: "yes",
-            title: "Yes, context is manageable",
-            desc: "Focused document set, specific queries, standard file types",
-            icon: "yes",
-            emoji: "\u2713",
-            next: "user_access"
+            id: "fits",
+            title: "A focused set of documents and specific queries",
+            desc: "Standard documents, targeted questions -- well within a few hundred pages.",
+            type: "continue",
+            next: "rec_glean"
           },
           {
-            id: "no",
-            title: "No, need larger context",
-            desc: "Very large documents, videos, code, or broad analysis",
-            icon: "no",
-            emoji: "\u2715",
-            next: "large_context"
+            id: "too_large",
+            title: "A large volume, broad analysis, or unsupported file types",
+            desc: "Extensive document sets, video content, .md or .zip files, or analysis across thousands of pages.",
+            type: "continue",
+            next: "large_needs"
           }
         ]
       },
 
-      google_tools: {
-        stage: 2,
-        question: "Which Google Workspace AI tool fits your need?",
-        info: {
-          title: "Available via Google Workspace Enterprise license (German Works Council approved):",
-          items: [
-            "Gemini: 2M token context, 2GB file uploads, Google Drive integration",
-            "Gems: Shareable team-level agents with Google Workspace actions (edit Docs, Sheets, etc.)",
-            "NotebookLM: Document analysis, SOP generation from video, slide creation",
-            "All included in existing enterprise license - no additional cost"
-          ]
-        },
+      // ── Google Workspace sub-tree ──
+      google_needs: {
+        stage: 4,
+        question: "What do you need to do in Google Workspace?",
         options: [
           {
-            id: "gemini",
-            title: "Gemini",
-            desc: "Large context analysis, code review, Google Drive file analysis",
-            icon: "gemini",
-            emoji: "\u2728",
-            next: "user_access"
+            id: "analyze",
+            title: "Analyze large documents or files in Google Drive",
+            desc: "Review, summarize, or extract insights from files already stored in Drive.",
+            type: "continue",
+            next: "rec_gemini"
           },
           {
-            id: "gems",
-            title: "Gems (Shared Agents)",
-            desc: "Shareable team agents with Google Workspace actions",
-            icon: "gemini",
-            emoji: "\uD83D\uDC8E",
-            next: "user_access"
+            id: "team_agent",
+            title: "Build a shareable team assistant",
+            desc: "Create a reusable assistant that can edit Docs, update Sheets, or manage Calendar for your team.",
+            type: "continue",
+            next: "rec_gems"
           },
           {
-            id: "notebooklm",
-            title: "NotebookLM",
-            desc: "SOP from video, document analysis, visual summaries",
-            icon: "notebooklm",
-            emoji: "\uD83D\uDCD3",
-            next: "user_access"
+            id: "sop_docs",
+            title: "Generate SOPs or structured analysis from documents and video",
+            desc: "Create standard operating procedures, summaries, or visual analysis from uploaded content.",
+            type: "continue",
+            next: "rec_notebooklm"
           },
           {
-            id: "not_google",
-            title: "Google tools don't fit",
-            desc: "Need something beyond Google Workspace capabilities",
-            icon: "no",
-            emoji: "\u2715",
+            id: "none",
+            title: "None of these match what I need",
+            desc: "My requirements go beyond what Google Workspace AI tools can do.",
+            type: "continue",
             next: "external_check"
           }
         ]
       },
 
+      // ── External Systems sub-tree ──
       external_check: {
-        stage: 2,
-        question: "Does the external system have an API?",
+        stage: 4,
+        question: "Does the external system have an API, and what level of governance do you need?",
         info: {
-          title: "Integration options:",
+          title: "Consider your governance requirements:",
           items: [
-            "MuleSoft Agent Fabric: Enterprise MCP hosting with governance (POC in progress)",
-            "Glean Custom Actions: API calls triggered from Glean agents (e.g., create Confluence page)",
-            "Custom Build: Direct API integration with custom code",
-            "Design MCPs per use case, not as 1:1 API replacements"
+            "SOC compliance, audit trails, and trace IDs = enterprise governance",
+            "Internal team use with basic logging = standard governance",
+            "A single triggered action (e.g., create a Jira ticket from search) = Glean Action"
           ]
         },
         options: [
           {
-            id: "yes_governed",
-            title: "Yes, and governance is critical",
-            desc: "SOC compliance, audit trails, trace IDs needed (e.g., NetSuite, Salesforce)",
-            icon: "mulesoft",
-            emoji: "\uD83D\uDD12",
-            next: "mulesoft_path"
+            id: "governed",
+            title: "Yes, API available -- enterprise governance required",
+            desc: "The integration needs SOC compliance, audit trails, trace IDs, or regulatory oversight.",
+            type: "continue",
+            next: "mulesoft_choice"
           },
           {
-            id: "yes_simple",
-            title: "Yes, simple integration",
-            desc: "Low-risk action, internal use, straightforward API call",
-            icon: "yes",
-            emoji: "\u2713",
-            next: "user_access"
+            id: "simple",
+            title: "Yes, API available -- standard internal use",
+            desc: "A straightforward integration for internal team use with basic logging.",
+            type: "continue",
+            next: "rec_custom"
           },
           {
             id: "glean_action",
-            title: "Yes, could be a Glean Action",
-            desc: "Single API call triggered from Glean (e.g., create wiki page, Jira ticket)",
-            icon: "glean",
-            emoji: "\u26A1",
-            next: "user_access"
+            title: "Yes, API available -- single action from search",
+            desc: "A single API call triggered from a search result (e.g., create a wiki page, file a ticket).",
+            type: "continue",
+            next: "rec_glean_action"
           },
           {
             id: "no_api",
             title: "No API available",
-            desc: "Manual process or data export needed",
-            icon: "no",
-            emoji: "\u2715",
+            desc: "The system has no API and cannot be integrated programmatically.",
+            type: "stop",
             next: "stop_no_api"
           }
         ]
       },
 
-      mulesoft_path: {
-        stage: 2,
-        question: "MuleSoft Agent Fabric for governed integrations",
+      mulesoft_choice: {
+        stage: 4,
+        question: "How do you want to handle the governed integration?",
         info: {
-          title: "MuleSoft Agent Fabric capabilities:",
+          title: "Two approaches to enterprise governance:",
           items: [
-            "Enterprise MCP hosting with trace IDs and request logging",
-            "SOC 2 Type 2 compliance built in",
-            "Policy enforcement and governance layer",
-            "Already used internally by Business Platforms team",
-            "Cloud 2.0 contract pending (2-month trial starting Feb 2026)",
-            "POC demo targeted for Feb 20-28, 2026"
-          ],
-          type: "warning"
+            "MuleSoft Agent Fabric provides built-in SOC compliance, trace IDs, and policy enforcement",
+            "A custom build with CloudWatch/Splunk can achieve similar governance but requires more effort to build and maintain"
+          ]
         },
         options: [
           {
-            id: "proceed_mulesoft",
-            title: "Proceed with MuleSoft",
-            desc: "Use case requires enterprise governance (revenue recognition, contract data, etc.)",
-            icon: "mulesoft",
-            emoji: "\u2713",
-            next: "user_access"
+            id: "mulesoft",
+            title: "Use an enterprise integration platform",
+            desc: "Built-in compliance, trace IDs, and policy enforcement managed by the platform.",
+            type: "continue",
+            next: "rec_mulesoft"
           },
           {
-            id: "custom_alternative",
-            title: "Custom build with logging",
-            desc: "Can achieve governance with CloudWatch/Splunk (but must maintain ourselves)",
-            icon: "custom",
-            emoji: "\uD83D\uDD27",
-            next: "user_access"
+            id: "custom_gov",
+            title: "Build custom with own governance infrastructure",
+            desc: "Implement governance using your own logging and monitoring tools.",
+            type: "continue",
+            next: "rec_custom_governed"
           }
         ]
       },
 
-      multiple_sources: {
-        stage: 2,
-        question: "Are all sources available in Glean?",
+      // ── Large Files sub-tree ──
+      large_needs: {
+        stage: 4,
+        question: "What best describes your large-content need?",
+        // Options are dynamically filtered based on access_scope
+        options: [
+          {
+            id: "huge_files",
+            title: "Analyze very large files (up to 2GB) or long videos (up to 2 hours)",
+            desc: "The primary challenge is file size or video length. Needs a platform with massive upload capacity.",
+            type: "continue",
+            next: "rec_gemini"
+          },
+          {
+            id: "sop_video",
+            title: "Generate SOPs from video or create structured document summaries",
+            desc: "Turn video content into standard operating procedures, or create cited visual summaries.",
+            type: "continue",
+            next: "rec_notebooklm"
+          },
+          {
+            id: "deep_reasoning",
+            title: "Deep multi-step reasoning on complex, dense content",
+            desc: "The content requires careful analysis, synthesis across sections, and nuanced interpretation.",
+            type: "continue",
+            next: "claude_german_check",
+            requiresFilter: true
+          },
+          {
+            id: "custom_pipeline",
+            title: "Process large document sets through a custom pipeline",
+            desc: "Need to chunk, embed, and retrieve from a large corpus with custom logic.",
+            type: "continue",
+            next: "rec_custom_chunk"
+          }
+        ]
+      },
+
+      // ── Claude gate ──
+      claude_german_check: {
+        stage: 4,
+        question: "Will any German-based employees use this solution?",
+        info: {
+          title: "Why this matters:",
+          items: [
+            "The platform best suited for deep reasoning has not yet been approved by the German Works Council",
+            "If German employees will use this, an alternative platform or Works Council approval process is required"
+          ]
+        },
+        options: [
+          {
+            id: "yes_german",
+            title: "Yes, German-based employees will use this",
+            desc: "The solution needs to be accessible to staff in Germany.",
+            type: "stop",
+            next: "stop_works_council"
+          },
+          {
+            id: "no_german",
+            title: "No, only employees outside Germany",
+            desc: "No German-based staff will access or use this solution.",
+            type: "continue",
+            next: "rec_claude"
+          }
+        ]
+      },
+
+      // ── Multiple Sources sub-tree ──
+      multi_check: {
+        stage: 4,
+        question: "Are all the sources you need available in Glean?",
+        info: {
+          title: "Glean indexes 15+ systems. If most data is there:",
+          items: [
+            "Glean alone may handle multi-source synthesis",
+            "Glean + external actions (MCP) can combine search with system writes",
+            "If key sources are outside Glean, a custom integration may be needed"
+          ]
+        },
         options: [
           {
             id: "all_glean",
-            title: "Yes, all in Glean",
-            desc: "Glean may work for multi-source queries",
-            icon: "glean",
-            emoji: "\u2713",
-            next: "user_access"
+            title: "Yes, all sources are in Glean",
+            desc: "Everything I need to combine is already searchable in Glean.",
+            type: "continue",
+            next: "rec_glean"
           },
           {
-            id: "glean_plus_mcp",
-            title: "Glean + external via MCP",
-            desc: "Use Glean as information hub, MCP for external system actions",
-            icon: "mulesoft",
-            emoji: "\uD83D\uDD04",
-            next: "user_access"
+            id: "glean_plus",
+            title: "Most are in Glean, but I also need to trigger external actions",
+            desc: "Search is covered by Glean, but I also need to write to or trigger actions in other systems.",
+            type: "continue",
+            next: "rec_glean_mcp"
           },
           {
-            id: "needs_orchestration",
-            title: "Needs custom orchestration",
-            desc: "Custom build required for data integration across systems",
-            icon: "custom",
-            emoji: "\uD83D\uDD27",
-            next: "user_access"
+            id: "custom_needed",
+            title: "Key sources are not in Glean",
+            desc: "I need to pull from systems that are not connected to Glean.",
+            type: "continue",
+            next: "rec_custom_orchestration"
           }
         ]
       },
 
-      large_context: {
-        stage: 2,
-        question: "Large context or file size needs",
-        info: {
-          title: "Platform context comparison:",
-          items: [
-            "Gemini: 2M tokens, up to 2GB files, 2-hour videos - German approved",
-            "Claude: 200K tokens, strong complex reasoning - NOT German approved",
-            "Glean: 128K tokens, no .md/.zip/video support",
-            "NotebookLM: Great for SOP generation from video content"
-          ]
-        },
-        options: [
-          {
-            id: "gemini",
-            title: "Gemini (Recommended)",
-            desc: "2M token context, 2GB files, already approved via Google Workspace Enterprise",
-            icon: "gemini",
-            emoji: "\u2728",
-            next: "user_access"
-          },
-          {
-            id: "notebooklm",
-            title: "NotebookLM",
-            desc: "Best for SOP from video, document analysis, visual output",
-            icon: "notebooklm",
-            emoji: "\uD83D\uDCD3",
-            next: "user_access"
-          },
-          {
-            id: "claude",
-            title: "Claude",
-            desc: "200K tokens, superior reasoning - requires license and German approval",
-            icon: "claude",
-            emoji: "\uD83E\uDDE0",
-            next: "user_access"
-          },
-          {
-            id: "chunk",
-            title: "Custom with chunking",
-            desc: "Build custom solution with document chunking strategy",
-            icon: "custom",
-            emoji: "\uD83D\uDD27",
-            next: "user_access"
-          }
-        ]
-      },
+      // ── Recommendation terminals ──
+      rec_glean:               { stage: 5, type: "result", platform: "glean" },
+      rec_gemini:              { stage: 5, type: "result", platform: "gemini" },
+      rec_gems:                { stage: 5, type: "result", platform: "gems" },
+      rec_notebooklm:          { stage: 5, type: "result", platform: "notebooklm" },
+      rec_claude:              { stage: 5, type: "result", platform: "claude" },
+      rec_mulesoft:            { stage: 5, type: "result", platform: "mulesoft" },
+      rec_custom:              { stage: 5, type: "result", platform: "custom" },
+      rec_custom_governed:     { stage: 5, type: "result", platform: "custom_governed" },
+      rec_custom_chunk:        { stage: 5, type: "result", platform: "custom_chunk" },
+      rec_custom_orchestration:{ stage: 5, type: "result", platform: "custom_orchestration" },
+      rec_glean_action:        { stage: 5, type: "result", platform: "glean_action" },
+      rec_glean_mcp:           { stage: 5, type: "result", platform: "glean_mcp" },
 
-      user_access: {
-        stage: 3,
-        question: "Who needs to access this solution?",
-        options: [
-          {
-            id: "everyone",
-            title: "Everyone in Company",
-            desc: "500+ users, company-wide deployment",
-            icon: "glean",
-            emoji: "\uD83C\uDFE2",
-            next: "company_wide"
-          },
-          {
-            id: "team",
-            title: "Department / Team",
-            desc: "10-100 users, specific team use",
-            icon: "gemini",
-            emoji: "\uD83D\uDC65",
-            next: "team_access"
-          },
-          {
-            id: "individual",
-            title: "Individual Power User",
-            desc: "1-5 users, personal productivity",
-            icon: "custom",
-            emoji: "\uD83D\uDC64",
-            next: "individual_access"
-          }
-        ]
-      },
-
-      company_wide: {
-        stage: 3,
-        question: "Company-wide solutions must use platforms everyone has access to.",
-        info: {
-          title: "Available company-wide platforms:",
-          items: [
-            "Glean - 91% monthly active adoption, German approved",
-            "Gemini/Gems - Available via Google Workspace Enterprise, German approved",
-            "Custom apps require deployment justification and governance review"
-          ]
-        },
-        options: [
-          {
-            id: "glean",
-            title: "Use Glean",
-            desc: "If Glean can do it, Glean should do it - everyone has access",
-            icon: "glean",
-            emoji: "\u2B50",
-            next: "complexity"
-          },
-          {
-            id: "gemini",
-            title: "Use Gemini / Gems",
-            desc: "Large context needs, Google Workspace actions, or shareable agents",
-            icon: "gemini",
-            emoji: "\u2728",
-            next: "complexity"
-          },
-          {
-            id: "custom_justified",
-            title: "Custom App (with justification)",
-            desc: "Higher bar: must justify why not Glean or Gemini",
-            icon: "custom",
-            emoji: "\uD83D\uDD27",
-            next: "stop_justify_custom"
-          }
-        ]
-      },
-
-      team_access: {
-        stage: 3,
-        question: "Team deployment has more flexibility.",
-        info: {
-          title: "Hub-and-spoke governance model:",
-          items: [
-            "Central team sets standards (security, compliance, data handling)",
-            "Teams have flexibility to choose approved platforms",
-            "Team-level choices must still align with central governance standards",
-            "Process lead required for any team-deployed solution"
-          ]
-        },
-        options: [
-          {
-            id: "glean",
-            title: "Glean",
-            desc: "Still good default - everyone has it, permission-aware",
-            icon: "glean",
-            emoji: "\u2B50",
-            next: "complexity"
-          },
-          {
-            id: "gems",
-            title: "Gemini / Gems",
-            desc: "Shareable team agents with Google Workspace actions",
-            icon: "gemini",
-            emoji: "\uD83D\uDC8E",
-            next: "complexity"
-          },
-          {
-            id: "notebooklm",
-            title: "NotebookLM",
-            desc: "Document research, SOP generation, visual analysis",
-            icon: "notebooklm",
-            emoji: "\uD83D\uDCD3",
-            next: "complexity"
-          },
-          {
-            id: "claude_team",
-            title: "Claude (with license)",
-            desc: "Complex reasoning, shared projects - requires enterprise license",
-            icon: "claude",
-            emoji: "\uD83E\uDDE0",
-            next: "complexity"
-          },
-          {
-            id: "custom",
-            title: "Custom App",
-            desc: "Specific UX or integration needs - requires owner commitment",
-            icon: "custom",
-            emoji: "\uD83D\uDD27",
-            next: "complexity"
-          }
-        ]
-      },
-
-      individual_access: {
-        stage: 3,
-        question: "Individual use has the broadest options.",
-        info: {
-          title: "Consider future scaling:",
-          items: [
-            "Even for individual use, consider if others might need it later",
-            "Document your solution for potential handoff",
-            "Experimentation with unapproved tools requires a request ticket"
-          ]
-        },
-        options: [
-          {
-            id: "glean",
-            title: "Glean",
-            desc: "Standard Q&A, document lookup, knowledge retrieval",
-            icon: "glean",
-            emoji: "\u2B50",
-            next: "complexity"
-          },
-          {
-            id: "gemini",
-            title: "Gemini",
-            desc: "Large context analysis, code review, Google Drive files",
-            icon: "gemini",
-            emoji: "\u2728",
-            next: "complexity"
-          },
-          {
-            id: "claude",
-            title: "Claude Desktop",
-            desc: "Complex reasoning, large context - 5-10 licenses proposed",
-            icon: "claude",
-            emoji: "\uD83E\uDDE0",
-            next: "complexity"
-          },
-          {
-            id: "notebooklm",
-            title: "NotebookLM",
-            desc: "Document analysis, audio summaries, SOP from video",
-            icon: "notebooklm",
-            emoji: "\uD83D\uDCD3",
-            next: "complexity"
-          }
-        ]
-      },
-
-      complexity: {
-        stage: 4,
-        question: "What's the task complexity?",
-        options: [
-          {
-            id: "simple",
-            title: "Simple Q&A",
-            desc: "Single question, factual lookup, information retrieval",
-            icon: "glean",
-            emoji: "\u2753",
-            next: "governance_eval"
-          },
-          {
-            id: "guided",
-            title: "Guided Workflow",
-            desc: "Multiple prompts, structured output, step-by-step process",
-            icon: "glean",
-            emoji: "\uD83D\uDCCB",
-            next: "governance_eval"
-          },
-          {
-            id: "multi_step",
-            title: "Multi-step Reasoning",
-            desc: "Analysis, synthesis, comparison across documents",
-            icon: "claude",
-            emoji: "\uD83E\uDDE0",
-            next: "governance_eval"
-          },
-          {
-            id: "integration",
-            title: "System Integration / Actions",
-            desc: "Trigger actions, update data, write to external systems",
-            icon: "mulesoft",
-            emoji: "\u2699\uFE0F",
-            next: "governance_eval"
-          }
-        ]
-      },
-
-      governance_eval: {
-        stage: 5,
-        question: "Evaluate against governance criteria",
-        info: {
-          title: "Five governance evaluation criteria (assess each for your platform):",
-          items: [
-            "Reliability: Does the platform have uptime guarantees? Can you trust consistent output quality?",
-            "Governance: Is there an admin console, user management, and policy enforcement?",
-            "Traceability: Can you trace inputs to outputs? Are there correlation/trace IDs?",
-            "Auditability: Are all interactions logged? Can you produce audit reports for SOC compliance?",
-            "Fault Tolerance: What happens when the AI fails? Is there a fallback or graceful degradation?"
-          ]
-        },
-        options: [
-          {
-            id: "high_governance",
-            title: "High Governance Needed",
-            desc: "SOC compliance, audit trails, regulatory requirements",
-            icon: "mulesoft",
-            emoji: "\uD83D\uDD12",
-            next: "operations"
-          },
-          {
-            id: "medium_governance",
-            title: "Standard Governance",
-            desc: "Internal use, team-level accountability, basic logging",
-            icon: "maybe",
-            emoji: "\u2696\uFE0F",
-            next: "operations"
-          },
-          {
-            id: "low_governance",
-            title: "Minimal Governance",
-            desc: "Individual productivity, no external impact, experimental",
-            icon: "yes",
-            emoji: "\u2713",
-            next: "operations"
-          }
-        ]
-      },
-
-      operations: {
-        stage: 5,
-        question: "What happens when this solution breaks?",
-        options: [
-          {
-            id: "builder",
-            title: "Builder Maintains",
-            desc: "Owner handles issues, updates, and ongoing maintenance",
-            icon: "yes",
-            emoji: "\uD83D\uDC64",
-            next: "builder_check"
-          },
-          {
-            id: "platform_managed",
-            title: "Platform Managed",
-            desc: "Glean, Gemini, or MuleSoft handles infrastructure - we maintain config",
-            icon: "maybe",
-            emoji: "\uD83C\uDFE2",
-            next: "security"
-          },
-          {
-            id: "mission_critical",
-            title: "Mission Critical",
-            desc: "Requires SLA and escalation path - additional governance review",
-            icon: "no",
-            emoji: "\uD83D\uDEA8",
-            next: "stop_governance"
-          }
-        ]
-      },
-
-      builder_check: {
-        stage: 5,
-        question: "Builder Availability Check",
-        info: {
-          title: "Required commitments:",
-          items: [
-            "Time for weekly health checks",
-            "6+ month company tenure (or backup owner identified)",
-            "24-hour response time for issues",
-            "Solution documentation for handoff",
-            "Must use approved platforms - no shadow IT deployments"
-          ]
-        },
-        options: [
-          {
-            id: "confirmed",
-            title: "All Confirmed",
-            desc: "Builder meets all availability requirements",
-            icon: "yes",
-            emoji: "\u2713",
-            next: "security"
-          },
-          {
-            id: "backup_needed",
-            title: "Backup Owner Needed",
-            desc: "Builder leaving soon or limited availability",
-            icon: "maybe",
-            emoji: "\u26A0\uFE0F",
-            next: "stop_backup"
-          },
-          {
-            id: "not_available",
-            title: "Can't Meet Requirements",
-            desc: "Need different owner or support model",
-            icon: "no",
-            emoji: "\u2715",
-            next: "stop_find_owner"
-          }
-        ]
-      },
-
-      security: {
-        stage: 6,
-        question: "Data Sensitivity Assessment",
-        info: {
-          title: "Data classification guideline:",
-          items: [
-            "All Glean output: classify as '1-Yellow - internal only'",
-            "Gemini data stays within Google Workspace Enterprise agreement",
-            "Never expose internal data via unauthenticated URLs",
-            "No password-only external sharing (use proper authentication)"
-          ]
-        },
-        options: [
-          {
-            id: "low",
-            title: "Low - Public/Internal Docs",
-            desc: "Policies, wikis, public information",
-            icon: "yes",
-            emoji: "\uD83D\uDFE2",
-            next: "german_check"
-          },
-          {
-            id: "medium",
-            title: "Medium - Customer Names/Accounts",
-            desc: "Customer-facing but not PII",
-            icon: "maybe",
-            emoji: "\uD83D\uDFE1",
-            next: "german_check"
-          },
-          {
-            id: "high",
-            title: "High - PII/Financial/Legal",
-            desc: "Employee PII, customer PII, financial, contracts",
-            icon: "no",
-            emoji: "\uD83D\uDD34",
-            next: "stop_legal_review"
-          }
-        ]
-      },
-
-      german_check: {
-        stage: 6,
-        question: "Will German employees use this solution?",
-        info: {
-          title: "German Works Council Status (Jan 2026 Framework):",
-          items: [
-            "Glean: Approved (May 2025)",
-            "Gemini / Google Workspace AI: Approved (Enterprise agreement)",
-            "NotebookLM: Approved (part of Google Workspace)",
-            "Claude: NOT approved for German employees",
-            "MuleSoft: Approved (existing enterprise contract)",
-            "New tools: Faster approval path with Jan 2026 framework"
-          ]
-        },
-        options: [
-          {
-            id: "no_german",
-            title: "No German Users",
-            desc: "No Works Council review needed",
-            icon: "yes",
-            emoji: "\u2713",
-            next: "recommendation"
-          },
-          {
-            id: "approved_tool",
-            title: "Yes, Using Approved Tool",
-            desc: "Glean, Gemini, NotebookLM, or MuleSoft - already approved",
-            icon: "yes",
-            emoji: "\u2713",
-            next: "recommendation"
-          },
-          {
-            id: "new_tool",
-            title: "Yes, Unapproved Tool",
-            desc: "Claude or other new tool requires Works Council process",
-            icon: "maybe",
-            emoji: "\u26A0\uFE0F",
-            next: "stop_works_council"
-          }
-        ]
-      },
-
-      recommendation: {
-        stage: 7,
-        type: "result",
-        title: "Platform Recommendation",
-        icon: "\uD83C\uDFAF",
-        desc: "Based on your answers, here's your recommended path:",
-        result: "platform_matrix"
-      },
-
-      // STOP nodes
+      // ── Stop / Review terminals ──
       stop_not_ai: {
-        stage: 1,
-        type: "stop",
-        title: "AI Not Recommended",
-        icon: "\u26D4",
-        desc: "Consider rules-based automation or human process instead.",
+        stage: 1, type: "stop",
+        title: "AI is not the right fit for this use case",
+        desc: "Low-volume, high-stakes work that requires full accountability is better served by human processes or rules-based automation.",
         details: {
-          title: "Next steps:",
+          title: "Recommended next steps:",
           items: [
-            "Document the specific requirement",
-            "Explore traditional automation (workflow tools, scripts)",
-            "Consider human process with better tooling",
-            "Revisit if volume increases significantly"
+            "Document the specific requirement and why AI was considered",
+            "Explore traditional automation (workflow tools, scripts, rules engines)",
+            "Consider human process improvements with better tooling",
+            "Revisit if the volume increases significantly or accuracy requirements relax"
           ]
         }
       },
 
       stop_discuss: {
-        stage: 1,
-        type: "review",
-        title: "Discuss with Governance",
-        icon: "\uD83D\uDCAC",
-        desc: "Mixed signals suggest this needs team discussion.",
+        stage: 1, type: "review",
+        title: "Discuss with the governance team",
+        desc: "When requirements are unclear, a conversation with the governance team can help define the use case and evaluate options.",
         details: {
-          title: "Bring to governance team:",
+          title: "Prepare for the conversation:",
           items: [
-            "Document the use case clearly",
-            "List the signals for and against AI",
-            "Identify the key decision criteria",
-            "Schedule review with Steffen/Raza"
-          ]
-        }
-      },
-
-      stop_connector: {
-        stage: 2,
-        type: "review",
-        title: "Evaluate Glean Connector Options",
-        icon: "\uD83D\uDD0C",
-        desc: "Required data source not connected to Glean, but integration may be possible.",
-        details: {
-          title: "Options to evaluate:",
-          items: [
-            "Build custom Glean connector (Chorus connector template exists as reference)",
-            "Build connector that ingests from source MCP server into Glean",
-            "Check Glean Connector Tracking page in Confluence",
-            "Provide clear use case to justify connector build (Danny requires this)",
-            "Contact Steffen's team for connector feasibility assessment",
-            "Consider Glean's own MCP server for external tool access"
-          ]
-        }
-      },
-
-      stop_no_api: {
-        stage: 2,
-        type: "stop",
-        title: "No Integration Path",
-        icon: "\u26D4",
-        desc: "External system has no API available.",
-        details: {
-          title: "Alternatives:",
-          items: [
-            "Manual data export to connected system",
-            "Request API from vendor",
-            "Consider different data source",
-            "CSV upload to Glean via custom connector",
-            "Document limitation for future planning"
-          ]
-        }
-      },
-
-      stop_justify_custom: {
-        stage: 3,
-        type: "review",
-        title: "Custom App Requires Justification",
-        icon: "\uD83D\uDCDD",
-        desc: "Company-wide custom apps need clear business case.",
-        details: {
-          title: "Required for approval:",
-          items: [
-            "Why Glean and Gemini cannot meet the need",
-            "ROI justification",
-            "Maintenance commitment and process lead identified",
-            "Governance team approval",
-            "Must use proper authentication (no password-only external access)",
-            "Register with IT - no shadow IT deployments",
-            "Experimentation request ticket if exploring new tools (< 1 month, no cost)"
-          ]
-        }
-      },
-
-      stop_governance: {
-        stage: 5,
-        type: "review",
-        title: "Additional Governance Review",
-        icon: "\uD83D\uDEA8",
-        desc: "Mission-critical solutions need extra scrutiny against all five governance criteria.",
-        details: {
-          title: "Required evaluation:",
-          items: [
-            "Reliability: Define uptime requirements and SLA",
-            "Governance: Confirm admin controls and user management",
-            "Traceability: Ensure trace IDs and input-to-output tracking",
-            "Auditability: Verify logging for SOC compliance audit reports",
-            "Fault Tolerance: Document fallback and graceful degradation plan",
-            "Establish escalation path and backup systems",
-            "Schedule governance review with Raza/Steffen"
-          ]
-        }
-      },
-
-      stop_backup: {
-        stage: 5,
-        type: "review",
-        title: "Identify Backup Owner",
-        icon: "\uD83D\uDC65",
-        desc: "Primary builder needs a backup owner identified now.",
-        details: {
-          title: "Before proceeding:",
-          items: [
-            "Identify backup owner with required skills",
-            "Document handoff procedures",
-            "Schedule knowledge transfer",
-            "Update ownership registry"
-          ]
-        }
-      },
-
-      stop_find_owner: {
-        stage: 5,
-        type: "stop",
-        title: "Find Different Owner",
-        icon: "\u26D4",
-        desc: "Current builder cannot meet maintenance requirements.",
-        details: {
-          title: "Options:",
-          items: [
-            "Find different owner with bandwidth",
-            "Reduce solution scope to match availability",
-            "Consider platform-managed solution (Glean/Gemini) instead of custom build",
-            "Defer project until owner available"
+            "Document the use case clearly: what problem, for whom, how often",
+            "List what you know and what you are uncertain about",
+            "Identify the key decision criteria (accuracy, speed, cost, compliance)",
+            "Schedule a review with Steffen or Raza"
           ]
         }
       },
 
       stop_legal_review: {
-        stage: 6,
-        type: "review",
-        title: "Legal Review Required",
-        icon: "\u2696\uFE0F",
-        desc: "High-sensitivity data requires Legal and Governance approval.",
+        stage: 3, type: "review",
+        title: "Legal review required before proceeding",
+        desc: "Any AI solution processing high-sensitivity data must be reviewed by Legal and Governance before platform selection.",
         details: {
-          title: "Legal review triggered by:",
+          title: "To initiate the review:",
           items: [
-            "Customer PII involved",
-            "Financial or legal data involved (revenue recognition, contracts)",
-            "External-facing output",
-            "New platform not previously approved",
-            "Contact Legal team (Matthew Fisher, Aaron Ting) to initiate review"
+            "Document what sensitive data types are involved and how they will be processed",
+            "Confirm data classification level with your team",
+            "Contact Matthew Fisher or Aaron Ting on the Legal team",
+            "Once approved, return to this tool to select a platform"
+          ]
+        }
+      },
+
+      stop_connector: {
+        stage: 4, type: "review",
+        title: "Evaluate building a Glean connector",
+        desc: "The data source you need is not connected to Glean yet, but an API exists that could enable a custom connector.",
+        details: {
+          title: "Options to evaluate:",
+          items: [
+            "Check the Glean Connector Tracking page in Confluence for status",
+            "The Chorus custom connector can serve as a build template",
+            "Provide a clear use case to justify the build (Danny requires this)",
+            "Contact Steffen's team for connector feasibility assessment",
+            "Once connected, return to this tool to continue platform selection"
+          ]
+        }
+      },
+
+      stop_no_api: {
+        stage: 4, type: "stop",
+        title: "No integration path available",
+        desc: "Without an API, there is no way to programmatically connect this data source to an AI platform.",
+        details: {
+          title: "Alternatives to consider:",
+          items: [
+            "Manual data export to a connected system (e.g., upload to Google Drive for Glean indexing)",
+            "Request API access from the vendor",
+            "Consider a different data source that is already connected",
+            "CSV upload to Glean via a custom connector",
+            "Document this limitation for future planning"
           ]
         }
       },
 
       stop_works_council: {
-        stage: 6,
-        type: "review",
-        title: "Works Council Process",
-        icon: "\uD83C\uDDE9\uD83C\uDDEA",
-        desc: "New tool for German employees requires Works Council approval.",
+        stage: 4, type: "review",
+        title: "German Works Council approval required",
+        desc: "The platform best suited for this use case has not been approved for German employees. A Works Council review is required before proceeding.",
         details: {
-          title: "Process (Jan 2026 Framework - faster path available):",
+          title: "Process (Jan 2026 Framework):",
           items: [
-            "Check if tool meets expedited criteria (no location tracking, etc.)",
-            "Submit via Works Agreements page in Confluence",
+            "Check if the tool meets expedited approval criteria (no location tracking, etc.)",
+            "Submit via the Works Agreements page in Confluence",
             "Contact Matthew Fisher or Aaron Ting for Legal support",
-            "Consider using approved alternative: Glean, Gemini, or MuleSoft",
-            "Timeline may be faster with new framework"
+            "Consider an approved alternative (Gemini handles large context and is German-approved)",
+            "The Jan 2026 framework provides a faster approval path than previous processes"
           ]
         }
       }
     };
 
-    // Track current state
+    // ── State ────────────────────────────────────────────────────────
     let currentNode = 'start';
     let history = [];
-    let selectedPlatform = null;
     let answers = {};
 
-    function renderNode(nodeId) {
-      const node = decisionTree[nodeId];
-      const container = document.getElementById('decision-container');
+    // ── Dynamic option filtering ─────────────────────────────────────
+    function getVisibleOptions(nodeId, options) {
+      if (nodeId === 'large_needs') {
+        var audience = answers.access_scope;
+        return options.filter(function(opt) {
+          // Hide deep-reasoning option for company-wide deployment
+          if (opt.id === 'deep_reasoning' && audience === 'everyone') return false;
+          return true;
+        });
+      }
+      return options;
+    }
 
-      // Update progress
+    // ── Render ───────────────────────────────────────────────────────
+    function renderNode(nodeId) {
+      var node = decisionTree[nodeId];
+      var container = document.getElementById('decision-container');
       updateProgress(node.stage);
 
-      if (node.type === 'stop' || node.type === 'review' || node.type === 'result') {
+      if (node.type === 'result') {
+        renderRecommendation(node, container);
+      } else if (node.type === 'stop' || node.type === 'review') {
         renderEndNode(node, container);
       } else {
         renderDecisionNode(node, nodeId, container);
@@ -1674,47 +1045,35 @@
     }
 
     function renderDecisionNode(node, nodeId, container) {
-      let html = `
-        <div class="decision-card">
-          <span class="stage-badge">Stage ${node.stage}</span>
-          ${history.length > 0 ? renderPath() : ''}
-          <h2 class="question">${node.question}</h2>
-      `;
+      var visibleOptions = getVisibleOptions(nodeId, node.options);
+      var html = '<div class="decision-card">';
+      html += '<span class="stage-badge">Step ' + node.stage + '</span>';
+      if (history.length > 0) html += renderPath();
+      html += '<h2 class="question">' + node.question + '</h2>';
 
       if (node.info) {
-        const infoType = node.info.type || 'info';
-        html += `
-          <div class="info-box ${infoType}">
-            <h4>${node.info.title}</h4>
-            <ul>
-              ${node.info.items.map(item => `<li>${item}</li>`).join('')}
-            </ul>
-            ${node.info.note ? `<p><em>${node.info.note}</em></p>` : ''}
-          </div>
-        `;
+        html += '<div class="info-box">';
+        html += '<h4>' + node.info.title + '</h4><ul>';
+        node.info.items.forEach(function(item) { html += '<li>' + item + '</li>'; });
+        html += '</ul></div>';
       }
 
       html += '<div class="options-grid">';
-      node.options.forEach(opt => {
-        html += `
-          <button class="option-btn" onclick="selectOption('${nodeId}', '${opt.id}', '${opt.next}')">
-            <div class="option-icon ${opt.icon}">${opt.emoji}</div>
-            <div class="option-content">
-              <div class="option-title">${opt.title}</div>
-              <div class="option-desc">${opt.desc}</div>
-            </div>
-          </button>
-        `;
+      visibleOptions.forEach(function(opt) {
+        var typeClass = opt.type ? ' type-' + opt.type : '';
+        html += '<button class="option-btn' + typeClass + '" onclick="selectOption(\'' + nodeId + '\',\'' + opt.id + '\',\'' + opt.next + '\')">';
+        html += '<div class="option-content">';
+        html += '<div class="option-title">' + opt.title + '</div>';
+        html += '<div class="option-desc">' + opt.desc + '</div>';
+        html += '</div></button>';
       });
       html += '</div>';
 
       if (history.length > 0) {
-        html += `
-          <div class="nav-buttons">
-            <button class="btn btn-outline" onclick="goBack()">\u2190 Back</button>
-            <button class="btn btn-outline" onclick="restart()">Start Over</button>
-          </div>
-        `;
+        html += '<div class="nav-buttons">';
+        html += '<button class="btn btn-outline" onclick="goBack()">Back</button>';
+        html += '<button class="btn btn-outline" onclick="restart()">Start Over</button>';
+        html += '</div>';
       }
 
       html += '</div>';
@@ -1722,200 +1081,116 @@
     }
 
     function renderEndNode(node, container) {
-      let cardClass = node.type === 'stop' ? 'stop' : (node.type === 'review' ? 'review' : '');
+      var cardClass = node.type === 'stop' ? 'stop' : 'review';
+      var label = node.type === 'stop' ? 'STOP' : 'REVIEW NEEDED';
 
-      let html = `
-        <div class="result-card ${cardClass}">
-          <div class="result-icon">${node.icon}</div>
-          <h2 class="result-title">${node.title}</h2>
-          <p class="result-desc">${node.desc}</p>
-      `;
+      var html = '<div class="result-card ' + cardClass + '">';
+      html += '<div class="result-header">' + label + '</div>';
+      html += '<h2 class="result-title">' + node.title + '</h2>';
+      html += '<p class="result-desc">' + node.desc + '</p>';
 
       if (node.details) {
-        html += `
-          <div class="result-details">
-            <h4>${node.details.title}</h4>
-            <ul>
-              ${node.details.items.map(item => `<li>${item}</li>`).join('')}
-            </ul>
-          </div>
-        `;
+        html += '<div class="result-details"><h4>' + node.details.title + '</h4><ul>';
+        node.details.items.forEach(function(item) { html += '<li>' + item + '</li>'; });
+        html += '</ul></div>';
       }
 
-      if (node.result === 'platform_matrix') {
-        html += renderPlatformRecommendation();
-      }
-
-      html += `
-        <div style="display: flex; gap: 1rem; justify-content: center;">
-          <button class="btn btn-white" onclick="goBack()">\u2190 Back</button>
-          <button class="btn btn-white" onclick="restart()">Start Over</button>
-        </div>
-      </div>
-      `;
-
+      html += '<div style="display:flex;gap:0.75rem;justify-content:center;margin-top:0.5rem">';
+      html += '<button class="btn btn-white" onclick="goBack()">Back</button>';
+      html += '<button class="btn btn-white" onclick="restart()">Start Over</button>';
+      html += '</div></div>';
       container.innerHTML = html;
     }
 
-    function renderPlatformRecommendation() {
-      let primary = 'Glean';
-      let secondary = '';
-      let notes = [];
-      let governanceNotes = [];
+    function renderRecommendation(node, container) {
+      var info = platformInfo[node.platform];
+      if (!info) return;
 
-      // Determine primary platform based on data path
-      const dataChoice = answers.data_type;
-      const contextChoice = answers.context_check;
-      const googleChoice = answers.google_tools;
-      const externalChoice = answers.external_check;
-      const mulesoftChoice = answers.mulesoft_path;
-      const largeContextChoice = answers.large_context;
-      const accessChoice = answers.user_access;
-      const companyChoice = answers.company_wide;
-      const teamChoice = answers.team_access;
-      const individualChoice = answers.individual_access;
-      const complexityChoice = answers.complexity;
-      const governanceChoice = answers.governance_eval;
+      var audience = answers.access_scope || '';
+      var warnings = [];
 
-      // Data-driven recommendations
-      if (dataChoice === 'large_files' || contextChoice === 'no') {
-        if (largeContextChoice === 'gemini') {
-          primary = 'Gemini';
-          notes.push('Large context/file needs - 2M token context, 2GB uploads');
-        } else if (largeContextChoice === 'notebooklm') {
-          primary = 'NotebookLM';
-          notes.push('Document/video analysis - SOP generation capability');
-        } else if (largeContextChoice === 'claude') {
-          primary = 'Claude';
-          notes.push('Complex reasoning needs - requires enterprise license');
-          notes.push('NOT approved for German employees');
-        } else if (largeContextChoice === 'chunk') {
-          primary = 'Custom Build';
-          notes.push('Custom document chunking strategy needed');
-        }
-      } else if (dataChoice === 'google_data') {
-        if (googleChoice === 'gemini') {
-          primary = 'Gemini';
-          notes.push('Google Workspace data analysis with 2M token context');
-        } else if (googleChoice === 'gems') {
-          primary = 'Gems (Shared Agents)';
-          notes.push('Shareable team agents with Google Workspace actions');
-        } else if (googleChoice === 'notebooklm') {
-          primary = 'NotebookLM';
-          notes.push('Document analysis and visual content generation');
-        }
-      } else if (dataChoice === 'external_systems') {
-        if (externalChoice === 'yes_governed' || mulesoftChoice === 'proceed_mulesoft') {
-          primary = 'MuleSoft Agent Fabric';
-          notes.push('Enterprise governance with trace IDs and SOC compliance');
-          notes.push('Cloud 2.0 POC in progress - demo targeted Feb 20-28');
-        } else if (externalChoice === 'glean_action') {
-          primary = 'Glean (with Custom Actions)';
-          notes.push('API call triggered from Glean agent interface');
-        } else {
-          primary = 'Custom Build';
-          notes.push('Direct API integration with custom code');
-        }
+      // Audience-specific warnings
+      if (audience === 'everyone' && (node.platform === 'custom' || node.platform === 'custom_governed' || node.platform === 'custom_chunk' || node.platform === 'custom_orchestration')) {
+        warnings.push('Company-wide custom solutions require justification: document why Glean and Gemini cannot meet this need, provide ROI analysis, and identify a committed maintenance owner.');
+      }
+      if (node.platform === 'claude') {
+        warnings.push('Claude requires enterprise licensing (proposed 5-10 seats). Not suitable for broad company-wide deployment.');
       }
 
-      // Override with complexity-driven recommendations
-      if (complexityChoice === 'integration' && primary === 'Glean') {
-        if (governanceChoice === 'high_governance') {
-          primary = 'MuleSoft Agent Fabric';
-          notes.push('System integration + high governance = enterprise MCP hosting');
-        } else {
-          primary = 'Custom Build';
-          notes.push('System integration requires custom development');
-        }
+      var html = '<div class="result-card">';
+      html += '<div class="result-header">RECOMMENDED PLATFORM</div>';
+      html += '<h2 class="result-title">' + info.name + '</h2>';
+      html += '<p class="result-desc">' + info.why + '</p>';
+
+      // Capabilities
+      html += '<div class="result-details"><h4>Key Capabilities</h4><ul>';
+      info.capabilities.forEach(function(c) { html += '<li>' + c + '</li>'; });
+      html += '</ul></div>';
+
+      // Limitations
+      html += '<div class="result-details"><h4>Limitations</h4><ul>';
+      info.limitations.forEach(function(l) { html += '<li>' + l + '</li>'; });
+      html += '</ul></div>';
+
+      // Warnings
+      if (warnings.length > 0) {
+        html += '<div class="result-details" style="border:1px solid rgba(255,255,255,0.3)">';
+        html += '<h4>Important Notes for Your Situation</h4><ul>';
+        warnings.forEach(function(w) { html += '<li>' + w + '</li>'; });
+        html += '</ul></div>';
       }
 
-      if (complexityChoice === 'multi_step' && primary === 'Glean') {
-        secondary = 'Consider Gemini or Claude for complex multi-step reasoning';
+      // Operations model
+      html += '<div class="result-details"><h4>Operations Model</h4>';
+      html += '<p style="font-size:0.85rem">' + info.opsModel + '</p></div>';
+
+      // Deployment readiness checklist
+      html += '<div class="result-details"><h4>Deployment Readiness Checklist</h4><ul>';
+      html += '<li>Confirm operations model: platform-managed or builder-maintained</li>';
+
+      if (info.opsModel.indexOf('Builder') >= 0 || info.opsModel.indexOf('builder') >= 0) {
+        html += '<li>Builder committed to weekly health checks and 24-hour issue response</li>';
+        html += '<li>Builder has 6+ month company tenure (or backup owner identified)</li>';
+        html += '<li>Backup owner identified and briefed</li>';
       }
 
-      // Access-driven overrides
-      if (companyChoice === 'gemini' || teamChoice === 'gems') {
-        primary = 'Gemini / Gems';
-        notes.push('Team-shareable agent with Google Workspace actions');
-      }
-      if (teamChoice === 'notebooklm' || individualChoice === 'notebooklm') {
-        primary = 'NotebookLM';
-        notes.push('Document and video analysis tool');
-      }
-      if (individualChoice === 'claude' || teamChoice === 'claude_team') {
-        primary = 'Claude';
-        notes.push('Proposed 5-10 Claude Desktop licenses for stakeholders');
-        notes.push('NOT approved for German employees');
+      html += '<li>Governance criteria assessed: reliability, traceability, auditability, fault tolerance</li>';
+      html += '<li>Solution documented for potential handoff</li>';
+      html += '<li>Registered with IT -- no shadow deployments</li>';
+
+      if (audience === 'everyone') {
+        html += '<li>Company-wide access confirmed for all 500+ employees</li>';
       }
 
-      // Governance-driven notes
-      if (governanceChoice === 'high_governance') {
-        governanceNotes.push('Ensure trace IDs and audit logging are in place');
-        governanceNotes.push('SOC compliance reporting capability required');
-        if (primary !== 'MuleSoft Agent Fabric') {
-          governanceNotes.push('Consider MuleSoft Agent Fabric for governance layer');
-        }
-      }
+      html += '<li>German Works Council status confirmed (if German employees will use this)</li>';
+      html += '</ul></div>';
 
-      let html = `
-        <div class="result-details">
-          <h4>Recommended Platform: ${primary}</h4>
-          ${notes.length > 0 ? `<ul>${notes.map(n => `<li>${n}</li>`).join('')}</ul>` : ''}
-          ${secondary ? `<p style="margin-top: 0.5rem; font-style: italic;">${secondary}</p>` : ''}
-        </div>
-      `;
-
-      if (governanceNotes.length > 0) {
-        html += `
-          <div class="result-details">
-            <h4>Governance Requirements</h4>
-            <ul>${governanceNotes.map(n => `<li>${n}</li>`).join('')}</ul>
-          </div>
-        `;
-      }
-
-      html += `
-        <div class="result-details">
-          <h4>Final Checklist</h4>
-          <ul>
-            <li>\u2610 Platform selected based on decision flow</li>
-            <li>\u2610 Owner/process lead identified and committed</li>
-            <li>\u2610 Governance criteria evaluated (reliability, governance, traceability, auditability, fault tolerance)</li>
-            <li>\u2610 Documentation and handoff plan in place</li>
-            <li>\u2610 Backup owner identified (if Medium+ risk)</li>
-            <li>\u2610 Security/compliance checks passed</li>
-            <li>\u2610 German Works Council approval (if applicable)</li>
-            <li>\u2610 Legal review triggered if needed</li>
-            <li>\u2610 Registered with IT (no shadow IT)</li>
-          </ul>
-        </div>
-      `;
-
-      return html;
+      html += '<div style="display:flex;gap:0.75rem;justify-content:center;margin-top:0.5rem">';
+      html += '<button class="btn btn-white" onclick="goBack()">Back</button>';
+      html += '<button class="btn btn-white" onclick="restart()">Start Over</button>';
+      html += '</div></div>';
+      container.innerHTML = html;
     }
 
     function renderPath() {
       if (history.length === 0) return '';
-
-      let html = '<div class="decision-path">';
-      history.forEach((h, i) => {
-        const node = decisionTree[h.node];
-        const opt = node.options.find(o => o.id === h.choice);
-        html += `<span class="path-item"><strong>${opt.title}</strong></span>`;
+      var html = '<div class="decision-path">';
+      history.forEach(function(h) {
+        var node = decisionTree[h.node];
+        if (!node || !node.options) return;
+        var opt = node.options.find(function(o) { return o.id === h.choice; });
+        if (opt) html += '<span class="path-item"><strong>' + opt.title + '</strong></span>';
       });
       html += '</div>';
       return html;
     }
 
     function updateProgress(stage) {
-      document.querySelectorAll('.progress-step').forEach(step => {
-        const stepStage = parseInt(step.dataset.stage);
+      document.querySelectorAll('.progress-step').forEach(function(step) {
+        var s = parseInt(step.dataset.stage);
         step.classList.remove('active', 'completed');
-        if (stepStage < stage) {
-          step.classList.add('completed');
-        } else if (stepStage === stage) {
-          step.classList.add('active');
-        }
+        if (s < stage) step.classList.add('completed');
+        else if (s === stage) step.classList.add('active');
       });
     }
 
@@ -1928,7 +1203,7 @@
 
     function goBack() {
       if (history.length > 0) {
-        const last = history.pop();
+        var last = history.pop();
         delete answers[last.node];
         currentNode = last.node;
         renderNode(currentNode);
@@ -1942,7 +1217,6 @@
       renderNode(currentNode);
     }
 
-    // Initialize
     renderNode('start');
   </script>
 </body>
