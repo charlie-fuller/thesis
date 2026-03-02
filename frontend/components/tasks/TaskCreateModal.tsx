@@ -413,14 +413,14 @@ export default function TaskCreateModal({
                 <label className="block text-sm font-medium text-secondary">
                   Linked Project
                 </label>
-                <div className="flex rounded-md border border-default overflow-hidden text-xs">
+                <div className="flex rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden text-xs font-medium">
                   <button
                     type="button"
                     onClick={() => setShowActiveOnly(false)}
-                    className={`px-2 py-0.5 transition-colors ${
+                    className={`px-2.5 py-0.5 transition-colors ${
                       !showActiveOnly
-                        ? 'bg-brand text-white'
-                        : 'bg-card text-muted hover:text-primary'
+                        ? 'bg-teal-500 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                     }`}
                   >
                     All
@@ -428,10 +428,10 @@ export default function TaskCreateModal({
                   <button
                     type="button"
                     onClick={() => setShowActiveOnly(true)}
-                    className={`px-2 py-0.5 transition-colors ${
+                    className={`px-2.5 py-0.5 transition-colors ${
                       showActiveOnly
-                        ? 'bg-brand text-white'
-                        : 'bg-card text-muted hover:text-primary'
+                        ? 'bg-teal-500 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                     }`}
                   >
                     Active
