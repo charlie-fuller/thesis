@@ -530,6 +530,7 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
           onSaved={handleTaskSaved}
           editTask={editTask}
           defaultStatus={defaultStatus}
+          defaultLinkedProjectId={filters.linked_project_id}
           allTasks={[...columns.backlog, ...columns.pending, ...columns.in_progress, ...columns.blocked, ...columns.completed]}
         />
       )}

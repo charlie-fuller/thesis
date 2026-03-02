@@ -14,6 +14,7 @@ interface TaskCreateModalProps {
   onSaved: () => void
   editTask: Task | null
   defaultStatus?: Task['status']
+  defaultLinkedProjectId?: string | null
   allTasks?: Task[]  // All tasks for dependency resolution
 }
 
@@ -28,6 +29,7 @@ interface ProjectOption {
   id: string
   title: string
   project_code: string | null
+  status: string | null
 }
 
 const STATUS_OPTIONS = [
@@ -66,6 +68,7 @@ export default function TaskCreateModal({
   onSaved,
   editTask,
   defaultStatus = 'pending',
+  defaultLinkedProjectId,
   allTasks = [],
 }: TaskCreateModalProps) {
   const [title, setTitle] = useState('')
@@ -84,6 +87,7 @@ export default function TaskCreateModal({
 
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([])
   const [projects, setProjects] = useState<ProjectOption[]>([])
+  const [showActiveOnly, setShowActiveOnly] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -145,9 +149,9 @@ export default function TaskCreateModal({
       setTeam('')
       setBlockerReason('')
       setNotes('')
-      setLinkedProjectId('')
+      setLinkedProjectId(defaultLinkedProjectId || '')
     }
-  }, [editTask, defaultStatus])
+  }, [editTask, defaultStatus, defaultLinkedProjectId])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
@@ -405,20 +409,35 @@ export default function TaskCreateModal({
 
             {/* Linked Project */}
             <div>
-              <label className="block text-sm font-medium text-secondary mb-1">
-                Linked Project
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-secondary">
+                  Linked Project
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowActiveOnly(!showActiveOnly)}
+                  className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                    showActiveOnly
+                      ? 'bg-brand/10 text-brand'
+                      : 'text-muted hover:text-secondary'
+                  }`}
+                >
+                  {showActiveOnly ? 'Active only' : 'All projects'}
+                </button>
+              </div>
               <select
                 value={linkedProjectId}
                 onChange={(e) => setLinkedProjectId(e.target.value)}
                 className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
               >
                 <option value="">No project</option>
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.project_code ? `${p.project_code} — ` : ''}{p.title}
-                  </option>
-                ))}
+                {projects
+                  .filter(p => !showActiveOnly || p.status === 'active')
+                  .map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.project_code ? `${p.project_code} — ` : ''}{p.title}
+                    </option>
+                  ))}
               </select>
             </div>
 
