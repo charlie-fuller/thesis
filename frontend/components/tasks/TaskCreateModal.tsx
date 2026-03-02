@@ -413,17 +413,30 @@ export default function TaskCreateModal({
                 <label className="block text-sm font-medium text-secondary">
                   Linked Project
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setShowActiveOnly(!showActiveOnly)}
-                  className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
-                    showActiveOnly
-                      ? 'bg-brand/10 text-brand'
-                      : 'text-muted hover:text-secondary'
-                  }`}
-                >
-                  {showActiveOnly ? 'Active only' : 'All projects'}
-                </button>
+                <div className="flex rounded-md border border-default overflow-hidden text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setShowActiveOnly(false)}
+                    className={`px-2 py-0.5 transition-colors ${
+                      !showActiveOnly
+                        ? 'bg-brand text-white'
+                        : 'bg-card text-muted hover:text-primary'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowActiveOnly(true)}
+                    className={`px-2 py-0.5 transition-colors ${
+                      showActiveOnly
+                        ? 'bg-brand text-white'
+                        : 'bg-card text-muted hover:text-primary'
+                    }`}
+                  >
+                    Active
+                  </button>
+                </div>
               </div>
               <select
                 value={linkedProjectId}
