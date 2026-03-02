@@ -28,6 +28,7 @@ supabase = get_supabase()
 
 
 class TaskStatus(str, Enum):
+    BACKLOG = "backlog"
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     BLOCKED = "blocked"
