@@ -31,6 +31,7 @@ interface ProjectOption {
 }
 
 const STATUS_OPTIONS = [
+  { value: 'backlog', label: 'Backlog' },
   { value: 'pending', label: 'To Do' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'blocked', label: 'Blocked' },

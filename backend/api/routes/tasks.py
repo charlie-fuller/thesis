@@ -334,7 +334,7 @@ async def get_kanban_board(
             ]
 
         # Group tasks by status
-        columns = {"pending": [], "in_progress": [], "blocked": [], "completed": []}
+        columns = {"backlog": [], "pending": [], "in_progress": [], "blocked": [], "completed": []}
 
         for task in tasks:
             status = task.get("status", "pending")

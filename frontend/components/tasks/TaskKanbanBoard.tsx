@@ -17,7 +17,7 @@ export interface Task {
   client_id: string
   title: string
   description: string | null
-  status: 'pending' | 'in_progress' | 'blocked' | 'completed'
+  status: 'backlog' | 'pending' | 'in_progress' | 'blocked' | 'completed'
   priority: number
   assignee_stakeholder_id: string | null
   assignee_user_id: string | null
@@ -49,12 +49,14 @@ export interface Task {
 interface KanbanResponse {
   success: boolean
   columns: {
+    backlog: Task[]
     pending: Task[]
     in_progress: Task[]
     blocked: Task[]
     completed: Task[]
   }
   counts: {
+    backlog: number
     pending: number
     in_progress: number
     blocked: number
@@ -77,6 +79,7 @@ export interface TaskFiltersState {
 }
 
 const COLUMN_CONFIG = [
+  { id: 'backlog', title: 'Backlog', color: 'bg-gray-50 dark:bg-gray-900/40', headerColor: 'text-gray-500 dark:text-gray-400' },
   { id: 'pending', title: 'To Do', color: 'bg-gray-100 dark:bg-gray-800', headerColor: 'text-gray-700 dark:text-gray-300' },
   { id: 'in_progress', title: 'In Progress', color: 'bg-blue-50 dark:bg-blue-900/20', headerColor: 'text-blue-700 dark:text-blue-300' },
   { id: 'blocked', title: 'Blocked', color: 'bg-orange-50 dark:bg-orange-900/20', headerColor: 'text-orange-700 dark:text-orange-300' },
@@ -89,12 +92,14 @@ interface TaskKanbanBoardProps {
 
 export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardProps = {}) {
   const [columns, setColumns] = useState<KanbanResponse['columns']>({
+    backlog: [],
     pending: [],
     in_progress: [],
     blocked: [],
     completed: [],
   })
   const [counts, setCounts] = useState<KanbanResponse['counts']>({
+    backlog: 0,
     pending: 0,
     in_progress: 0,
     blocked: 0,
@@ -210,6 +215,7 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
           const filterActive = (tasks: Task[]) =>
             tasks.filter(t => t.linked_project_id && activeProjectIds.has(t.linked_project_id))
           const filtered = {
+            backlog: filterActive(response.columns.backlog),
             pending: filterActive(response.columns.pending),
             in_progress: filterActive(response.columns.in_progress),
             blocked: filterActive(response.columns.blocked),
@@ -217,11 +223,12 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
           }
           setColumns(filtered)
           const newCounts = {
+            backlog: filtered.backlog.length,
             pending: filtered.pending.length,
             in_progress: filtered.in_progress.length,
             blocked: filtered.blocked.length,
             completed: filtered.completed.length,
-            total: filtered.pending.length + filtered.in_progress.length + filtered.blocked.length + filtered.completed.length,
+            total: filtered.backlog.length + filtered.pending.length + filtered.in_progress.length + filtered.blocked.length + filtered.completed.length,
             overdue: 0,
           }
           setCounts(newCounts)
@@ -405,7 +412,7 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
     const threeDaysFromNow = new Date(now)
     threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3)
 
-    const allTasks = [...columns.pending, ...columns.in_progress, ...columns.blocked]
+    const allTasks = [...columns.backlog, ...columns.pending, ...columns.in_progress, ...columns.blocked]
     return allTasks.filter(task => {
       if (!task.due_date) return false
       const dueDate = new Date(task.due_date)
@@ -485,7 +492,7 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
           filters={filters}
           onChange={setFilters}
           onClose={() => setShowFilters(false)}
-          tasks={[...columns.pending, ...columns.in_progress, ...columns.blocked, ...columns.completed]}
+          tasks={[...columns.backlog, ...columns.pending, ...columns.in_progress, ...columns.blocked, ...columns.completed]}
         />
       )}
 
@@ -523,7 +530,7 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
           onSaved={handleTaskSaved}
           editTask={editTask}
           defaultStatus={defaultStatus}
-          allTasks={[...columns.pending, ...columns.in_progress, ...columns.blocked, ...columns.completed]}
+          allTasks={[...columns.backlog, ...columns.pending, ...columns.in_progress, ...columns.blocked, ...columns.completed]}
         />
       )}
 
