@@ -2196,8 +2196,11 @@ async def kraken_evaluate_single_task(
 
         client_id = get_default_client_id()
 
+    import asyncio
+
     try:
-        evaluation = await evaluate_one_task_standalone(
+        evaluation = await asyncio.to_thread(
+            evaluate_one_task_standalone,
             task_id=body.task_id,
             project_id=project_id,
             client_id=client_id,

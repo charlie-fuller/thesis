@@ -237,21 +237,8 @@ Include:
         model=KRAKEN_MODEL,
         max_tokens=SINGLE_EVAL_MAX_TOKENS,
         system=system_instructions if system_instructions else "You are Kraken, a task evaluation specialist.",
-        tools=[WEB_SEARCH_TOOL],
         messages=messages,
     )
-
-    max_continuations = 5
-    while response.stop_reason == "pause_turn" and max_continuations > 0:
-        messages.append({"role": "assistant", "content": response.content})
-        response = client.messages.create(
-            model=KRAKEN_MODEL,
-            max_tokens=SINGLE_EVAL_MAX_TOKENS,
-            system=system_instructions if system_instructions else "You are Kraken, a task evaluation specialist.",
-            tools=[WEB_SEARCH_TOOL],
-            messages=messages,
-        )
-        max_continuations -= 1
 
     response_text = _extract_text_from_response(response)
 
@@ -262,7 +249,7 @@ Include:
     return json.loads(eval_match.group(1).strip())
 
 
-async def evaluate_one_task_standalone(
+def evaluate_one_task_standalone(
     task_id: str,
     project_id: str,
     client_id: str,
@@ -270,6 +257,7 @@ async def evaluate_one_task_standalone(
 ) -> dict:
     """Evaluate a single task within a project context. Returns evaluation dict.
 
+    Sync function -- FastAPI runs it in a threadpool automatically.
     Used by the frontend-driven per-task evaluation loop. Each call is a
     short-lived request (~10-15s) avoiding SSE timeout issues.
     """
