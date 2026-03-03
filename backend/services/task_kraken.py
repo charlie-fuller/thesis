@@ -262,6 +262,118 @@ Include:
     return json.loads(eval_match.group(1).strip())
 
 
+async def evaluate_one_task_standalone(
+    task_id: str,
+    project_id: str,
+    client_id: str,
+    supabase: Client,
+) -> dict:
+    """Evaluate a single task within a project context. Returns evaluation dict.
+
+    Used by the frontend-driven per-task evaluation loop. Each call is a
+    short-lived request (~10-15s) avoiding SSE timeout issues.
+    """
+    # Fetch project
+    project_result = (
+        supabase.table("ai_projects")
+        .select(
+            "id, title, description, project_name, project_description, "
+            "current_state, desired_state, next_step, department, status"
+        )
+        .eq("id", project_id)
+        .eq("client_id", client_id)
+        .maybe_single()
+        .execute()
+    )
+    if not project_result.data:
+        raise ValueError("Project not found")
+
+    # Fetch the specific task
+    task_result = (
+        supabase.table("project_tasks")
+        .select("id, title, description, notes, status, priority, assignee_name, due_date")
+        .eq("id", task_id)
+        .eq("client_id", client_id)
+        .maybe_single()
+        .execute()
+    )
+    if not task_result.data:
+        raise ValueError("Task not found")
+
+    project_context = _build_project_context(project_result.data)
+    kb_context = _fetch_kb_context(project_id, supabase, client_id)
+    system_instructions = _load_system_instructions()
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY not configured")
+
+    client = anthropic.Anthropic(api_key=api_key)
+
+    return _evaluate_one_task(
+        task=task_result.data,
+        project_context=project_context,
+        kb_context=kb_context,
+        system_instructions=system_instructions,
+        client=client,
+    )
+
+
+def finalize_evaluation(
+    project_id: str,
+    client_id: str,
+    evaluations: list[dict],
+    supabase: Client,
+) -> dict:
+    """Compute summary, agenticity score, and store final evaluation on project.
+
+    Called after all individual task evaluations are complete.
+    Returns the final evaluation_complete data shape.
+    """
+    total = len(evaluations)
+    automatable = sum(1 for e in evaluations if e.get("category") == "automatable")
+    assistable = sum(1 for e in evaluations if e.get("category") == "assistable")
+    agenticity_score = round((automatable + 0.5 * assistable) / total * 100, 1) if total > 0 else 0
+
+    summary = {
+        "total": total,
+        "automatable": automatable,
+        "assistable": assistable,
+        "manual": total - automatable - assistable,
+        "agenticity_score": agenticity_score,
+    }
+
+    eval_json = {"evaluations": evaluations, "summary": summary}
+
+    # Compute task hash for staleness detection
+    tasks_result = (
+        supabase.table("project_tasks")
+        .select("id, updated_at")
+        .eq("linked_project_id", project_id)
+        .eq("client_id", client_id)
+        .execute()
+    )
+    tasks = tasks_result.data or []
+    task_hash = _compute_task_hash(tasks) if tasks else ""
+
+    # Store on project
+    supabase.table("ai_projects").update(
+        {
+            "agenticity_score": agenticity_score,
+            "agenticity_evaluated_at": datetime.now(timezone.utc).isoformat(),
+            "agenticity_evaluation": eval_json,
+            "agenticity_task_hash": task_hash,
+        }
+    ).eq("id", project_id).execute()
+
+    return {
+        "evaluations": evaluations,
+        "summary": summary,
+        "agenticity_score": agenticity_score,
+        "task_hash": task_hash,
+    }
+
+
 async def evaluate_project_tasks(
     project_id: str,
     client_id: str,

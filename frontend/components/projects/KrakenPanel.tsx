@@ -80,6 +80,7 @@ interface TaskExecutionResult {
 interface KrakenPanelProps {
   projectId: string
   taskCount: number
+  taskIds: string[]
   onTasksUpdated?: () => void
 }
 
@@ -87,7 +88,7 @@ interface KrakenPanelProps {
 // COMPONENT
 // ============================================================================
 
-export default function KrakenPanel({ projectId, taskCount, onTasksUpdated }: KrakenPanelProps) {
+export default function KrakenPanel({ projectId, taskCount, taskIds, onTasksUpdated }: KrakenPanelProps) {
   // Evaluation state
   const [evaluating, setEvaluating] = useState(false)
   const [evaluationData, setEvaluationData] = useState<EvaluationData | null>(null)
@@ -152,89 +153,94 @@ export default function KrakenPanel({ projectId, taskCount, onTasksUpdated }: Kr
     setStreamingEvaluations([])
     setEvalProgress(null)
 
+    const total = taskIds.length
+    const collectedEvaluations: TaskEvaluation[] = []
+
     try {
-      const response = await authenticatedFetch(
-        `/api/projects/${projectId}/kraken/evaluate`,
+      // Evaluate each task individually with separate requests
+      for (let idx = 0; idx < total; idx++) {
+        const taskId = taskIds[idx]
+        setEvaluationStatus(`Evaluating task ${idx + 1}/${total}...`)
+        setEvalProgress({ current: idx, total })
+
+        try {
+          const response = await authenticatedFetch(
+            `/api/projects/${projectId}/kraken/evaluate-task`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ task_id: taskId }),
+              timeout: 60000,
+            }
+          )
+
+          if (!response.ok) {
+            const errText = await response.text()
+            throw new Error(errText || `HTTP ${response.status}`)
+          }
+
+          const result = await response.json()
+          const evaluation = result.evaluation as TaskEvaluation
+          collectedEvaluations.push(evaluation)
+          setStreamingEvaluations(prev => [...prev, evaluation])
+          setEvalProgress({ current: idx + 1, total })
+          setEvaluationStatus(`Evaluated ${idx + 1}/${total}: ${evaluation.title}`)
+        } catch (taskErr) {
+          // Create fallback evaluation for failed task
+          const fallback: TaskEvaluation = {
+            task_id: taskId,
+            title: `Task ${idx + 1}`,
+            category: 'manual',
+            confidence: 0,
+            reasoning: `Evaluation error: ${taskErr instanceof Error ? taskErr.message : 'Unknown error'}`,
+            proposed_action: 'Manual review required',
+            estimated_quality: 'low',
+          }
+          collectedEvaluations.push(fallback)
+          setStreamingEvaluations(prev => [...prev, fallback])
+          setEvalProgress({ current: idx + 1, total })
+        }
+      }
+
+      // Finalize: compute summary and store
+      setEvaluationStatus('Finalizing evaluation...')
+      const finalizeResponse = await authenticatedFetch(
+        `/api/projects/${projectId}/kraken/finalize-evaluation`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          timeout: 300000,
+          body: JSON.stringify({ evaluations: collectedEvaluations }),
+          timeout: 30000,
         }
       )
 
-      if (!response.ok) {
-        throw new Error('Failed to start evaluation')
+      if (!finalizeResponse.ok) {
+        throw new Error('Failed to finalize evaluation')
       }
 
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
+      const evalData = await finalizeResponse.json() as EvaluationData
+      setEvaluationData(evalData)
 
-      if (!reader) {
-        throw new Error('No response body')
-      }
+      // Pre-select automatable tasks
+      const automatableTasks = new Set<string>(
+        evalData.evaluations
+          .filter(e => e.category === 'automatable')
+          .map(e => e.task_id)
+      )
+      setSelectedTaskIds(automatableTasks)
 
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i]
-
-          if (line.startsWith('event: ')) {
-            const eventType = line.slice(7).trim()
-            if (i + 1 < lines.length && lines[i + 1].startsWith('data: ')) {
-              const data = lines[i + 1].slice(6)
-              i++ // skip the data line
-
-              if (eventType === 'status') {
-                setEvaluationStatus(data)
-              } else if (eventType === 'task_evaluated') {
-                try {
-                  const parsed = JSON.parse(data)
-                  const evaluation = parsed.evaluation as TaskEvaluation
-                  setStreamingEvaluations(prev => [...prev, evaluation])
-                  setEvalProgress({ current: parsed.index, total: parsed.total })
-                  setEvaluationStatus(`Evaluated ${parsed.index}/${parsed.total}: ${evaluation.title}`)
-                } catch { /* ignore parse errors for progress events */ }
-              } else if (eventType === 'evaluation_complete') {
-                try {
-                  const evalData = JSON.parse(data) as EvaluationData
-                  setEvaluationData(evalData)
-                  // Pre-select automatable tasks
-                  const automatableTasks = new Set<string>(
-                    evalData.evaluations
-                      .filter(e => e.category === 'automatable')
-                      .map(e => e.task_id)
-                  )
-                  setSelectedTaskIds(automatableTasks)
-                  // Update stored evaluation
-                  setStoredEvaluation({
-                    agenticity_score: evalData.agenticity_score,
-                    evaluated_at: new Date().toISOString(),
-                    evaluation: {
-                      evaluations: evalData.evaluations,
-                      summary: evalData.summary,
-                    },
-                    task_hash: evalData.task_hash,
-                    is_stale: false,
-                    current_task_count: evalData.summary.total,
-                  })
-                } catch {
-                  setError('Failed to parse evaluation results')
-                }
-              } else if (eventType === 'error') {
-                setError(data)
-              }
-            }
-          }
-        }
-      }
+      // Update stored evaluation
+      setStoredEvaluation({
+        agenticity_score: evalData.agenticity_score,
+        evaluated_at: new Date().toISOString(),
+        evaluation: {
+          evaluations: evalData.evaluations,
+          summary: evalData.summary,
+        },
+        task_hash: evalData.task_hash,
+        is_stale: false,
+        current_task_count: evalData.summary.total,
+      })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Evaluation failed')
     } finally {

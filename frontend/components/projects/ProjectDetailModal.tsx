@@ -1710,6 +1710,7 @@ export default function ProjectDetailModal({
                 <KrakenPanel
                   projectId={project.id}
                   taskCount={projectTasks.length}
+                  taskIds={projectTasks.map(t => t.id)}
                   onTasksUpdated={fetchProjectTasks}
                 />
               )}

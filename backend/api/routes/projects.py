@@ -35,7 +35,9 @@ from services.project_justification import (
 from services.project_taskmaster import chat_with_taskmaster
 from services.task_kraken import (
     evaluate_project_tasks,
+    evaluate_one_task_standalone,
     execute_approved_tasks,
+    finalize_evaluation,
 )
 from services.task_kraken import (
     get_evaluation as get_kraken_evaluation,
@@ -195,6 +197,18 @@ class KrakenExecuteRequest(BaseModel):
     """Request to execute approved tasks via Kraken."""
 
     task_ids: List[str] = Field(..., min_length=1, description="Task IDs approved for execution")
+
+
+class KrakenEvaluateTaskRequest(BaseModel):
+    """Request to evaluate a single task."""
+
+    task_id: str = Field(..., description="Task ID to evaluate")
+
+
+class KrakenFinalizeRequest(BaseModel):
+    """Request to finalize evaluation with all collected results."""
+
+    evaluations: list = Field(..., description="All task evaluations collected by frontend")
 
 
 # ============================================================================
@@ -2162,6 +2176,66 @@ async def kraken_evaluate_tasks(
             "Content-Type": "text/event-stream; charset=utf-8",
         },
     )
+
+
+@router.post("/{project_id}/kraken/evaluate-task")
+async def kraken_evaluate_single_task(
+    project_id: str,
+    body: KrakenEvaluateTaskRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Evaluate a single task for agentic workability. Returns JSON (not SSE).
+
+    Called by the frontend in a loop, one task at a time, to avoid
+    timeout issues with long-running SSE streams.
+    """
+    client_id = current_user.get("client_id")
+    if not client_id:
+        from database import get_default_client_id
+
+        client_id = get_default_client_id()
+
+    try:
+        evaluation = await evaluate_one_task_standalone(
+            task_id=body.task_id,
+            project_id=project_id,
+            client_id=client_id,
+            supabase=supabase,
+        )
+        return {"evaluation": evaluation}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Kraken single task evaluation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{project_id}/kraken/finalize-evaluation")
+async def kraken_finalize_evaluation(
+    project_id: str,
+    body: KrakenFinalizeRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Compute summary, store evaluation on project. Called after all tasks evaluated."""
+    client_id = current_user.get("client_id")
+    if not client_id:
+        from database import get_default_client_id
+
+        client_id = get_default_client_id()
+
+    try:
+        result = finalize_evaluation(
+            project_id=project_id,
+            client_id=client_id,
+            evaluations=body.evaluations,
+            supabase=supabase,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Kraken finalize evaluation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{project_id}/kraken/execute")
