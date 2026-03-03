@@ -502,7 +502,7 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
           <LoadingSpinner size="lg" />
         </div>
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="grid grid-cols-5 gap-2 pb-4">
         {COLUMN_CONFIG.map(column => (
           <TaskColumn
             key={column.id}

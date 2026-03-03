@@ -158,7 +158,7 @@ export default function TaskColumn({
 
   return (
     <div
-      className={`flex flex-col w-80 min-w-80 rounded-lg ${color} ${
+      className={`flex flex-col min-w-0 rounded-lg ${color} ${
         isDragOver ? 'ring-2 ring-brand ring-offset-2' : ''
       } transition-all`}
       onDragOver={handleDragOver}
