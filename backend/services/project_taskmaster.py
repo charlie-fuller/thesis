@@ -84,7 +84,7 @@ async def chat_with_taskmaster(
 
     project_context = "\n".join(context_parts)
 
-    # Add KB document awareness via digests
+    # Add KB document awareness via digests (overview of all linked docs)
     try:
         from services.document_digests import get_project_document_digests
 
@@ -97,6 +97,37 @@ async def chat_with_taskmaster(
             project_context += "\n".join(kb_lines)
     except Exception as e:
         logger.warning(f"Failed to load document digests for Taskmaster: {e}")
+
+    # RAG search: pull actual document content relevant to the user's message
+    rag_context = ""
+    try:
+        from document_processor import search_similar_chunks
+
+        # Get project-linked document IDs for scoping
+        pd_result = supabase.table("project_documents").select("document_id").eq("project_id", project_id).execute()
+        project_doc_ids = [row["document_id"] for row in (pd_result.data or [])]
+
+        if project_doc_ids:
+            chunks = search_similar_chunks(
+                message,
+                client_id,
+                limit=8,
+                min_similarity=0.0,
+                document_ids=project_doc_ids,
+            )
+            if chunks:
+                rag_lines = ["\n\nRELEVANT DOCUMENT CONTENT:"]
+                for chunk in chunks:
+                    source = chunk.get("source", chunk.get("filename", "Unknown"))
+                    content = chunk.get("content", "")
+                    rag_lines.append(f"\n--- From: {source} ---\n{content}")
+                rag_context = "\n".join(rag_lines)
+                logger.info(
+                    f"Taskmaster RAG: found {len(chunks)} relevant chunks from "
+                    f"{len(project_doc_ids)} project documents"
+                )
+    except Exception as e:
+        logger.warning(f"Failed to perform RAG search for Taskmaster: {e}")
 
     # Get user name for task assignment
     user_result = supabase.table("users").select("name, email").eq("id", user_id).single().execute()
@@ -116,6 +147,7 @@ async def chat_with_taskmaster(
 
 PROJECT CONTEXT:
 {project_context}
+{rag_context}
 
 YOUR ROLE:
 1. Help the user break this project into concrete, actionable tasks
@@ -131,6 +163,7 @@ Description: <brief description>
 
 GUIDELINES:
 - Be conversational and helpful
+- Ground your suggestions in the linked document content when available
 - Ask clarifying questions if needed
 - Suggest 3-5 tasks at a time, not overwhelming lists
 - Consider dependencies between tasks

@@ -214,9 +214,10 @@ async def chat(request: Request, chat_request: ChatRequest, current_user: dict =
         context_chunks = []
         client_id = current_user.get("client_id")
 
-        # Pre-fetch project-linked document IDs for project_agent RAG scoping
+        # Pre-fetch project-linked document IDs for RAG scoping
         project_document_ids = None
-        if chat_request.agent_ids and "project_agent" in chat_request.agent_ids and chat_request.conversation_id:
+        project_id_for_context = chat_request.project_id
+        if chat_request.conversation_id:
             try:
                 conv_result = await asyncio.to_thread(
                     lambda: supabase.table("conversations")
@@ -226,7 +227,19 @@ async def chat(request: Request, chat_request: ChatRequest, current_user: dict =
                     .execute()
                 )
                 pid = conv_result.data.get("project_id") if conv_result.data else None
+
+                # Backfill: if frontend knows the project but conversation doesn't
+                if not pid and project_id_for_context:
+                    pid = project_id_for_context
+                    await asyncio.to_thread(
+                        lambda: supabase.table("conversations")
+                        .update({"project_id": project_id_for_context})
+                        .eq("id", chat_request.conversation_id)
+                        .execute()
+                    )
+
                 if pid:
+                    project_id_for_context = pid
                     pd_result = await asyncio.to_thread(
                         lambda: supabase.table("project_documents")
                         .select("document_id")
