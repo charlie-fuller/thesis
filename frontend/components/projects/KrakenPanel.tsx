@@ -93,6 +93,8 @@ export default function KrakenPanel({ projectId, taskCount, onTasksUpdated }: Kr
   const [evaluationData, setEvaluationData] = useState<EvaluationData | null>(null)
   const [storedEvaluation, setStoredEvaluation] = useState<StoredEvaluation | null>(null)
   const [evaluationStatus, setEvaluationStatus] = useState<string>('')
+  const [streamingEvaluations, setStreamingEvaluations] = useState<TaskEvaluation[]>([])
+  const [evalProgress, setEvalProgress] = useState<{ current: number; total: number } | null>(null)
 
   // Execution state
   const [executing, setExecuting] = useState(false)
@@ -147,6 +149,8 @@ export default function KrakenPanel({ projectId, taskCount, onTasksUpdated }: Kr
     setEvaluationData(null)
     setEvaluationStatus('Starting evaluation...')
     setExecutionResults([])
+    setStreamingEvaluations([])
+    setEvalProgress(null)
 
     try {
       const response = await authenticatedFetch(
@@ -154,7 +158,7 @@ export default function KrakenPanel({ projectId, taskCount, onTasksUpdated }: Kr
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          timeout: 120000,
+          timeout: 300000,
         }
       )
 
@@ -190,6 +194,14 @@ export default function KrakenPanel({ projectId, taskCount, onTasksUpdated }: Kr
 
               if (eventType === 'status') {
                 setEvaluationStatus(data)
+              } else if (eventType === 'task_evaluated') {
+                try {
+                  const parsed = JSON.parse(data)
+                  const evaluation = parsed.evaluation as TaskEvaluation
+                  setStreamingEvaluations(prev => [...prev, evaluation])
+                  setEvalProgress({ current: parsed.index, total: parsed.total })
+                  setEvaluationStatus(`Evaluated ${parsed.index}/${parsed.total}: ${evaluation.title}`)
+                } catch { /* ignore parse errors for progress events */ }
               } else if (eventType === 'evaluation_complete') {
                 try {
                   const evalData = JSON.parse(data) as EvaluationData
@@ -228,6 +240,8 @@ export default function KrakenPanel({ projectId, taskCount, onTasksUpdated }: Kr
     } finally {
       setEvaluating(false)
       setEvaluationStatus('')
+      setStreamingEvaluations([])
+      setEvalProgress(null)
     }
   }
 
@@ -413,11 +427,57 @@ export default function KrakenPanel({ projectId, taskCount, onTasksUpdated }: Kr
         </button>
       </div>
 
-      {/* Status message */}
-      {evaluating && evaluationStatus && (
-        <div className="flex items-center gap-2 text-sm text-muted p-3 bg-violet-50 dark:bg-violet-900/10 rounded-lg">
-          <Loader2 className="w-4 h-4 animate-spin text-violet-500" />
-          {evaluationStatus}
+      {/* Evaluation progress */}
+      {evaluating && (
+        <div className="space-y-3">
+          {evaluationStatus && (
+            <div className="flex items-center gap-2 text-sm text-muted p-3 bg-violet-50 dark:bg-violet-900/10 rounded-lg">
+              <Loader2 className="w-4 h-4 animate-spin text-violet-500" />
+              {evaluationStatus}
+            </div>
+          )}
+
+          {/* Progress bar */}
+          {evalProgress && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted">
+                <span>{evalProgress.current} of {evalProgress.total} tasks evaluated</span>
+                <span>{Math.round((evalProgress.current / evalProgress.total) * 100)}%</span>
+              </div>
+              <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-violet-500 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${(evalProgress.current / evalProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Streaming task cards */}
+          {streamingEvaluations.length > 0 && (
+            <div className="space-y-1">
+              {streamingEvaluations.map((evaluation, idx) => {
+                const categoryColors = {
+                  automatable: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+                  assistable: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+                  manual: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+                }
+                return (
+                  <div
+                    key={evaluation.task_id || idx}
+                    className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-sm animate-in slide-in-from-left duration-300"
+                    style={{ animationDelay: `${idx * 50}ms` }}
+                  >
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${categoryColors[evaluation.category] || categoryColors.manual}`}>
+                      {evaluation.category}
+                    </span>
+                    <span className="text-primary truncate flex-1">{evaluation.title}</span>
+                    <span className="text-xs text-muted flex-shrink-0">{evaluation.confidence}%</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 

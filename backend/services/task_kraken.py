@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 KRAKEN_MODEL = "claude-sonnet-4-20250514"
 EVALUATION_MAX_TOKENS = 4096
+SINGLE_EVAL_MAX_TOKENS = 2048
 EXECUTION_MAX_TOKENS = 4096
 
 # Web search tool definition - gives Kraken real-time web access
@@ -156,6 +157,111 @@ def _fetch_kb_context(project_id: str, supabase: Client, client_id: str) -> str:
     return ""
 
 
+def _evaluate_one_task(
+    task: dict,
+    project_context: str,
+    kb_context: str,
+    system_instructions: str,
+    client: anthropic.Anthropic,
+) -> dict:
+    """Evaluate a single task for AI workability.
+
+    Returns the evaluation dict. Raises ValueError on parse failure.
+    """
+    import re
+
+    task_list = _build_task_list([task])
+
+    evaluation_prompt = f"""Evaluate the following task for AI workability.
+
+PROJECT CONTEXT:
+{project_context}
+
+{f"KNOWLEDGE BASE CONTEXT:{chr(10)}{kb_context}" if kb_context else "No KB documents available."}
+
+TASK TO EVALUATE:
+{task_list}
+
+INSTRUCTIONS:
+Assess whether this task can be completed by an AI agent (you) working with:
+- The project context above
+- The KB documents above
+- Your general knowledge and reasoning abilities
+- Text generation capabilities (drafting, analyzing, recommending)
+- Web search for real-time research and data gathering
+
+You CANNOT: access external systems (Jira, Salesforce, etc.), send emails, run code, or perform real-world actions.
+
+Use the 5-dimension confidence framework:
+1. Information Sufficiency (0-20): Is enough info available in context + KB + web search?
+2. Output Clarity (0-20): Is the deliverable well-defined?
+3. Execution Feasibility (0-20): Can this be done with text generation + web research?
+4. Completeness Achievable (0-20): Can you produce a usable end result?
+5. Domain Fit (0-20): Is this the type of work AI excels at?
+
+Return your evaluation as a JSON block wrapped in <evaluation> tags.
+
+Include:
+- task_understanding: 1-3 sentences explaining what this task is and why it matters
+- steps: ordered list of concrete steps you would take
+- recommendations: specific, actionable KB gaps - tell the user EXACTLY what documents/info to upload so you can raise confidence. Be specific, not vague.
+- decision_gaps: decisions that need to be made or confirmed before this task can be executed well. These are choices, approvals, or strategic calls that block high-quality output. Only list genuine human decisions, not things that can be researched.
+- confidence_breakdown: scores for each of the 5 dimensions
+
+<evaluation>
+{{
+  "task_id": "{task["id"]}",
+  "title": "{task.get("title", "Untitled")}",
+  "task_understanding": "What this task is and why it matters",
+  "steps": ["Step 1: ...", "Step 2: ..."],
+  "recommendations": ["Upload X document to KB", "Add Y information"],
+  "decision_gaps": ["Which vendor has been selected?", "Has the budget been approved?"],
+  "category": "automatable|assistable|manual",
+  "confidence": 85,
+  "confidence_breakdown": {{
+    "information_sufficiency": 18,
+    "output_clarity": 16,
+    "execution_feasibility": 18,
+    "completeness_achievable": 16,
+    "domain_fit": 14
+  }},
+  "reasoning": "Clear explanation",
+  "proposed_action": "Specifically what the agent would do",
+  "estimated_quality": "high|medium|low"
+}}
+</evaluation>
+"""
+
+    messages = [{"role": "user", "content": evaluation_prompt}]
+    response = client.messages.create(
+        model=KRAKEN_MODEL,
+        max_tokens=SINGLE_EVAL_MAX_TOKENS,
+        system=system_instructions if system_instructions else "You are Kraken, a task evaluation specialist.",
+        tools=[WEB_SEARCH_TOOL],
+        messages=messages,
+    )
+
+    max_continuations = 5
+    while response.stop_reason == "pause_turn" and max_continuations > 0:
+        messages.append({"role": "assistant", "content": response.content})
+        response = client.messages.create(
+            model=KRAKEN_MODEL,
+            max_tokens=SINGLE_EVAL_MAX_TOKENS,
+            system=system_instructions if system_instructions else "You are Kraken, a task evaluation specialist.",
+            tools=[WEB_SEARCH_TOOL],
+            messages=messages,
+        )
+        max_continuations -= 1
+
+    response_text = _extract_text_from_response(response)
+
+    eval_match = re.search(r"<evaluation>(.*?)</evaluation>", response_text, re.DOTALL)
+    if not eval_match:
+        raise ValueError(f"No <evaluation> tags found in response for task {task.get('title', task['id'])}")
+
+    return json.loads(eval_match.group(1).strip())
+
+
 async def evaluate_project_tasks(
     project_id: str,
     client_id: str,
@@ -205,97 +311,14 @@ async def evaluate_project_tasks(
         yield {"type": "error", "data": "No tasks found for this project"}
         return
 
-    yield {"type": "status", "data": f"Evaluating {len(tasks)} tasks..."}
+    total_tasks = len(tasks)
+    yield {"type": "status", "data": f"Evaluating {total_tasks} tasks one at a time..."}
 
-    # 3. Build context
+    # 3. Build shared context (fetched once, reused per task)
     project_context = _build_project_context(project)
-    task_list = _build_task_list(tasks)
     kb_context = _fetch_kb_context(project_id, supabase, client_id)
-
-    # 4. Build evaluation prompt
     system_instructions = _load_system_instructions()
 
-    evaluation_prompt = f"""Evaluate the following project tasks for AI workability.
-
-PROJECT CONTEXT:
-{project_context}
-
-{f"KNOWLEDGE BASE CONTEXT:{chr(10)}{kb_context}" if kb_context else "No KB documents linked to this project."}
-
-TASKS TO EVALUATE:
-{task_list}
-
-INSTRUCTIONS:
-For each task, assess whether it can be completed by an AI agent (you) working with:
-- The project context above
-- The KB documents above
-- Your general knowledge and reasoning abilities
-- Text generation capabilities (drafting, analyzing, recommending)
-- Web search for real-time research and data gathering
-
-You CANNOT: access external systems (Jira, Salesforce, etc.), send emails, run code, or perform real-world actions.
-
-Use the 5-dimension confidence framework:
-1. Information Sufficiency (0-20): Is enough info available in context + KB + web search?
-2. Output Clarity (0-20): Is the deliverable well-defined?
-3. Execution Feasibility (0-20): Can this be done with text generation + web research?
-4. Completeness Achievable (0-20): Can you produce a usable end result?
-5. Domain Fit (0-20): Is this the type of work AI excels at?
-
-Return your evaluation as a JSON block wrapped in <evaluation> tags.
-
-For each task, include:
-- task_understanding: 1-3 sentences explaining what this task is and why it matters
-- steps: ordered list of concrete steps you would take to complete this task
-- recommendations: specific, actionable KB gaps - tell the user EXACTLY what documents/info to upload so you can raise confidence. Examples:
-  - "Upload the platform-jurisdiction mapping spreadsheet to KB"
-  - "Add a document describing internal data classification tiers"
-  - "Provide meeting notes from the governance council discussion on deployment approval criteria"
-  Do NOT give vague recommendations like "gather more info" - be specific about what's missing.
-- decision_gaps: decisions that need to be made or confirmed before this task can be executed well. These are choices, approvals, or strategic calls that block high-quality output. Examples:
-  - "Which deployment regions are in scope - EU only or global?"
-  - "Has legal signed off on the data sharing approach with the vendor?"
-  - "Who is the decision-maker for budget allocation on this initiative?"
-  - "Is the team committed to the microservices approach or is monolith still on the table?"
-  Do NOT list things that can be researched - only genuine human decisions or confirmations.
-- confidence_breakdown: scores for each of the 5 dimensions above
-
-<evaluation>
-{{
-  "evaluations": [
-    {{
-      "task_id": "uuid",
-      "title": "Task title",
-      "task_understanding": "What this task is and why it matters",
-      "steps": ["Step 1: ...", "Step 2: ..."],
-      "recommendations": ["Upload X document to KB", "Add Y information"],
-      "decision_gaps": ["Which vendor has been selected?", "Has the budget been approved?"],
-      "category": "automatable|assistable|manual",
-      "confidence": 85,
-      "confidence_breakdown": {{
-        "information_sufficiency": 18,
-        "output_clarity": 16,
-        "execution_feasibility": 18,
-        "completeness_achievable": 16,
-        "domain_fit": 14
-      }},
-      "reasoning": "Clear explanation of the assessment",
-      "proposed_action": "Specifically what the agent would do",
-      "estimated_quality": "high|medium|low"
-    }}
-  ],
-  "summary": {{
-    "total": 10,
-    "automatable": 4,
-    "assistable": 3,
-    "manual": 3,
-    "agenticity_score": 55.0
-  }}
-}}
-</evaluation>
-"""
-
-    # 5. Call Claude
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
         yield {"type": "error", "data": "ANTHROPIC_API_KEY not configured"}
@@ -303,59 +326,98 @@ For each task, include:
 
     client = anthropic.Anthropic(api_key=api_key)
 
-    try:
-        messages = [{"role": "user", "content": evaluation_prompt}]
-        response = client.messages.create(
-            model=KRAKEN_MODEL,
-            max_tokens=EVALUATION_MAX_TOKENS,
-            system=system_instructions if system_instructions else "You are Kraken, a task evaluation specialist.",
-            tools=[WEB_SEARCH_TOOL],
-            messages=messages,
-        )
+    # 4. Evaluate each task individually
+    evaluations: list[dict] = []
 
-        # Handle pause_turn (web search may cause Claude to pause mid-turn)
-        max_continuations = 5
-        while response.stop_reason == "pause_turn" and max_continuations > 0:
-            messages.append({"role": "assistant", "content": response.content})
-            response = client.messages.create(
-                model=KRAKEN_MODEL,
-                max_tokens=EVALUATION_MAX_TOKENS,
-                system=system_instructions if system_instructions else "You are Kraken, a task evaluation specialist.",
-                tools=[WEB_SEARCH_TOOL],
-                messages=messages,
+    for idx, task in enumerate(tasks):
+        task_title = task.get("title", "Untitled")
+        yield {"type": "status", "data": f"Evaluating {idx + 1}/{total_tasks}: {task_title}"}
+
+        try:
+            evaluation = _evaluate_one_task(
+                task=task,
+                project_context=project_context,
+                kb_context=kb_context,
+                system_instructions=system_instructions,
+                client=client,
             )
-            max_continuations -= 1
+            evaluations.append(evaluation)
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(f"Failed to evaluate task {task['id']} ({task_title}): {e}")
+            evaluations.append({
+                "task_id": task["id"],
+                "title": task_title,
+                "task_understanding": "Evaluation failed for this task.",
+                "steps": [],
+                "recommendations": [],
+                "decision_gaps": [],
+                "category": "manual",
+                "confidence": 0,
+                "confidence_breakdown": {
+                    "information_sufficiency": 0,
+                    "output_clarity": 0,
+                    "execution_feasibility": 0,
+                    "completeness_achievable": 0,
+                    "domain_fit": 0,
+                },
+                "reasoning": f"Evaluation error: {e}",
+                "proposed_action": "Manual review required",
+                "estimated_quality": "low",
+            })
+        except Exception as e:
+            logger.error(f"Unexpected error evaluating task {task['id']}: {e}")
+            evaluations.append({
+                "task_id": task["id"],
+                "title": task_title,
+                "task_understanding": "Evaluation failed for this task.",
+                "steps": [],
+                "recommendations": [],
+                "decision_gaps": [],
+                "category": "manual",
+                "confidence": 0,
+                "confidence_breakdown": {
+                    "information_sufficiency": 0,
+                    "output_clarity": 0,
+                    "execution_feasibility": 0,
+                    "completeness_achievable": 0,
+                    "domain_fit": 0,
+                },
+                "reasoning": f"Unexpected error: {e}",
+                "proposed_action": "Manual review required",
+                "estimated_quality": "low",
+            })
 
-        response_text = _extract_text_from_response(response)
+        # Yield per-task progress event
+        yield {
+            "type": "task_evaluated",
+            "data": {
+                "evaluation": evaluations[-1],
+                "index": idx + 1,
+                "total": total_tasks,
+            },
+        }
 
-        # 6. Parse evaluation
-        import re
+    # 5. Compute summary and agenticity score
+    total = len(evaluations)
+    automatable = sum(1 for e in evaluations if e.get("category") == "automatable")
+    assistable = sum(1 for e in evaluations if e.get("category") == "assistable")
+    agenticity_score = round((automatable + 0.5 * assistable) / total * 100, 1) if total > 0 else 0
 
-        eval_match = re.search(r"<evaluation>(.*?)</evaluation>", response_text, re.DOTALL)
-        if not eval_match:
-            yield {"type": "error", "data": "Failed to parse evaluation response"}
-            return
+    summary = {
+        "total": total,
+        "automatable": automatable,
+        "assistable": assistable,
+        "manual": total - automatable - assistable,
+        "agenticity_score": agenticity_score,
+    }
 
-        eval_json = json.loads(eval_match.group(1).strip())
-        evaluations = eval_json.get("evaluations", [])
-        summary = eval_json.get("summary", {})
+    eval_json = {"evaluations": evaluations, "summary": summary}
 
-        # Compute agenticity score
-        total = len(evaluations)
-        automatable = sum(1 for e in evaluations if e.get("category") == "automatable")
-        assistable = sum(1 for e in evaluations if e.get("category") == "assistable")
-        agenticity_score = round((automatable + 0.5 * assistable) / total * 100, 1) if total > 0 else 0
+    # 6. Compute task hash for staleness detection
+    task_hash = _compute_task_hash(tasks)
 
-        summary["agenticity_score"] = agenticity_score
-        summary["total"] = total
-        summary["automatable"] = automatable
-        summary["assistable"] = assistable
-        summary["manual"] = total - automatable - assistable
-
-        # 7. Compute task hash for staleness detection
-        task_hash = _compute_task_hash(tasks)
-
-        # 8. Store evaluation on project
+    # 7. Store evaluation on project
+    try:
         supabase.table("ai_projects").update(
             {
                 "agenticity_score": agenticity_score,
@@ -364,23 +426,18 @@ For each task, include:
                 "agenticity_task_hash": task_hash,
             }
         ).eq("id", project_id).execute()
-
-        yield {
-            "type": "evaluation_complete",
-            "data": {
-                "evaluations": evaluations,
-                "summary": summary,
-                "agenticity_score": agenticity_score,
-                "task_hash": task_hash,
-            },
-        }
-
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse Kraken evaluation JSON: {e}")
-        yield {"type": "error", "data": "Failed to parse evaluation results"}
     except Exception as e:
-        logger.error(f"Kraken evaluation error: {e}")
-        yield {"type": "error", "data": str(e)}
+        logger.error(f"Failed to store kraken evaluation: {e}")
+
+    yield {
+        "type": "evaluation_complete",
+        "data": {
+            "evaluations": evaluations,
+            "summary": summary,
+            "agenticity_score": agenticity_score,
+            "task_hash": task_hash,
+        },
+    }
 
 
 async def execute_approved_tasks(
@@ -739,67 +796,7 @@ async def evaluate_single_task(
 
     yield {"type": "status", "data": "Evaluating task..."}
 
-    task_list = _build_task_list([task])
     system_instructions = _load_system_instructions()
-
-    evaluation_prompt = f"""Evaluate the following task for AI workability.
-
-{f"PROJECT CONTEXT:{chr(10)}{project_context}" if project_context else "No linked project."}
-
-{f"KNOWLEDGE BASE CONTEXT:{chr(10)}{kb_context}" if kb_context else "No KB documents available."}
-
-TASK TO EVALUATE:
-{task_list}
-
-INSTRUCTIONS:
-Assess whether this task can be completed by an AI agent (you) working with:
-- The project context above (if any)
-- The KB documents above (if any)
-- Your general knowledge and reasoning abilities
-- Text generation capabilities (drafting, analyzing, recommending)
-- Web search for real-time research and data gathering
-
-You CANNOT: access external systems (Jira, Salesforce, etc.), send emails, run code, or perform real-world actions.
-
-Use the 5-dimension confidence framework:
-1. Information Sufficiency (0-20): Is enough info available in context + KB + web search?
-2. Output Clarity (0-20): Is the deliverable well-defined?
-3. Execution Feasibility (0-20): Can this be done with text generation + web research?
-4. Completeness Achievable (0-20): Can you produce a usable end result?
-5. Domain Fit (0-20): Is this the type of work AI excels at?
-
-Return your evaluation as a JSON block wrapped in <evaluation> tags.
-
-Include:
-- task_understanding: 1-3 sentences explaining what this task is and why it matters
-- steps: ordered list of concrete steps you would take
-- recommendations: specific, actionable KB gaps - tell the user EXACTLY what documents/info to upload so you can raise confidence. Be specific, not vague.
-- decision_gaps: decisions that need to be made or confirmed before this task can be executed well. These are choices, approvals, or strategic calls that block high-quality output. Only list genuine human decisions, not things that can be researched.
-- confidence_breakdown: scores for each of the 5 dimensions
-
-<evaluation>
-{{
-  "task_id": "{task["id"]}",
-  "title": "{task.get("title", "Untitled")}",
-  "task_understanding": "What this task is and why it matters",
-  "steps": ["Step 1: ...", "Step 2: ..."],
-  "recommendations": ["Upload X document to KB", "Add Y information"],
-  "decision_gaps": ["Which vendor has been selected?", "Has the budget been approved?"],
-  "category": "automatable|assistable|manual",
-  "confidence": 85,
-  "confidence_breakdown": {{
-    "information_sufficiency": 18,
-    "output_clarity": 16,
-    "execution_feasibility": 18,
-    "completeness_achievable": 16,
-    "domain_fit": 14
-  }},
-  "reasoning": "Clear explanation",
-  "proposed_action": "Specifically what the agent would do",
-  "estimated_quality": "high|medium|low"
-}}
-</evaluation>
-"""
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
@@ -809,45 +806,21 @@ Include:
     client = anthropic.Anthropic(api_key=api_key)
 
     try:
-        messages = [{"role": "user", "content": evaluation_prompt}]
-        response = client.messages.create(
-            model=KRAKEN_MODEL,
-            max_tokens=EVALUATION_MAX_TOKENS,
-            system=system_instructions if system_instructions else "You are Kraken, a task evaluation specialist.",
-            tools=[WEB_SEARCH_TOOL],
-            messages=messages,
+        evaluation = _evaluate_one_task(
+            task=task,
+            project_context=project_context,
+            kb_context=kb_context,
+            system_instructions=system_instructions,
+            client=client,
         )
-
-        max_continuations = 5
-        while response.stop_reason == "pause_turn" and max_continuations > 0:
-            messages.append({"role": "assistant", "content": response.content})
-            response = client.messages.create(
-                model=KRAKEN_MODEL,
-                max_tokens=EVALUATION_MAX_TOKENS,
-                system=system_instructions if system_instructions else "You are Kraken, a task evaluation specialist.",
-                tools=[WEB_SEARCH_TOOL],
-                messages=messages,
-            )
-            max_continuations -= 1
-
-        response_text = _extract_text_from_response(response)
-
-        import re
-
-        eval_match = re.search(r"<evaluation>(.*?)</evaluation>", response_text, re.DOTALL)
-        if not eval_match:
-            yield {"type": "error", "data": "Failed to parse evaluation response"}
-            return
-
-        evaluation = json.loads(eval_match.group(1).strip())
 
         yield {
             "type": "evaluation_complete",
             "data": {"evaluation": evaluation},
         }
 
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse Kraken single-task evaluation JSON: {e}")
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.error(f"Failed to parse Kraken single-task evaluation: {e}")
         yield {"type": "error", "data": "Failed to parse evaluation results"}
     except Exception as e:
         logger.error(f"Kraken single-task evaluation error: {e}")
