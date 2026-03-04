@@ -56,7 +56,7 @@ interface DepartmentKPI {
 }
 
 // ============================================================================
-// COMPANY DATA - FY26 Company Goals (Current Measurement)
+// COMPANY DATA - FY26 Company Goals (Completed)
 // ============================================================================
 
 const FY26_OBJECTIVES: CompanyObjective[] = [
@@ -119,7 +119,7 @@ const FY26_OBJECTIVES: CompanyObjective[] = [
 ]
 
 // ============================================================================
-// COMPANY DATA - FY27 Company Goals (Forward-Looking / Notional)
+// COMPANY DATA - FY27 Company Goals (Current)
 // ============================================================================
 
 const FY27_OBJECTIVES: CompanyObjective[] = [
@@ -420,7 +420,7 @@ function ProgressBar({ percentage, status }: { percentage: number; status: Compa
 
 export default function StrategyContent() {
   const [mainTab, setMainTab] = useState<'company' | 'department'>('company')
-  const [fiscalYearTab, setFiscalYearTab] = useState<'fy26' | 'fy27'>('fy26')
+  const [fiscalYearTab, setFiscalYearTab] = useState<'fy26' | 'fy27'>('fy27')
   const [kpis] = useState<DepartmentKPI[]>(MOCK_KPIS)
   const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set())
 
@@ -511,7 +511,7 @@ export default function StrategyContent() {
             <div className="bg-card border border-default rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted">
-                  {fiscalYearTab === 'fy26' ? 'FY26 Progress' : 'FY27 Targets'}
+                  {fiscalYearTab === 'fy26' ? 'FY26 Final' : 'FY27 Progress'}
                 </span>
                 <Target className="w-5 h-5 text-blue-500" />
               </div>
@@ -581,7 +581,7 @@ export default function StrategyContent() {
               }`}
             >
               FY26 Goals
-              <span className="ml-1.5 text-xs opacity-75">(Current)</span>
+              <span className="ml-1.5 text-xs opacity-75">(Completed)</span>
             </button>
             <button
               onClick={() => setFiscalYearTab('fy27')}
@@ -592,16 +592,8 @@ export default function StrategyContent() {
               }`}
             >
               FY27 Goals
-              <span className="ml-1.5 text-xs opacity-75">(Notional)</span>
+              <span className="ml-1.5 text-xs opacity-75">(Current)</span>
             </button>
-            {fiscalYearTab === 'fy27' && (
-              <span
-                className="ml-2 text-xs px-2 py-1 rounded border"
-                style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
-              >
-                Forward-looking targets - measure progress against FY26
-              </span>
-            )}
           </div>
 
           <div className="space-y-4">

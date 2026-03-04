@@ -168,8 +168,9 @@ LOW_PRIORITY_FILENAME_PATTERNS = [
     re.compile(r"[:\-_]systems\.", re.IGNORECASE),
     # Prompts (AI prompts, not meetings)
     re.compile(r"prompt", re.IGNORECASE),
-    # Lists/reports
+    # Lists/reports/links
     re.compile(r"[:\-_]list\.", re.IGNORECASE),
+    re.compile(r"[:\-_]links\.", re.IGNORECASE),
     re.compile(r"coverage[:\-_]report", re.IGNORECASE),
     # Personas/alignment docs
     re.compile(r"personas?\.", re.IGNORECASE),

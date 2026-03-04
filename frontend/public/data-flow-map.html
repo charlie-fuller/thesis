@@ -129,12 +129,17 @@
       flex-shrink: 0;
     }
 
-    .section-icon.ingest { background: var(--ingest-light); }
-    .section-icon.process { background: var(--process-light); }
-    .section-icon.store { background: var(--store-light); }
-    .section-icon.feature { background: var(--feature-light); }
-    .section-icon.output { background: var(--output-light); }
-    .section-icon.ai { background: var(--ai-light); }
+    .section-icon .icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    .section-icon.ingest { background: var(--ingest-light); color: var(--ingest); }
+    .section-icon.process { background: var(--process-light); color: var(--process); }
+    .section-icon.store { background: var(--store-light); color: var(--store); }
+    .section-icon.feature { background: var(--feature-light); color: var(--feature); }
+    .section-icon.output { background: var(--output-light); color: var(--output); }
+    .section-icon.ai { background: var(--ai-light); color: var(--ai); }
 
     .section h2 {
       font-size: 1.15rem;
@@ -152,6 +157,19 @@
       color: var(--gray-600);
       font-size: 0.875rem;
       margin-bottom: 0.75rem;
+    }
+
+    /* SVG line icons */
+    .icon {
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
     }
 
     /* Main flow diagram */
@@ -190,6 +208,11 @@
 
     .mega-step .step-icon {
       font-size: 1.25rem;
+    }
+
+    .mega-step .step-icon .icon {
+      width: 1.25rem;
+      height: 1.25rem;
     }
 
     .mega-step .step-sub {
@@ -412,6 +435,9 @@
       font-size: 0.85rem;
       font-weight: 600;
       margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
     }
 
     .principle p {
@@ -607,6 +633,42 @@
   } catch (e) {}
 })();
 </script>
+
+  <!-- SVG Icon Sprite -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M12 3v10m-4-3l4 4 4-4"/><path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M5.6 5.6l2.1 2.1m8.6 8.6l2.1 2.1M5.6 18.4l2.1-2.1m8.6-8.6l2.1-2.1"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></symbol>
+    <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3m6-3v3M9 20v3m6-3v3M1 9h3m-3 6h3M20 9h3m-3 6h3"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4m-4 0h8"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V3m-4 4l4-4 4 4"/><path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M8 11h6M11 8v6"/></symbol>
+    <symbol id="i-split" viewBox="0 0 24 24"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 01-9 9"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 2l1.5 5.5L19 9l-5.5 1.5L12 16l-1.5-5.5L5 9l5.5-1.5z"/><path d="M19 15l.88 2.12L22 18l-2.12.88L19 21l-.88-2.12L16 18l2.12-.88z"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="18" r="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-net" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></symbol>
+    <symbol id="i-msg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 012 2v7M6 9v12"/></symbol>
+    <symbol id="i-case" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+    <symbol id="i-bar" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></symbol>
+    <symbol id="i-grad" viewBox="0 0 24 24"><path d="M22 10l-10-5L2 10l10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M4 20l9-9m0 0l-2.5-2.5a4 4 0 015.66-5.66L14 5l2.5 2.5 2.16-2.16a4 4 0 010 5.66L13 11z"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6m-5 4h4"/><path d="M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/></symbol>
+    <symbol id="i-flow" viewBox="0 0 24 24"><path d="M12 2v8m-5-3l5 5 5-5M5 18h14M7 18v3m10-3v3"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></symbol>
+  </svg>
+
   <div class="container">
     <header>
       <h1>End-to-End Data Flow</h1>
@@ -631,37 +693,37 @@
 
       <div class="mega-flow">
         <div class="mega-step ingest">
-          <span class="step-icon">&#128229;</span>
+          <span class="step-icon"><svg class="icon"><use href="#i-inbox"/></svg></span>
           <span>Ingestion</span>
           <span class="step-sub">5 sources</span>
         </div>
         <span class="flow-arrow">&#8594;</span>
         <div class="mega-step process">
-          <span class="step-icon">&#9881;</span>
+          <span class="step-icon"><svg class="icon"><use href="#i-gear"/></svg></span>
           <span>Processing</span>
           <span class="step-sub">classify + embed</span>
         </div>
         <span class="flow-arrow">&#8594;</span>
         <div class="mega-step store">
-          <span class="step-icon">&#128451;</span>
+          <span class="step-icon"><svg class="icon"><use href="#i-db"/></svg></span>
           <span>Storage</span>
           <span class="step-sub">Supabase + Neo4j</span>
         </div>
         <span class="flow-arrow">&#8594;</span>
         <div class="mega-step feature">
-          <span class="step-icon">&#128736;</span>
+          <span class="step-icon"><svg class="icon"><use href="#i-tool"/></svg></span>
           <span>Features</span>
           <span class="step-sub">6 modules</span>
         </div>
         <span class="flow-arrow">&#8594;</span>
         <div class="mega-step ai">
-          <span class="step-icon">&#129302;</span>
+          <span class="step-icon"><svg class="icon"><use href="#i-cpu"/></svg></span>
           <span>AI Agents</span>
           <span class="step-sub">22 specialists</span>
         </div>
         <span class="flow-arrow">&#8594;</span>
         <div class="mega-step output">
-          <span class="step-icon">&#127919;</span>
+          <span class="step-icon"><svg class="icon"><use href="#i-target"/></svg></span>
           <span>Actions</span>
           <span class="step-sub">tasks, projects, insights</span>
         </div>
@@ -671,34 +733,34 @@
     <!-- Layer 1: Ingestion Sources -->
     <div class="section">
       <div class="section-header">
-        <div class="section-icon ingest">&#128229;</div>
+        <div class="section-icon ingest"><svg class="icon"><use href="#i-inbox"/></svg></div>
         <h2>Layer 1: Ingestion Sources</h2>
       </div>
       <p>Five entry points bring data into the platform. The local file vault is the primary source, with meeting notes, manual uploads, and agent-generated content as secondary inputs.</p>
 
       <div class="source-grid">
         <div class="source-card">
-          <h4>&#128214; Local Vault Sync</h4>
+          <h4><svg class="icon"><use href="#i-book"/></svg> Local Vault Sync</h4>
           <p>Primary document source. Markdown files organized by topic folders.</p>
           <div class="detail">Launchd agent runs locally, uploads via HTTP to Railway backend. Processes .md, .pdf, .txt files.</div>
         </div>
         <div class="source-card">
-          <h4>&#127908; Granola Meeting Notes</h4>
+          <h4><svg class="icon"><use href="#i-mic"/></svg> Granola Meeting Notes</h4>
           <p>Auto-detected from local vault via pipeline scanner.</p>
           <div class="detail">Scans for Granola-formatted markdown, extracts attendees, action items, decisions.</div>
         </div>
         <div class="source-card">
-          <h4>&#128228; Manual File Upload</h4>
+          <h4><svg class="icon"><use href="#i-upload"/></svg> Manual File Upload</h4>
           <p>Direct upload via Knowledge Base UI.</p>
           <div class="detail">Supports PDF, MD, TXT. Drag-and-drop or file picker. Auto-classified on upload.</div>
         </div>
         <div class="source-card">
-          <h4>&#129302; Agent-Generated Content</h4>
+          <h4><svg class="icon"><use href="#i-cpu"/></svg> Agent-Generated Content</h4>
           <p>Documents created by AI agents during analysis.</p>
           <div class="detail">DISCO stage outputs, Oracle analyses, Kraken evaluations saved as KB docs.</div>
         </div>
         <div class="source-card">
-          <h4>&#128221; Manual Entry</h4>
+          <h4><svg class="icon"><use href="#i-edit"/></svg> Manual Entry</h4>
           <p>Tasks, projects, stakeholders created directly in the UI.</p>
           <div class="detail">Structured data entered via forms. Projects from DISCO convergence or manual creation.</div>
         </div>
@@ -708,29 +770,29 @@
     <!-- Layer 2: Document Processing -->
     <div class="section">
       <div class="section-header">
-        <div class="section-icon process">&#9881;</div>
+        <div class="section-icon process"><svg class="icon"><use href="#i-gear"/></svg></div>
         <h2>Layer 2: Document Processing Pipeline</h2>
       </div>
       <p>Every document goes through a multi-step processing pipeline before becoming searchable and usable by agents.</p>
 
       <h3>Processing Steps</h3>
       <div class="mini-flow">
-        <span class="mini-step ingest">&#128196; Raw document</span>
+        <span class="mini-step ingest"><svg class="icon"><use href="#i-file"/></svg> Raw document</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step process">&#128300; Text extraction</span>
+        <span class="mini-step process"><svg class="icon"><use href="#i-scan"/></svg> Text extraction</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step process">&#128278; Chunking (1000 chars)</span>
+        <span class="mini-step process"><svg class="icon"><use href="#i-split"/></svg> Chunking (1000 chars)</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step ai">&#129504; Auto-classification</span>
+        <span class="mini-step ai"><svg class="icon"><use href="#i-spark"/></svg> Auto-classification</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step ai">&#128200; Voyage AI embeddings</span>
+        <span class="mini-step ai"><svg class="icon"><use href="#i-trend"/></svg> Voyage AI embeddings</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step store">&#128451; Store vectors</span>
+        <span class="mini-step store"><svg class="icon"><use href="#i-db"/></svg> Store vectors</span>
       </div>
 
       <div class="detail-grid">
         <div class="detail-card">
-          <h4>&#128300; Text Extraction</h4>
+          <h4><svg class="icon"><use href="#i-scan"/></svg> Text Extraction</h4>
           <ul>
             <li>PDF: PyPDF2 page-by-page extraction</li>
             <li>Markdown: Frontmatter parsed, body cleaned</li>
@@ -739,7 +801,7 @@
           </ul>
         </div>
         <div class="detail-card">
-          <h4>&#129504; Auto-Classification</h4>
+          <h4><svg class="icon"><use href="#i-spark"/></svg> Auto-Classification</h4>
           <ul>
             <li>Claude classifies document type automatically</li>
             <li>Types: transcript, notes, report, analysis, planning, reference</li>
@@ -748,7 +810,7 @@
           </ul>
         </div>
         <div class="detail-card">
-          <h4>&#128200; Embedding Generation</h4>
+          <h4><svg class="icon"><use href="#i-trend"/></svg> Embedding Generation</h4>
           <ul>
             <li>Voyage AI voyage-3 model (1024 dimensions)</li>
             <li>Chunks: 1000 chars with 200 char overlap</li>
@@ -757,7 +819,7 @@
           </ul>
         </div>
         <div class="detail-card">
-          <h4>&#128279; Knowledge Graph</h4>
+          <h4><svg class="icon"><use href="#i-link"/></svg> Knowledge Graph</h4>
           <ul>
             <li>Neo4j Aura for entity relationships</li>
             <li>People, organizations, topics as nodes</li>
@@ -771,14 +833,14 @@
     <!-- Layer 3: Storage -->
     <div class="section">
       <div class="section-header">
-        <div class="section-icon store">&#128451;</div>
+        <div class="section-icon store"><svg class="icon"><use href="#i-db"/></svg></div>
         <h2>Layer 3: Storage Layer</h2>
       </div>
       <p>Two complementary databases serve different query patterns: Supabase for structured data and vector search, Neo4j for relationship traversal.</p>
 
       <div class="detail-grid">
         <div class="detail-card">
-          <h4>&#127969; Supabase (PostgreSQL)</h4>
+          <h4><svg class="icon"><use href="#i-server"/></svg> Supabase (PostgreSQL)</h4>
           <ul>
             <li><strong>kb_documents</strong>: Full documents with metadata</li>
             <li><strong>kb_document_chunks</strong>: Embedded chunks for vector search</li>
@@ -791,7 +853,7 @@
           </ul>
         </div>
         <div class="detail-card">
-          <h4>&#128752; Neo4j Aura (Graph DB)</h4>
+          <h4><svg class="icon"><use href="#i-net"/></svg> Neo4j Aura (Graph DB)</h4>
           <ul>
             <li><strong>Person</strong> nodes: stakeholders, attendees</li>
             <li><strong>Organization</strong> nodes: companies, teams</li>
@@ -812,14 +874,14 @@
     <!-- Layer 4: Feature Consumption -->
     <div class="section">
       <div class="section-header">
-        <div class="section-icon feature">&#128736;</div>
+        <div class="section-icon feature"><svg class="icon"><use href="#i-tool"/></svg></div>
         <h2>Layer 4: Feature Modules</h2>
       </div>
       <p>Six major features consume the stored data in different ways. Each module reads from specific tables and writes back structured results.</p>
 
       <div class="lane-grid">
         <div class="lane disco">
-          <h4>&#128270; DISCO Initiatives</h4>
+          <h4><svg class="icon"><use href="#i-search"/></svg> DISCO Initiatives</h4>
           <ul>
             <li>Links KB docs to initiatives</li>
             <li>4-stage pipeline (D-I-S-C)</li>
@@ -828,7 +890,7 @@
           </ul>
         </div>
         <div class="lane chat">
-          <h4>&#128172; Chat + Meeting Rooms</h4>
+          <h4><svg class="icon"><use href="#i-msg"/></svg> Chat + Meeting Rooms</h4>
           <ul>
             <li>22 agents with KB vector context</li>
             <li>@mention routing to specialists</li>
@@ -837,7 +899,7 @@
           </ul>
         </div>
         <div class="lane projects">
-          <h4>&#128188; Projects Pipeline</h4>
+          <h4><svg class="icon"><use href="#i-case"/></svg> Projects Pipeline</h4>
           <ul>
             <li>4-dimension scoring (ROI, Effort, etc.)</li>
             <li>Tier auto-calculation (T1-T4)</li>
@@ -846,7 +908,7 @@
           </ul>
         </div>
         <div class="lane tasks">
-          <h4>&#9989; Task Management</h4>
+          <h4><svg class="icon"><use href="#i-check"/></svg> Task Management</h4>
           <ul>
             <li>Kanban board (To Do thru Done)</li>
             <li>Created from DISCO, Taskmaster, manual</li>
@@ -855,7 +917,7 @@
           </ul>
         </div>
         <div class="lane pipeline">
-          <h4>&#128202; Pipeline Aggregation</h4>
+          <h4><svg class="icon"><use href="#i-bar"/></svg> Pipeline Aggregation</h4>
           <ul>
             <li>Aggregates projects by status/tier</li>
             <li>Team workload visualization</li>
@@ -864,7 +926,7 @@
           </ul>
         </div>
         <div class="lane intel">
-          <h4>&#127891; Intelligence Module</h4>
+          <h4><svg class="icon"><use href="#i-grad"/></svg> Intelligence Module</h4>
           <ul>
             <li>Stakeholder engagement scoring</li>
             <li>Relationship mapping via Neo4j</li>
@@ -878,29 +940,29 @@
     <!-- Layer 5: AI Agent Layer -->
     <div class="section">
       <div class="section-header">
-        <div class="section-icon ai">&#129302;</div>
+        <div class="section-icon ai"><svg class="icon"><use href="#i-cpu"/></svg></div>
         <h2>Layer 5: AI Agent Layer</h2>
       </div>
       <p>22 specialized agents process requests using KB context, conversation history, and structured data. Each agent has a specific domain and XML-defined behavior.</p>
 
       <h3>How Agents Access Data</h3>
       <div class="mini-flow">
-        <span class="mini-step feature">&#128172; User message</span>
+        <span class="mini-step feature"><svg class="icon"><use href="#i-msg"/></svg> User message</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step ai">&#128268; Agent router</span>
+        <span class="mini-step ai"><svg class="icon"><use href="#i-route"/></svg> Agent router</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step store">&#128270; Vector search KB</span>
+        <span class="mini-step store"><svg class="icon"><use href="#i-search"/></svg> Vector search KB</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step store">&#128752; Graph query</span>
+        <span class="mini-step store"><svg class="icon"><use href="#i-net"/></svg> Graph query</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step ai">&#129504; Claude + context</span>
+        <span class="mini-step ai"><svg class="icon"><use href="#i-spark"/></svg> Claude + context</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step output">&#128172; Response</span>
+        <span class="mini-step output"><svg class="icon"><use href="#i-msg"/></svg> Response</span>
       </div>
 
       <div class="detail-grid">
         <div class="detail-card">
-          <h4>&#128268; Agent Categories</h4>
+          <h4><svg class="icon"><use href="#i-route"/></svg> Agent Categories</h4>
           <ul>
             <li><strong>Stakeholder:</strong> CTO, CFO, CISO, CDO perspectives</li>
             <li><strong>Consulting:</strong> Oracle, Strategist, Architect</li>
@@ -911,7 +973,7 @@
           </ul>
         </div>
         <div class="detail-card">
-          <h4>&#128218; Context Injection</h4>
+          <h4><svg class="icon"><use href="#i-layers"/></svg> Context Injection</h4>
           <ul>
             <li>Vector search: top-k chunks by cosine similarity</li>
             <li>Graph context: related entities from Neo4j</li>
@@ -922,7 +984,7 @@
           </ul>
         </div>
         <div class="detail-card">
-          <h4>&#128295; Agent Actions</h4>
+          <h4><svg class="icon"><use href="#i-wrench"/></svg> Agent Actions</h4>
           <ul>
             <li>Respond to chat messages with analysis</li>
             <li>Create tasks from conversation context</li>
@@ -938,46 +1000,46 @@
     <!-- Cross-cutting: Data Connections -->
     <div class="section">
       <div class="section-header">
-        <div class="section-icon output">&#128279;</div>
+        <div class="section-icon output"><svg class="icon"><use href="#i-link"/></svg></div>
         <h2>Cross-Cutting Data Connections</h2>
       </div>
       <p>Features don't operate in isolation. Here's how data flows between modules, creating a connected intelligence network.</p>
 
       <h3>DISCO to Projects</h3>
       <div class="mini-flow">
-        <span class="mini-step ingest">&#128270; DISCO Discovery</span>
+        <span class="mini-step ingest"><svg class="icon"><use href="#i-search"/></svg> DISCO Discovery</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step process">&#128161; Insights generated</span>
+        <span class="mini-step process"><svg class="icon"><use href="#i-bulb"/></svg> Insights generated</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step ai">&#128736; Requirements clustered</span>
+        <span class="mini-step ai"><svg class="icon"><use href="#i-tool"/></svg> Requirements clustered</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step feature">&#128188; Projects proposed</span>
+        <span class="mini-step feature"><svg class="icon"><use href="#i-case"/></svg> Projects proposed</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step output">&#128202; Pipeline tracked</span>
+        <span class="mini-step output"><svg class="icon"><use href="#i-bar"/></svg> Pipeline tracked</span>
       </div>
 
       <h3>Meeting Notes to Tasks</h3>
       <div class="mini-flow">
-        <span class="mini-step ingest">&#127908; Granola note synced</span>
+        <span class="mini-step ingest"><svg class="icon"><use href="#i-mic"/></svg> Granola note synced</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step process">&#128300; Action items extracted</span>
+        <span class="mini-step process"><svg class="icon"><use href="#i-scan"/></svg> Action items extracted</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step feature">&#9989; Tasks created</span>
+        <span class="mini-step feature"><svg class="icon"><use href="#i-check"/></svg> Tasks created</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step store">&#128101; Stakeholders linked</span>
+        <span class="mini-step store"><svg class="icon"><use href="#i-users"/></svg> Stakeholders linked</span>
       </div>
 
       <h3>KB to Intelligence</h3>
       <div class="mini-flow">
-        <span class="mini-step store">&#128218; KB documents</span>
+        <span class="mini-step store"><svg class="icon"><use href="#i-layers"/></svg> KB documents</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step ai">&#128300; Entity extraction</span>
+        <span class="mini-step ai"><svg class="icon"><use href="#i-scan"/></svg> Entity extraction</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step store">&#128752; Neo4j graph</span>
+        <span class="mini-step store"><svg class="icon"><use href="#i-net"/></svg> Neo4j graph</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step feature">&#127891; Relationship map</span>
+        <span class="mini-step feature"><svg class="icon"><use href="#i-grad"/></svg> Relationship map</span>
         <span class="mini-arrow">&#8594;</span>
-        <span class="mini-step output">&#128200; Engagement scores</span>
+        <span class="mini-step output"><svg class="icon"><use href="#i-trend"/></svg> Engagement scores</span>
       </div>
 
       <div class="callout tip">
@@ -988,33 +1050,33 @@
     <!-- Key Principles -->
     <div class="section">
       <div class="section-header">
-        <div class="section-icon store">&#128161;</div>
+        <div class="section-icon store"><svg class="icon"><use href="#i-bulb"/></svg></div>
         <h2>Key Principles</h2>
       </div>
 
       <div class="principles">
         <div class="principle">
-          <h4>&#128218; KB is the Foundation</h4>
+          <h4><svg class="icon"><use href="#i-layers"/></svg> KB is the Foundation</h4>
           <p>Everything starts with documents. The richer the KB, the better agents perform. Vault sync keeps it current.</p>
         </div>
         <div class="principle">
-          <h4>&#128279; Everything Links</h4>
+          <h4><svg class="icon"><use href="#i-link"/></svg> Everything Links</h4>
           <p>Documents link to initiatives, initiatives produce projects, projects contain tasks, tasks reference stakeholders. The graph grows naturally.</p>
         </div>
         <div class="principle">
-          <h4>&#129302; Agents Use Context</h4>
+          <h4><svg class="icon"><use href="#i-cpu"/></svg> Agents Use Context</h4>
           <p>Every agent response is grounded in your KB documents via vector search. They cite sources and prioritize your data over general knowledge.</p>
         </div>
         <div class="principle">
-          <h4>&#128260; Data Flows Down</h4>
+          <h4><svg class="icon"><use href="#i-flow"/></svg> Data Flows Down</h4>
           <p>Strategic analysis (DISCO) produces tactical output (projects, tasks). Top-down: initiative framing guides discovery, which guides project creation.</p>
         </div>
         <div class="principle">
-          <h4>&#128752; Two Storage Models</h4>
+          <h4><svg class="icon"><use href="#i-net"/></svg> Two Storage Models</h4>
           <p>Supabase for structured records and vector search. Neo4j for relationship traversal. Both queried by agents as needed.</p>
         </div>
         <div class="principle">
-          <h4>&#128257; Continuous Enrichment</h4>
+          <h4><svg class="icon"><use href="#i-refresh"/></svg> Continuous Enrichment</h4>
           <p>Every sync, upload, meeting, and agent interaction adds to the knowledge base. The platform gets smarter as you use it.</p>
         </div>
       </div>

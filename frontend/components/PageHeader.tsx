@@ -38,9 +38,9 @@ export default function PageHeader({
     { href: '/chat', label: 'Chat' },
     { href: '/tasks', label: 'Tasks' },
     { href: '/projects', label: 'Projects' },
+    // Conditionally add Initiatives link for users with access
+    ...(hasDiscoAccess ? [{ href: '/disco', label: 'Initiatives' }] : []),
     { href: '/intelligence', label: 'Intelligence' },
-    // Conditionally add DISCo link for users with access
-    ...(hasDiscoAccess ? [{ href: '/disco', label: 'DISCo' }] : []),
     { href: '/manifesto', label: 'Manifesto' },
     { href: '/help', label: 'Help' },
   ]
