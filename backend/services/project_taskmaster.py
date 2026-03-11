@@ -1,8 +1,10 @@
 """Project Taskmaster Service.
 
 Handles Taskmaster chat within project context.
-Extracts tasks from conversation and creates them as task_candidates
-linked to the project.
+Extracts tasks from conversation and creates them linked to the project.
+
+All tasks must be grounded in project documentation, agent outputs, or
+explicit user statements -- never generated from general assumptions.
 """
 
 import logging
@@ -28,9 +30,9 @@ async def chat_with_taskmaster(
     """Chat with Taskmaster about a project.
 
     Taskmaster will:
-    1. Respond to the user's message with task suggestions
-    2. Extract concrete tasks from the conversation
-    3. Create task_candidates linked to the project
+    1. Gather all available evidence (docs, agent outputs, project metadata)
+    2. Derive tasks grounded in that evidence
+    3. Create sequenced tasks with dependencies linked to the project
 
     Args:
         project_id: The project being discussed
@@ -42,12 +44,12 @@ async def chat_with_taskmaster(
     Returns:
         dict with response, tasks_created count, and task_titles
     """
-    # Get project details for context
+    # Get project details including metadata
     project_result = (
         supabase.table("ai_projects")
         .select(
             "id, title, description, project_name, project_description, current_state, "
-            "desired_state, next_step, department, status"
+            "desired_state, next_step, department, status, blockers, metadata"
         )
         .eq("id", project_id)
         .eq("client_id", client_id)
@@ -60,7 +62,7 @@ async def chat_with_taskmaster(
 
     project = project_result.data
 
-    # Build context for Taskmaster
+    # Build project context
     context_parts = [
         f"Project: {project.get('project_name') or project['title']}",
     ]
@@ -82,41 +84,92 @@ async def chat_with_taskmaster(
     if project.get("department"):
         context_parts.append(f"Department: {project['department']}")
 
+    if project.get("blockers"):
+        context_parts.append(f"Blockers: {', '.join(project['blockers'])}")
+
+    # Include metadata context (stakeholders, artifacts, scope)
+    metadata = project.get("metadata") or {}
+    if metadata.get("stakeholders"):
+        stakeholder_lines = []
+        for name, info in metadata["stakeholders"].items():
+            stakeholder_lines.append(f"  - {name}: {info.get('role', '')} - {info.get('title', '')} ({info.get('notes', '')})")
+        context_parts.append(f"Stakeholders:\n" + "\n".join(stakeholder_lines))
+
+    if metadata.get("artifacts"):
+        artifact_lines = []
+        for name, info in metadata["artifacts"].items():
+            status = info.get("status", "unknown")
+            notes = info.get("notes", "")
+            artifact_lines.append(f"  - {name}: {status}" + (f" ({notes})" if notes else ""))
+        context_parts.append(f"Artifacts:\n" + "\n".join(artifact_lines))
+
+    if metadata.get("agent_scope"):
+        scope = metadata["agent_scope"]
+        if scope.get("in_scope"):
+            context_parts.append(f"In Scope: {', '.join(scope['in_scope'])}")
+        if scope.get("out_of_scope"):
+            context_parts.append(f"Out of Scope: {', '.join(scope['out_of_scope'])}")
+
     project_context = "\n".join(context_parts)
 
-    # Add KB document awareness via digests (overview of all linked docs)
+    # --- EVIDENCE LAYER 1: Previous agent outputs (Discovery Guide, etc.) ---
+    agent_output_context = ""
     try:
-        from services.document_digests import get_project_document_digests
-
-        doc_digests = get_project_document_digests(project_id, supabase)
-        docs_with_digests = [d for d in doc_digests if d.get("digest")][:20]
-        if docs_with_digests:
-            kb_lines = ["", "KNOWLEDGE BASE DOCUMENTS:"]
-            for doc in docs_with_digests:
-                kb_lines.append(f"- {doc['title']}: {doc['digest']}")
-            project_context += "\n".join(kb_lines)
+        outputs_result = (
+            supabase.table("disco_outputs")
+            .select("agent_type, version, content_markdown, recommendation, confidence_level")
+            .eq("project_id", project_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        if outputs_result.data:
+            seen_types = set()
+            output_parts = ["AGENT ANALYSIS OUTPUTS (use these as primary task sources):"]
+            for output in outputs_result.data:
+                if output["agent_type"] not in seen_types:
+                    seen_types.add(output["agent_type"])
+                    output_parts.append(f"\n=== {output['agent_type']} (v{output['version']}) ===")
+                    if output.get("recommendation"):
+                        output_parts.append(f"Recommendation: {output['recommendation']}")
+                    if output.get("confidence_level"):
+                        output_parts.append(f"Confidence: {output['confidence_level']}")
+                    # Include full content but cap at 6000 chars per output
+                    content = output.get("content_markdown", "")
+                    if len(content) > 6000:
+                        content = content[:6000] + "\n... (truncated)"
+                    output_parts.append(content)
+            agent_output_context = "\n".join(output_parts)
+            logger.info(f"Taskmaster: loaded {len(seen_types)} agent outputs as evidence")
     except Exception as e:
-        logger.warning(f"Failed to load document digests for Taskmaster: {e}")
+        logger.warning(f"Failed to load agent outputs for Taskmaster: {e}")
 
-    # RAG search: pull actual document content relevant to the user's message
+    # --- EVIDENCE LAYER 2: Document content via RAG ---
+    # Use project description + next_step as the search query, not the user message
     rag_context = ""
     try:
         from document_processor import search_similar_chunks
 
-        # Get project-linked document IDs for scoping
         pd_result = supabase.table("project_documents").select("document_id").eq("project_id", project_id).execute()
         project_doc_ids = [row["document_id"] for row in (pd_result.data or [])]
 
         if project_doc_ids:
-            chunks = search_similar_chunks(
+            # Build a meaningful search query from project context
+            search_query = " ".join(filter(None, [
+                project.get("description", ""),
+                project.get("next_step", ""),
+                project.get("desired_state", ""),
                 message,
+            ]))[:500]
+
+            chunks = search_similar_chunks(
+                search_query,
                 client_id,
-                limit=8,
+                limit=12,
                 min_similarity=0.0,
                 document_ids=project_doc_ids,
             )
             if chunks:
-                rag_lines = ["\n\nRELEVANT DOCUMENT CONTENT:"]
+                rag_lines = ["RELEVANT DOCUMENT CONTENT:"]
                 for chunk in chunks:
                     source = chunk.get("source", chunk.get("filename", "Unknown"))
                     content = chunk.get("content", "")
@@ -128,6 +181,40 @@ async def chat_with_taskmaster(
                 )
     except Exception as e:
         logger.warning(f"Failed to perform RAG search for Taskmaster: {e}")
+
+    # --- EVIDENCE LAYER 3: Document digests as fallback overview ---
+    digest_context = ""
+    try:
+        from services.document_digests import get_project_document_digests
+
+        doc_digests = get_project_document_digests(project_id, supabase)
+        docs_with_digests = [d for d in doc_digests if d.get("digest")][:20]
+        if docs_with_digests:
+            kb_lines = ["DOCUMENT SUMMARIES:"]
+            for doc in docs_with_digests:
+                kb_lines.append(f"- {doc['title']}: {doc['digest']}")
+            digest_context = "\n".join(kb_lines)
+    except Exception as e:
+        logger.warning(f"Failed to load document digests for Taskmaster: {e}")
+
+    # --- EXISTING TASKS: prevent duplication ---
+    existing_tasks_context = ""
+    try:
+        existing_result = (
+            supabase.table("project_tasks")
+            .select("title, status, sequence_number")
+            .eq("linked_project_id", project_id)
+            .order("sequence_number", desc=False)
+            .execute()
+        )
+        if existing_result.data:
+            task_lines = ["EXISTING TASKS (do not duplicate these):"]
+            for t in existing_result.data:
+                seq = f"#{t['sequence_number']}" if t.get("sequence_number") else ""
+                task_lines.append(f"  - [{t['status']}] {seq} {t['title']}")
+            existing_tasks_context = "\n".join(task_lines)
+    except Exception as e:
+        logger.warning(f"Failed to load existing tasks for Taskmaster: {e}")
 
     # Get user name for task assignment
     user_result = supabase.table("users").select("name, email").eq("id", user_id).single().execute()
@@ -143,36 +230,43 @@ async def chat_with_taskmaster(
 
     client = anthropic.Anthropic(api_key=api_key)
 
-    system_prompt = f"""You are Taskmaster, a personal accountability partner helping break down a project into tasks.
+    system_prompt = f"""You are Taskmaster, a project accountability partner that creates tasks grounded in evidence.
 
 PROJECT CONTEXT:
 {project_context}
+
+{agent_output_context}
+
 {rag_context}
 
-YOUR ROLE:
-1. Help the user break this project into concrete, actionable tasks
-2. Suggest tasks with clear titles, priorities (1=Critical to 5=Lowest), and due date suggestions
-3. When you suggest tasks, format them clearly so they can be extracted
+{digest_context}
 
-TASK FORMAT (use this exact format when suggesting tasks):
+{existing_tasks_context}
+
+CRITICAL RULES:
+1. Every task you suggest MUST be derived from a specific source: an agent output finding, a document reference, a project field (next_step, blockers, desired_state), or something the user explicitly stated.
+2. For each task, include a "Source:" line citing where the task comes from (e.g. "Source: Discovery Guide recommendation", "Source: project next_step field", "Source: Emily transcript - booking policy review").
+3. Do NOT invent tasks from general assumptions about what a project "probably" needs. If the evidence doesn't support a task, don't suggest it.
+4. Do NOT duplicate existing tasks listed above. Build on what exists.
+5. Sequence tasks in logical execution order with dependencies.
+
+TASK FORMAT (use this exact format):
 [TASK] Title: <task title>
 Sequence: <integer starting at 1, indicating execution order>
 Priority: <1-5>
 Due: <relative date like "this week", "next week", "in 2 weeks", or "no date">
 Depends On: <comma-separated list of sequence numbers this task depends on, or "none">
-Description: <brief description>
+Source: <specific document, agent output, or project field this task is derived from>
+Description: <brief description grounded in the source>
 [/TASK]
 
 GUIDELINES:
-- Be conversational and helpful
-- Ground your suggestions in the linked document content when available
-- Ask clarifying questions if needed
-- Suggest 3-5 tasks at a time, not overwhelming lists
-- ALWAYS sequence tasks in logical execution order and set dependencies between them
-- Focus on immediate next actions, not the entire project
+- Be conversational but evidence-driven
+- Suggest 3-7 tasks at a time
+- ALWAYS sequence tasks and set dependencies
 - Tasks assigned to: {user_name or "the user"}
 
-After listing tasks, always ask if they want to proceed with creating these tasks or modify them."""
+After listing tasks, ask if they want to proceed with creating these tasks or modify them."""
 
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -203,7 +297,7 @@ After listing tasks, always ask if they want to proceed with creating these task
     )
     next_position = (pos_result.data[0]["position"] + 1) if pos_result.data else 0
 
-    # First pass: parse all tasks and collect sequence-to-id mapping
+    # First pass: parse all tasks
     parsed_tasks = []
     for block in task_blocks:
         task_data = _parse_task_block(block)
@@ -234,10 +328,18 @@ After listing tasks, always ask if they want to proceed with creating these task
             if dep_uuid:
                 depends_on_uuids.append(dep_uuid)
 
+        # Build description with source attribution
+        description = task_data.get("description", "")
+        source = task_data.get("source", "")
+        if source and description:
+            description = f"{description}\n\nSource: {source}"
+        elif source:
+            description = f"Source: {source}"
+
         task_record = {
             "client_id": client_id,
             "title": task_data["title"],
-            "description": task_data.get("description"),
+            "description": description,
             "status": "pending",
             "priority": task_data.get("priority", 3),
             "assignee_name": user_name,
@@ -311,6 +413,8 @@ def _parse_task_block(block: str) -> Optional[dict]:
                     except ValueError:
                         pass
                 task_data["depends_on_seqs"] = dep_seqs
+        elif line.lower().startswith("source:"):
+            task_data["source"] = line[7:].strip()
         elif line.lower().startswith("description:"):
             task_data["description"] = line[12:].strip()
 
