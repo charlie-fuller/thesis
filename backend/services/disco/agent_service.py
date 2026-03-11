@@ -819,7 +819,7 @@ async def build_project_agent_context(project_id: str, agent_type: str, include_
     project_result = await asyncio.to_thread(
         lambda: supabase.table("ai_projects")
         .select(
-            "id, title, description, current_state, desired_state, department, status, impact_score, feasibility_score, urgency_score, ai_score_justification, stakeholder_ids, initiative_ids"
+            "id, title, description, current_state, desired_state, department, status, roi_potential, implementation_effort, strategic_alignment, stakeholder_readiness, project_summary, initiative_ids, metadata, next_step, blockers"
         )
         .eq("id", project_id)
         .single()
@@ -843,16 +843,30 @@ async def build_project_agent_context(project_id: str, agent_type: str, include_
         project_parts.append(f"**Status:** {project['status']}")
 
     scores = []
-    if project.get("impact_score") is not None:
-        scores.append(f"Impact: {project['impact_score']}")
-    if project.get("feasibility_score") is not None:
-        scores.append(f"Feasibility: {project['feasibility_score']}")
-    if project.get("urgency_score") is not None:
-        scores.append(f"Urgency: {project['urgency_score']}")
+    if project.get("roi_potential") is not None:
+        scores.append(f"ROI Potential: {project['roi_potential']}/5")
+    if project.get("implementation_effort") is not None:
+        scores.append(f"Implementation Effort: {project['implementation_effort']}/5")
+    if project.get("strategic_alignment") is not None:
+        scores.append(f"Strategic Alignment: {project['strategic_alignment']}/5")
+    if project.get("stakeholder_readiness") is not None:
+        scores.append(f"Stakeholder Readiness: {project['stakeholder_readiness']}/5")
     if scores:
         project_parts.append(f"**Scores:** {', '.join(scores)}")
-    if project.get("ai_score_justification"):
-        project_parts.append(f"**Score Justification:** {project['ai_score_justification']}")
+    if project.get("project_summary"):
+        project_parts.append(f"**Summary:** {project['project_summary']}")
+    if project.get("next_step"):
+        project_parts.append(f"**Next Step:** {project['next_step']}")
+    if project.get("blockers"):
+        project_parts.append(f"**Blockers:** {', '.join(project['blockers'])}")
+    if project.get("metadata"):
+        meta = project["metadata"]
+        if meta.get("stakeholders"):
+            stakeholder_lines = []
+            for name, info in meta["stakeholders"].items():
+                stakeholder_lines.append(f"  - {name}: {info.get('role', '')} ({info.get('title', '')})")
+            if stakeholder_lines:
+                project_parts.append(f"**Stakeholders:**\n" + "\n".join(stakeholder_lines))
 
     context["project_context"] = "\n".join(project_parts)
 
