@@ -270,7 +270,7 @@ export default function ProjectAgentPanel({ projectId }: ProjectAgentPanelProps)
       </div>
 
       {/* Agent Cards */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {AGENT_ORDER.map((agentType) => {
           const config = PROJECT_AGENTS[agentType]
           const Icon = config.icon
