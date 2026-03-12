@@ -41,6 +41,7 @@ export default function PageHeader({
     // Conditionally add Initiatives link for users with access
     ...(hasDiscoAccess ? [{ href: '/disco', label: 'Initiatives' }] : []),
     { href: '/intelligence', label: 'Intelligence' },
+    { href: '/command', label: 'Command' },
     { href: '/manifesto', label: 'Manifesto' },
     { href: '/help', label: 'Help' },
   ]
