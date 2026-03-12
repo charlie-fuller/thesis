@@ -314,6 +314,8 @@ export default function CommandTerminal() {
             setModel(val)
             localStorage.setItem(MODEL_KEY, val)
           }}
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
           className="bg-gray-800 text-gray-400 text-xs font-mono border border-gray-700 rounded px-2 py-1 outline-none focus:border-gray-500 cursor-pointer"
         >
           {MODELS.map(m => (
