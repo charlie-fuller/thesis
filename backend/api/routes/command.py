@@ -84,57 +84,100 @@ async def command_stream(
 
             # Tool-use loop
             for iteration in range(MAX_TOOL_ITERATIONS):
-                response = await asyncio.to_thread(
-                    lambda: anthropic_client.messages.create(
-                        model="claude-sonnet-4-5-20250929",
-                        max_tokens=4096,
-                        temperature=0,
-                        system=system,
-                        tools=COMMAND_TOOL_SCHEMAS,
-                        messages=messages,
-                    )
-                )
-
-                # Process response content blocks
-                assistant_content = response.content
-                text_parts = []
+                # Use streaming API for real-time token delivery
+                collected_text = ""
                 tool_uses = []
+                current_tool_name = None
+                current_tool_id = None
+                current_tool_input_json = ""
+                stop_reason = None
 
-                for block in assistant_content:
-                    if block.type == "text":
-                        text_parts.append(block.text)
-                        # Stream text tokens
-                        yield f"data: {json.dumps({'type': 'token', 'content': block.text})}\n\n"
-                    elif block.type == "tool_use":
-                        tool_uses.append(block)
-                        # Stream tool call notification
-                        yield f"data: {json.dumps({'type': 'tool_call', 'tool': block.name, 'input': block.input})}\n\n"
+                with anthropic_client.messages.stream(
+                    model="claude-sonnet-4-5-20250929",
+                    max_tokens=4096,
+                    temperature=0,
+                    system=system,
+                    tools=COMMAND_TOOL_SCHEMAS,
+                    messages=messages,
+                ) as stream:
+                    for event in stream:
+                        if event.type == "content_block_start":
+                            if event.content_block.type == "text":
+                                pass  # Text will come via deltas
+                            elif event.content_block.type == "tool_use":
+                                current_tool_name = event.content_block.name
+                                current_tool_id = event.content_block.id
+                                current_tool_input_json = ""
+
+                        elif event.type == "content_block_delta":
+                            if event.delta.type == "text_delta":
+                                text = event.delta.text
+                                collected_text += text
+                                yield f"data: {json.dumps({'type': 'token', 'content': text})}\n\n"
+                            elif event.delta.type == "input_json_delta":
+                                current_tool_input_json += event.delta.partial_json
+
+                        elif event.type == "content_block_stop":
+                            if current_tool_name and current_tool_id:
+                                # Parse the accumulated tool input
+                                try:
+                                    tool_input = json.loads(current_tool_input_json) if current_tool_input_json else {}
+                                except json.JSONDecodeError:
+                                    tool_input = {}
+
+                                tool_uses.append({
+                                    "id": current_tool_id,
+                                    "name": current_tool_name,
+                                    "input": tool_input,
+                                })
+
+                                # Stream tool call notification
+                                yield f"data: {json.dumps({'type': 'tool_call', 'tool': current_tool_name, 'input': tool_input})}\n\n"
+
+                                current_tool_name = None
+                                current_tool_id = None
+                                current_tool_input_json = ""
+
+                        elif event.type == "message_delta":
+                            stop_reason = event.delta.stop_reason
 
                 # If no tool calls, we're done
-                if response.stop_reason == "end_turn" or not tool_uses:
+                if stop_reason == "end_turn" or not tool_uses:
                     break
 
-                # Execute tool calls and build tool results
-                # Append the assistant message with all content blocks
+                # Build assistant content blocks for the message history
+                assistant_content = []
+                if collected_text:
+                    assistant_content.append({"type": "text", "text": collected_text})
+                for tu in tool_uses:
+                    assistant_content.append({
+                        "type": "tool_use",
+                        "id": tu["id"],
+                        "name": tu["name"],
+                        "input": tu["input"],
+                    })
+
                 messages.append({"role": "assistant", "content": assistant_content})
 
+                # Execute tool calls
                 tool_results = []
-                for tool_use in tool_uses:
-                    result = await execute_tool(tool_use.name, tool_use.input, supabase, client_id)
+                for tu in tool_uses:
+                    result = await execute_tool(tu["name"], tu["input"], supabase, client_id)
 
                     # Stream tool result summary
-                    result_summary = _summarize_result(tool_use.name, result)
-                    yield f"data: {json.dumps({'type': 'tool_result', 'tool': tool_use.name, 'result': result_summary})}\n\n"
+                    result_summary = _summarize_result(tu["name"], result)
+                    yield f"data: {json.dumps({'type': 'tool_result', 'tool': tu['name'], 'result': result_summary})}\n\n"
 
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": tool_use.id,
-                            "content": json.dumps(result),
-                        }
-                    )
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": tu["id"],
+                        "content": json.dumps(result),
+                    })
 
                 messages.append({"role": "user", "content": tool_results})
+
+                # Reset for next iteration
+                collected_text = ""
 
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
@@ -156,9 +199,9 @@ def _summarize_result(tool_name: str, result: dict) -> str:
         return f"Found {count} {entity}"
 
     if result.get("created"):
-        return f"Created successfully"
+        return "Created successfully"
 
     if result.get("updated"):
-        return f"Updated successfully"
+        return "Updated successfully"
 
     return "Done"
