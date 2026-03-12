@@ -46,9 +46,16 @@ Guidelines:
 
 MAX_TOOL_ITERATIONS = 10
 
+MODEL_MAP = {
+    "haiku": "claude-haiku-4-5-20251001",
+    "sonnet": "claude-sonnet-4-5-20250929",
+    "opus": "claude-opus-4-20250514",
+}
+
 
 class CommandRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=5000)
+    model: str = Field(default="sonnet", description="Model to use: haiku, sonnet, or opus")
     history: list[dict] = Field(default_factory=list, description="Previous messages for context")
 
 
@@ -75,6 +82,9 @@ async def command_stream(
             current_date = datetime.now(timezone.utc).strftime("%B %d, %Y")
             system = SYSTEM_PROMPT.format(current_date=current_date)
 
+            # Resolve model
+            model_id = MODEL_MAP.get(command_request.model, MODEL_MAP["sonnet"])
+
             # Build messages from history + current
             messages = []
             for msg in command_request.history[-20:]:  # Keep last 20 for context
@@ -93,7 +103,7 @@ async def command_stream(
                 stop_reason = None
 
                 with anthropic_client.messages.stream(
-                    model="claude-sonnet-4-5-20250929",
+                    model=model_id,
                     max_tokens=4096,
                     temperature=0,
                     system=system,

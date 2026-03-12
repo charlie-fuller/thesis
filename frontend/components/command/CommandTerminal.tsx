@@ -17,7 +17,16 @@ interface CommandEntry {
 }
 
 const HISTORY_KEY = 'thesis_command_history'
+const MODEL_KEY = 'thesis_command_model'
 const MAX_HISTORY = 100
+
+const MODELS = [
+  { id: 'haiku', label: 'Haiku', description: 'Fast' },
+  { id: 'sonnet', label: 'Sonnet', description: 'Default' },
+  { id: 'opus', label: 'Opus', description: 'Powerful' },
+] as const
+
+type ModelId = typeof MODELS[number]['id']
 
 const WELCOME_MESSAGE = `Welcome to Thesis Command Center.
 
@@ -41,11 +50,12 @@ export default function CommandTerminal() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingOutput, setStreamingOutput] = useState('')
   const [streamingToolCalls, setStreamingToolCalls] = useState<ToolCall[]>([])
+  const [model, setModel] = useState<ModelId>('sonnet')
   const outputRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  // Load history from localStorage
+  // Load history and model from localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem(HISTORY_KEY)
@@ -54,6 +64,10 @@ export default function CommandTerminal() {
         if (Array.isArray(parsed)) {
           setHistory(parsed.slice(-MAX_HISTORY))
         }
+      }
+      const savedModel = localStorage.getItem(MODEL_KEY)
+      if (savedModel && MODELS.some(m => m.id === savedModel)) {
+        setModel(savedModel as ModelId)
       }
     } catch {
       // Ignore parse errors
@@ -110,6 +124,7 @@ export default function CommandTerminal() {
         },
         body: JSON.stringify({
           message: input,
+          model,
           history: history.slice(-10).flatMap(h => [
             { role: 'user', content: h.input },
             { role: 'assistant', content: h.output },
@@ -178,7 +193,7 @@ export default function CommandTerminal() {
       // Re-focus input after command completes
       setTimeout(() => inputRef.current?.focus(), 50)
     }
-  }, [currentInput, isStreaming, session, history])
+  }, [currentInput, isStreaming, session, history, model])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
@@ -278,8 +293,8 @@ export default function CommandTerminal() {
       </div>
 
       {/* Input area */}
-      <div className="flex items-center px-4 py-3 border-t border-gray-800 bg-gray-900">
-        <span className="text-green-400 mr-2 font-mono text-sm flex-shrink-0">thesis&gt;</span>
+      <div className="flex items-center px-4 py-3 border-t border-gray-800 bg-gray-900 gap-2">
+        <span className="text-green-400 mr-1 font-mono text-sm flex-shrink-0">thesis&gt;</span>
         <input
           ref={inputRef}
           type="text"
@@ -292,6 +307,21 @@ export default function CommandTerminal() {
           autoComplete="off"
           spellCheck={false}
         />
+        <select
+          value={model}
+          onChange={e => {
+            const val = e.target.value as ModelId
+            setModel(val)
+            localStorage.setItem(MODEL_KEY, val)
+          }}
+          className="bg-gray-800 text-gray-400 text-xs font-mono border border-gray-700 rounded px-2 py-1 outline-none focus:border-gray-500 cursor-pointer"
+        >
+          {MODELS.map(m => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   )
