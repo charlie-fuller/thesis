@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface ToolCall {
@@ -27,6 +29,58 @@ const MODELS = [
 ] as const
 
 type ModelId = typeof MODELS[number]['id']
+
+const markdownComponents = {
+  table: ({ children, ...props }: React.ComponentProps<'table'>) => (
+    <table className="border-collapse my-2 text-sm w-full" {...props}>{children}</table>
+  ),
+  thead: ({ children, ...props }: React.ComponentProps<'thead'>) => (
+    <thead className="border-b border-gray-600" {...props}>{children}</thead>
+  ),
+  th: ({ children, ...props }: React.ComponentProps<'th'>) => (
+    <th className="text-left px-2 py-1 text-gray-300 font-semibold" {...props}>{children}</th>
+  ),
+  td: ({ children, ...props }: React.ComponentProps<'td'>) => (
+    <td className="px-2 py-1 text-gray-200 border-t border-gray-800" {...props}>{children}</td>
+  ),
+  strong: ({ children, ...props }: React.ComponentProps<'strong'>) => (
+    <strong className="text-white font-bold" {...props}>{children}</strong>
+  ),
+  code: ({ children, className, ...props }: React.ComponentProps<'code'> & { className?: string }) => {
+    const isBlock = className?.includes('language-')
+    if (isBlock) {
+      return (
+        <code className="block bg-gray-900 border border-gray-700 rounded p-3 my-2 text-sm overflow-x-auto whitespace-pre" {...props}>
+          {children}
+        </code>
+      )
+    }
+    return (
+      <code className="bg-gray-800 text-green-300 px-1 rounded text-sm" {...props}>{children}</code>
+    )
+  },
+  pre: ({ children, ...props }: React.ComponentProps<'pre'>) => (
+    <pre className="my-1" {...props}>{children}</pre>
+  ),
+  ul: ({ children, ...props }: React.ComponentProps<'ul'>) => (
+    <ul className="list-disc list-inside my-1 space-y-0.5" {...props}>{children}</ul>
+  ),
+  ol: ({ children, ...props }: React.ComponentProps<'ol'>) => (
+    <ol className="list-decimal list-inside my-1 space-y-0.5" {...props}>{children}</ol>
+  ),
+  h2: ({ children, ...props }: React.ComponentProps<'h2'>) => (
+    <h2 className="text-white font-bold text-base mt-3 mb-1" {...props}>{children}</h2>
+  ),
+  h3: ({ children, ...props }: React.ComponentProps<'h3'>) => (
+    <h3 className="text-white font-bold text-sm mt-2 mb-1" {...props}>{children}</h3>
+  ),
+  p: ({ children, ...props }: React.ComponentProps<'p'>) => (
+    <p className="my-1" {...props}>{children}</p>
+  ),
+  hr: (props: React.ComponentProps<'hr'>) => (
+    <hr className="border-gray-700 my-2" {...props} />
+  ),
+}
 
 const WELCOME_MESSAGE = `Welcome to Thesis Command Center.
 
@@ -260,8 +314,12 @@ export default function CommandTerminal() {
                 ))}
               </div>
             )}
-            <div className={`ml-2 mt-1 whitespace-pre-wrap ${entry.isError ? 'text-red-400' : 'text-gray-100'}`}>
-              {entry.output}
+            <div className={`ml-2 mt-1 ${entry.isError ? 'text-red-400' : 'text-gray-100'} command-markdown`}>
+              {entry.isError ? (
+                <pre className="whitespace-pre-wrap">{entry.output}</pre>
+              ) : (
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{entry.output}</ReactMarkdown>
+              )}
             </div>
           </div>
         ))}
@@ -283,7 +341,9 @@ export default function CommandTerminal() {
               </div>
             )}
             {streamingOutput && (
-              <div className="ml-2 mt-1 text-gray-100 whitespace-pre-wrap">{streamingOutput}</div>
+              <div className="ml-2 mt-1 text-gray-100 command-markdown">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{streamingOutput}</ReactMarkdown>
+              </div>
             )}
             {!streamingOutput && streamingToolCalls.length === 0 && (
               <div className="ml-2 mt-1 text-gray-500 animate-pulse">thinking...</div>
