@@ -90,16 +90,42 @@ async def upload_document(
                         "initiative_id": initiative_id,
                         "chunk_index": chunk["chunk_index"],
                         "content": sanitized_content,
-                        "embedding": embedding,
                         "metadata": {"filename": filename, "chunk_size": len(sanitized_content)},
                     }
                 )
 
             # Batch insert chunks
+            all_inserted = []
             batch_size = DATABASE.BATCH_INSERT_SIZE
             for batch_start in range(0, len(chunks_to_insert), batch_size):
                 batch = chunks_to_insert[batch_start : batch_start + batch_size]
-                await asyncio.to_thread(lambda b=batch: supabase.table("disco_document_chunks").insert(b).execute())
+                insert_result = await asyncio.to_thread(
+                    lambda b=batch: supabase.table("disco_document_chunks").insert(b).execute()
+                )
+                if insert_result.data:
+                    all_inserted.extend(insert_result.data)
+
+            # Upsert vectors to Pinecone
+            pinecone_vectors = []
+            for inserted_chunk, embedding in zip(all_inserted, embeddings, strict=False):
+                pinecone_vectors.append(
+                    {
+                        "id": str(inserted_chunk["id"]),
+                        "values": embedding,
+                        "metadata": {
+                            "document_id": document_id,
+                            "initiative_id": initiative_id,
+                            "chunk_index": inserted_chunk.get("chunk_index", 0),
+                        },
+                    }
+                )
+
+            if pinecone_vectors:
+                from services.pinecone_service import upsert_vectors
+
+                await asyncio.to_thread(
+                    lambda: upsert_vectors(vectors=pinecone_vectors, namespace="disco_document_chunks")
+                )
 
             logger.info(f"Stored {len(chunks_to_insert)} chunks for document {document_id}")
 
@@ -251,20 +277,53 @@ async def search_initiative_docs(
             lambda: generate_embeddings([query], input_type=EMBEDDING.INPUT_TYPE_QUERY)[0]
         )
 
-        # Call vector search function
-        result = await asyncio.to_thread(
-            lambda: supabase.rpc(
-                "match_disco_document_chunks",
-                {
-                    "query_embedding": query_embedding,
-                    "match_count": limit,
-                    "match_threshold": min_similarity,
-                    "p_initiative_id": initiative_id,
-                },
-            ).execute()
-        )
+        # Try Pinecone first
+        from services.pinecone_service import get_index, query_vectors
 
-        chunks = result.data or []
+        if get_index() is not None:
+            pc_filter = {"initiative_id": {"$eq": initiative_id}}
+            matches = await asyncio.to_thread(
+                lambda: query_vectors(
+                    embedding=query_embedding,
+                    namespace="disco_document_chunks",
+                    top_k=limit,
+                    filter=pc_filter,
+                )
+            )
+            matches = [m for m in matches if m["score"] >= min_similarity]
+
+            if matches:
+                chunk_ids = [m["id"] for m in matches]
+                scores_map = {m["id"]: m["score"] for m in matches}
+
+                db_result = await asyncio.to_thread(
+                    lambda: supabase.table("disco_document_chunks")
+                    .select("id, document_id, content, chunk_index, metadata")
+                    .in_("id", chunk_ids)
+                    .execute()
+                )
+                chunks = []
+                for row in db_result.data or []:
+                    row["similarity"] = scores_map.get(str(row["id"]), 0)
+                    chunks.append(row)
+                chunks.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+            else:
+                chunks = []
+        else:
+            # Fallback to pgvector RPC
+            result = await asyncio.to_thread(
+                lambda: supabase.rpc(
+                    "match_disco_document_chunks",
+                    {
+                        "query_embedding": query_embedding,
+                        "match_count": limit,
+                        "match_threshold": min_similarity,
+                        "p_initiative_id": initiative_id,
+                    },
+                ).execute()
+            )
+            chunks = result.data or []
+
         logger.info(f"Found {len(chunks)} matching chunks")
 
         # Fetch document filenames for context
@@ -432,20 +491,52 @@ async def search_linked_kb_docs(
         )
 
         # Search document_chunks for linked documents using vector similarity
-        # Using raw SQL via RPC since there's no built-in function for this specific case
-        result = await asyncio.to_thread(
-            lambda: supabase.rpc(
-                "match_document_chunks_by_ids",
-                {
-                    "query_embedding": query_embedding,
-                    "match_count": limit,
-                    "match_threshold": min_similarity,
-                    "p_document_ids": doc_ids,
-                },
-            ).execute()
-        )
+        from services.pinecone_service import get_index, query_vectors
 
-        chunks = result.data or []
+        if get_index() is not None:
+            pc_filter = {"document_id": {"$in": doc_ids}}
+            matches = await asyncio.to_thread(
+                lambda: query_vectors(
+                    embedding=query_embedding,
+                    namespace="document_chunks",
+                    top_k=limit,
+                    filter=pc_filter,
+                )
+            )
+            matches = [m for m in matches if m["score"] >= min_similarity]
+
+            if matches:
+                chunk_ids = [m["id"] for m in matches]
+                scores_map = {m["id"]: m["score"] for m in matches}
+
+                db_result = await asyncio.to_thread(
+                    lambda: supabase.table("document_chunks")
+                    .select("id, document_id, content, chunk_index, metadata")
+                    .in_("id", chunk_ids)
+                    .execute()
+                )
+                chunks = []
+                for row in db_result.data or []:
+                    row["similarity"] = scores_map.get(str(row["id"]), 0)
+                    chunks.append(row)
+                chunks.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+            else:
+                chunks = []
+        else:
+            # Fallback to pgvector RPC
+            result = await asyncio.to_thread(
+                lambda: supabase.rpc(
+                    "match_document_chunks_by_ids",
+                    {
+                        "query_embedding": query_embedding,
+                        "match_count": limit,
+                        "match_threshold": min_similarity,
+                        "p_document_ids": doc_ids,
+                    },
+                ).execute()
+            )
+            chunks = result.data or []
+
         logger.info(f"Found {len(chunks)} matching chunks from linked KB docs")
 
         # Fetch document filenames for context

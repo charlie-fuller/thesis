@@ -181,6 +181,16 @@ async def reindex_help_document(
 
         logger.info(f"Reindexing document: {title}")
 
+        # Delete old vectors from Pinecone before deleting chunks
+        old_chunks = await asyncio.to_thread(
+            lambda: supabase.table("help_chunks").select("id").eq("document_id", document_id).execute()
+        )
+        if old_chunks.data:
+            old_ids = [str(c["id"]) for c in old_chunks.data]
+            from services.pinecone_service import delete_vectors
+
+            await asyncio.to_thread(lambda: delete_vectors(ids=old_ids, namespace="help_chunks"))
+
         await asyncio.to_thread(lambda: supabase.table("help_chunks").delete().eq("document_id", document_id).execute())
 
         content_result = await asyncio.to_thread(
@@ -197,6 +207,7 @@ async def reindex_help_document(
         sections = _extract_sections(content)
         chunks_created = 0
         chunk_index = 0
+        pinecone_vectors = []
 
         for heading, section_content in sections:
             section_chunks = _chunk_text(section_content)
@@ -209,7 +220,7 @@ async def reindex_help_document(
                     embedding_content = f"{title} - {heading}\n\n{chunk_text_content}"
                     embedding = create_embedding(embedding_content, input_type="document")
 
-                    await asyncio.to_thread(
+                    insert_result = await asyncio.to_thread(
                         lambda emb=embedding, idx=chunk_index, head=heading, chunk=chunk_text_content: supabase.table(
                             "help_chunks"
                         )
@@ -227,12 +238,36 @@ async def reindex_help_document(
                         .execute()
                     )
 
+                    # Collect for Pinecone upsert
+                    if insert_result.data:
+                        chunk_id = insert_result.data[0]["id"]
+                        role_access = ROLE_ACCESS_MAP.get(category, ["admin", "user"])
+                        pinecone_vectors.append({
+                            "id": str(chunk_id),
+                            "values": embedding,
+                            "metadata": {
+                                "document_id": document_id,
+                                "category": category,
+                                "title": title,
+                                "heading": heading,
+                                "role_access": role_access[0] if role_access else "user",
+                            },
+                        })
+
                     chunks_created += 1
                     chunk_index += 1
 
                 except Exception as e:
                     logger.error(f"Error creating embedding for chunk {chunk_index}: {e}")
                     continue
+
+        # Batch upsert to Pinecone
+        if pinecone_vectors:
+            from services.pinecone_service import upsert_vectors
+
+            await asyncio.to_thread(
+                lambda: upsert_vectors(vectors=pinecone_vectors, namespace="help_chunks")
+            )
 
         await asyncio.to_thread(
             lambda: supabase.table("help_documents")
@@ -319,6 +354,16 @@ async def update_help_document(
 
         logger.info(f"Updated help document: {new_title} by admin {current_user['id']}")
 
+        # Delete old vectors from Pinecone before deleting chunks
+        old_chunks_upd = await asyncio.to_thread(
+            lambda: supabase.table("help_chunks").select("id").eq("document_id", document_id).execute()
+        )
+        if old_chunks_upd.data:
+            old_ids_upd = [str(c["id"]) for c in old_chunks_upd.data]
+            from services.pinecone_service import delete_vectors as _del_vecs
+
+            await asyncio.to_thread(lambda: _del_vecs(ids=old_ids_upd, namespace="help_chunks"))
+
         await asyncio.to_thread(lambda: supabase.table("help_chunks").delete().eq("document_id", document_id).execute())
 
         from services.embeddings import create_embedding
@@ -326,6 +371,7 @@ async def update_help_document(
         sections = _extract_sections(new_content)
         chunks_created = 0
         chunk_index = 0
+        pinecone_vectors_update = []
 
         for heading, section_content in sections:
             section_chunks = _chunk_text(section_content)
@@ -338,7 +384,7 @@ async def update_help_document(
                     embedding_content = f"{new_title} - {heading}\n\n{chunk_text_content}"
                     embedding = create_embedding(embedding_content, input_type="document")
 
-                    await asyncio.to_thread(
+                    insert_result = await asyncio.to_thread(
                         lambda emb=embedding, idx=chunk_index, head=heading, chunk=chunk_text_content: supabase.table(
                             "help_chunks"
                         )
@@ -360,12 +406,36 @@ async def update_help_document(
                         .execute()
                     )
 
+                    # Collect for Pinecone upsert
+                    if insert_result.data:
+                        chunk_id = insert_result.data[0]["id"]
+                        role_access = ROLE_ACCESS_MAP.get(category, ["admin", "user"])
+                        pinecone_vectors_update.append({
+                            "id": str(chunk_id),
+                            "values": embedding,
+                            "metadata": {
+                                "document_id": document_id,
+                                "category": category,
+                                "title": new_title,
+                                "heading": heading,
+                                "role_access": role_access[0] if role_access else "user",
+                            },
+                        })
+
                     chunks_created += 1
                     chunk_index += 1
 
                 except Exception as e:
                     logger.error(f"Error creating embedding for chunk {chunk_index}: {e}")
                     continue
+
+        # Batch upsert to Pinecone
+        if pinecone_vectors_update:
+            from services.pinecone_service import upsert_vectors
+
+            await asyncio.to_thread(
+                lambda: upsert_vectors(vectors=pinecone_vectors_update, namespace="help_chunks")
+            )
 
         logger.info(f"Reindexed {new_title} after update: {chunks_created} chunks created")
 

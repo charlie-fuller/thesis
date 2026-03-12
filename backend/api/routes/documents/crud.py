@@ -195,6 +195,19 @@ async def delete_document(
             except Exception as e:
                 logger.warning(f"Could not delete DISCo links: {e}")
 
+        # Delete vectors from Pinecone before deleting chunks
+        try:
+            chunks_for_pc = await retry_supabase_operation(
+                lambda: supabase.table("document_chunks").select("id").eq("document_id", document_id).execute()
+            )
+            if chunks_for_pc and chunks_for_pc.data:
+                pc_ids = [str(c["id"]) for c in chunks_for_pc.data]
+                from services.pinecone_service import delete_vectors
+
+                delete_vectors(ids=pc_ids, namespace="document_chunks")
+        except Exception as e:
+            logger.warning(f"Could not delete Pinecone vectors: {e}")
+
         # Delete chunks
         await retry_supabase_operation(
             lambda: supabase.table("document_chunks").delete().eq("document_id", document_id).execute()

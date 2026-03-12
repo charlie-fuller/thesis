@@ -419,12 +419,12 @@ def process_document(document_id: str) -> Dict:
         embeddings = generate_embeddings(chunk_texts)
         logger.info(f"   ✓ Generated {len(embeddings)} embeddings")
 
-        # Store chunks with embeddings in database
+        # Store chunks in database (without embeddings) and upsert vectors to Pinecone
         logger.info("   Storing chunks in database...")
 
-        # FIX: Batch insert instead of individual inserts (10-12x performance improvement)
         # Collect all chunk data first
         chunks_to_insert = []
+        pinecone_vectors = []
         for _i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
             # Sanitize content: remove null bytes which PostgreSQL cannot handle
             sanitized_content = chunk["content"].replace("\x00", "")
@@ -432,7 +432,6 @@ def process_document(document_id: str) -> Dict:
             chunk_data = {
                 "document_id": document_id,
                 "content": sanitized_content,
-                "embedding": embedding,
                 "chunk_index": chunk["chunk_index"],
                 "metadata": {
                     "filename": document["filename"],
@@ -444,11 +443,35 @@ def process_document(document_id: str) -> Dict:
         # Batch insert with PostgreSQL limit handling
         BATCH_SIZE = DATABASE.BATCH_INSERT_SIZE
         stored_count = 0
+        all_inserted_chunks = []
 
         for batch_start in range(0, len(chunks_to_insert), BATCH_SIZE):
             batch = chunks_to_insert[batch_start : batch_start + BATCH_SIZE]
-            supabase.table("document_chunks").insert(batch).execute()
+            insert_result = supabase.table("document_chunks").insert(batch).execute()
             stored_count += len(batch)
+            if insert_result.data:
+                all_inserted_chunks.extend(insert_result.data)
+
+        # Upsert vectors to Pinecone using the chunk IDs from Supabase
+        for inserted_chunk, embedding in zip(all_inserted_chunks, embeddings, strict=False):
+            pinecone_vectors.append(
+                {
+                    "id": str(inserted_chunk["id"]),
+                    "values": embedding,
+                    "metadata": {
+                        "document_id": document_id,
+                        "client_id": str(document.get("client_id", "")),
+                        "user_id": str(document.get("user_id", "")),
+                        "chunk_index": inserted_chunk.get("chunk_index", 0),
+                        "source_type": "document",
+                    },
+                }
+            )
+
+        if pinecone_vectors:
+            from services.pinecone_service import upsert_vectors
+
+            upsert_vectors(vectors=pinecone_vectors, namespace="document_chunks")
 
         logger.info(
             f"   ✓ Stored {stored_count} chunks in {(len(chunks_to_insert) + BATCH_SIZE - 1) // BATCH_SIZE} batch(es)"
@@ -737,7 +760,6 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
     logger.info("   Storing chunks in database...")
 
     try:
-        # FIX: Batch insert instead of individual inserts (10-12x performance improvement)
         # Collect all chunk data first
         chunks_to_insert = []
         for _i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
@@ -749,7 +771,6 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
                 "client_id": client_id,
                 "source_type": "conversation",
                 "content": sanitized_content,
-                "embedding": embedding,
                 "chunk_index": chunk["chunk_index"],
                 "metadata": {
                     "conversation_title": conversation.get("title", "Untitled"),
@@ -762,11 +783,36 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
         # Batch insert with PostgreSQL limit handling
         BATCH_SIZE = DATABASE.BATCH_INSERT_SIZE
         stored_count = 0
+        all_inserted_chunks = []
 
         for batch_start in range(0, len(chunks_to_insert), BATCH_SIZE):
             batch = chunks_to_insert[batch_start : batch_start + BATCH_SIZE]
-            supabase.table("document_chunks").insert(batch).execute()
+            insert_result = supabase.table("document_chunks").insert(batch).execute()
             stored_count += len(batch)
+            if insert_result.data:
+                all_inserted_chunks.extend(insert_result.data)
+
+        # Upsert vectors to Pinecone
+        pinecone_vectors = []
+        for inserted_chunk, embedding in zip(all_inserted_chunks, embeddings, strict=False):
+            pinecone_vectors.append(
+                {
+                    "id": str(inserted_chunk["id"]),
+                    "values": embedding,
+                    "metadata": {
+                        "conversation_id": conversation_id,
+                        "client_id": str(client_id),
+                        "user_id": user_id,
+                        "chunk_index": inserted_chunk.get("chunk_index", 0),
+                        "source_type": "conversation",
+                    },
+                }
+            )
+
+        if pinecone_vectors:
+            from services.pinecone_service import upsert_vectors
+
+            upsert_vectors(vectors=pinecone_vectors, namespace="document_chunks")
 
         logger.info(
             f"   ✓ Stored {stored_count} chunks in {(len(chunks_to_insert) + BATCH_SIZE - 1) // BATCH_SIZE} batch(es)"
@@ -826,6 +872,18 @@ def remove_conversation_from_kb(conversation_id: str, user_id: str) -> Dict:
 
     if not conv_result.data:
         raise ValueError(f"Conversation {conversation_id} not found or access denied")
+
+    # Get chunk IDs before deleting (for Pinecone cleanup)
+    chunks_to_delete = (
+        supabase.table("document_chunks").select("id").eq("conversation_id", conversation_id).execute()
+    )
+    chunk_ids_to_delete = [str(c["id"]) for c in (chunks_to_delete.data or [])]
+
+    # Delete from Pinecone
+    if chunk_ids_to_delete:
+        from services.pinecone_service import delete_vectors
+
+        delete_vectors(ids=chunk_ids_to_delete, namespace="document_chunks")
 
     # Delete all chunks for this conversation
     delete_result = supabase.table("document_chunks").delete().eq("conversation_id", conversation_id).execute()
@@ -1242,35 +1300,93 @@ def search_similar_chunks(
     used_fallback = False
     used_document_type_filter = False
 
+    # Check if Pinecone is available
+    from services.pinecone_service import get_index as _get_pinecone_index
+    from services.pinecone_service import query_vectors as _query_pinecone
+
+    _use_pinecone = _get_pinecone_index() is not None
+
+    def _pinecone_search_and_hydrate(pc_filter, top_k, threshold):
+        """Query Pinecone and hydrate results from Supabase."""
+        matches = _query_pinecone(
+            embedding=query_embedding,
+            namespace="document_chunks",
+            top_k=top_k,
+            filter=pc_filter if pc_filter else None,
+        )
+        # Filter by threshold
+        matches = [m for m in matches if m["score"] >= threshold]
+        if not matches:
+            return []
+
+        # Fetch chunk data from Supabase by IDs
+        chunk_ids = [m["id"] for m in matches]
+        scores_map = {m["id"]: m["score"] for m in matches}
+
+        # Batch fetch in groups of 100 (Supabase .in_() limit)
+        hydrated = []
+        for batch_start in range(0, len(chunk_ids), 100):
+            batch_ids = chunk_ids[batch_start : batch_start + 100]
+            try:
+                db_result = (
+                    supabase.table("document_chunks")
+                    .select("id, document_id, conversation_id, content, chunk_index, metadata, source_type, client_id, created_at")
+                    .in_("id", batch_ids)
+                    .execute()
+                )
+                for row in db_result.data or []:
+                    row["similarity"] = scores_map.get(str(row["id"]), 0)
+                    hydrated.append(row)
+            except Exception as e:
+                logger.error(f"   Failed to hydrate Pinecone results from Supabase: {e}")
+
+        # Sort by similarity descending
+        hydrated.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+        return hydrated
+
     # First, try document_type filtered search for meeting queries
     if is_meeting_query and not agent_ids:
         logger.info("   Detected meeting/action item query - trying document_type filtered search")
         try:
-            # Build RPC params - include date filter if recency query
-            rpc_params = {
-                "query_embedding": query_embedding,
-                "match_count": limit * 3,
-                "match_threshold": min_similarity,
-                "p_client_id": client_id,
-                "p_user_id": user_id,
-                "p_document_types": ["transcript", "notes"],
-            }
-            if recency_date:
-                rpc_params["p_min_date"] = recency_date
+            if _use_pinecone:
+                # Pinecone filter for document types
+                pc_filter = {
+                    "$and": [
+                        {"client_id": {"$eq": client_id}},
+                        {"source_type": {"$in": ["transcript", "notes"]}},
+                    ]
+                }
+                if user_id:
+                    pc_filter["$and"].append({"user_id": {"$eq": user_id}})
 
-            # Search specifically in transcripts and notes first
-            result = supabase.rpc("match_document_chunks_by_type", rpc_params).execute()
+                chunks = _pinecone_search_and_hydrate(pc_filter, limit * 3, min_similarity)
 
-            chunks = result.data or []
+                # Apply recency filter in post-processing if needed
+                if recency_date and chunks:
+                    chunks = [c for c in chunks if (c.get("created_at") or "") >= recency_date]
+            else:
+                # Fallback to pgvector RPC
+                rpc_params = {
+                    "query_embedding": query_embedding,
+                    "match_count": limit * 3,
+                    "match_threshold": min_similarity,
+                    "p_client_id": client_id,
+                    "p_user_id": user_id,
+                    "p_document_types": ["transcript", "notes"],
+                }
+                if recency_date:
+                    rpc_params["p_min_date"] = recency_date
+
+                result = supabase.rpc("match_document_chunks_by_type", rpc_params).execute()
+                chunks = result.data or []
 
             # Keep date filter active - don't silently drop it when few results found
-            # This allows agent to accurately tell user "I found X recent documents"
             if recency_date and len(chunks) < 2:
                 logger.info(
                     f"   Date filter active: only {len(chunks)} recent chunks found (respecting user's recency request)"
                 )
 
-            if len(chunks) >= 1:  # Found results with type filter (allow sparse results when date-filtered)
+            if len(chunks) >= 1:
                 used_document_type_filter = True
                 logger.info(f"   Found {len(chunks)} chunks from transcripts/notes")
 
@@ -1281,24 +1397,21 @@ def search_similar_chunks(
                         chunk_date = chunk.get("created_at")
                         if chunk_date:
                             try:
-                                # Parse ISO format date
                                 if isinstance(chunk_date, str):
                                     chunk_dt = datetime.fromisoformat(chunk_date.replace("Z", "+00:00"))
                                 else:
                                     chunk_dt = chunk_date
-                                # Boost recent documents by 20%
                                 if chunk_dt > cutoff:
                                     original_sim = chunk.get("similarity", 0)
                                     chunk["similarity"] = min(1.0, original_sim * 1.2)
                                     chunk["recency_boosted"] = True
                             except (ValueError, TypeError):
                                 pass
-                    # Re-sort by boosted similarity
                     chunks.sort(key=lambda x: x.get("similarity", 0), reverse=True)
                     logger.info("   Applied recency boost for work query")
             else:
                 logger.info(f"   Only found {len(chunks)} chunks from transcripts/notes, will try broader search")
-                chunks = []  # Reset to trigger regular search
+                chunks = []
         except Exception as rpc_error:
             logger.warning(f"   Document type filtered search failed: {rpc_error}, falling back to standard search")
             chunks = []
@@ -1306,91 +1419,133 @@ def search_similar_chunks(
     # Only run standard search if we didn't already get results from document_type filter
     if not used_document_type_filter:
         if document_ids:
-            # Use document-ID-filtered RPC for database-level filtering (much more accurate
-            # than post-filtering, which can miss results when project docs aren't in top-N)
             logger.info(
-                f"   Calling match_document_chunks_by_ids with threshold={min_similarity}, "
-                f"{len(document_ids)} document IDs"
+                f"   Searching with {len(document_ids)} document IDs, threshold={min_similarity}"
             )
             logger.info(f"   Query embedding length: {len(query_embedding)}")
 
             try:
-                result = supabase.rpc(
-                    "match_document_chunks_by_ids",
-                    {
-                        "query_embedding": query_embedding,
-                        "match_count": limit * 3,
-                        "match_threshold": min_similarity,
-                        "p_document_ids": document_ids,
-                    },
-                ).execute()
+                if _use_pinecone:
+                    pc_filter = {"document_id": {"$in": document_ids}}
+                    chunks = _pinecone_search_and_hydrate(pc_filter, limit * 3, min_similarity)
+                else:
+                    result = supabase.rpc(
+                        "match_document_chunks_by_ids",
+                        {
+                            "query_embedding": query_embedding,
+                            "match_count": limit * 3,
+                            "match_threshold": min_similarity,
+                            "p_document_ids": document_ids,
+                        },
+                    ).execute()
+                    chunks = result.data or []
 
-                chunks = result.data or []
                 logger.info(f"   Found {len(chunks)} results from specified documents")
                 if chunks:
                     logger.info(f"   Top result similarity: {chunks[0].get('similarity', 'N/A')}")
             except Exception as rpc_error:
-                logger.error(f"   Document-ID-filtered RPC call failed: {rpc_error}")
+                logger.error(f"   Document-ID-filtered search failed: {rpc_error}")
                 chunks = []
         elif agent_ids:
             logger.info(
-                f"   Calling match_document_chunks_with_agent_filter "
-                f"with threshold={min_similarity}, agents={agent_ids}"
+                f"   Searching with agent filter, threshold={min_similarity}, agents={agent_ids}"
             )
             logger.info(f"   Query embedding length: {len(query_embedding)}")
 
             try:
-                result = supabase.rpc(
-                    "match_document_chunks_with_agent_filter",
-                    {
-                        "query_embedding": query_embedding,
-                        "match_count": limit * 3,
-                        "match_threshold": min_similarity,
-                        "p_client_id": client_id,
-                        "p_user_id": user_id,
-                        "p_agent_ids": agent_ids,
-                        "p_fallback_threshold": fallback_threshold,
-                    },
-                ).execute()
+                if _use_pinecone:
+                    # For agent-filtered search, first get document IDs tagged for these agents
+                    # then search Pinecone with those document IDs
+                    try:
+                        agent_docs_result = (
+                            supabase.table("document_agents")
+                            .select("document_id")
+                            .in_("agent_id", agent_ids)
+                            .execute()
+                        )
+                        agent_doc_ids = list({d["document_id"] for d in (agent_docs_result.data or [])})
+                    except Exception:
+                        agent_doc_ids = []
 
-                chunks = result.data
-                # Check if fallback was used (last row indicator)
-                if chunks:
-                    used_fallback = chunks[0].get("used_fallback", False)
-                    if used_fallback:
-                        logger.info("   Agent filter had insufficient results, used fallback to all documents")
+                    if agent_doc_ids:
+                        pc_filter = {
+                            "$and": [
+                                {"client_id": {"$eq": client_id}},
+                                {"document_id": {"$in": agent_doc_ids}},
+                            ]
+                        }
+                        if user_id:
+                            pc_filter["$and"].append({"user_id": {"$eq": user_id}})
+                        chunks = _pinecone_search_and_hydrate(pc_filter, limit * 3, min_similarity)
+                    else:
+                        chunks = []
+
+                    # Fallback to all docs if agent filter has insufficient results
+                    if len(chunks) < fallback_threshold:
+                        used_fallback = True
+                        logger.info("   Agent filter had insufficient results, using fallback to all documents")
+                        pc_filter = {"client_id": {"$eq": client_id}}
+                        if user_id:
+                            pc_filter["user_id"] = {"$eq": user_id}
+                        chunks = _pinecone_search_and_hydrate(pc_filter, limit * 3, min_similarity)
+                        for chunk in chunks:
+                            chunk["used_fallback"] = True
+                else:
+                    result = supabase.rpc(
+                        "match_document_chunks_with_agent_filter",
+                        {
+                            "query_embedding": query_embedding,
+                            "match_count": limit * 3,
+                            "match_threshold": min_similarity,
+                            "p_client_id": client_id,
+                            "p_user_id": user_id,
+                            "p_agent_ids": agent_ids,
+                            "p_fallback_threshold": fallback_threshold,
+                        },
+                    ).execute()
+                    chunks = result.data
+                    if chunks:
+                        used_fallback = chunks[0].get("used_fallback", False)
+                        if used_fallback:
+                            logger.info("   Agent filter had insufficient results, used fallback to all documents")
 
                 logger.info(f"   Found {len(chunks)} results (fallback={used_fallback})")
                 if chunks:
                     logger.info(f"   Top result similarity: {chunks[0].get('similarity', 'N/A')}")
             except Exception as rpc_error:
-                logger.error(f"   Agent-filtered RPC call failed: {rpc_error}")
+                logger.error(f"   Agent-filtered search failed: {rpc_error}")
                 chunks = []
         else:
             logger.info(
-                f"   Calling match_document_chunks with threshold={min_similarity}, "
+                f"   Searching with threshold={min_similarity}, "
                 f"client_id={client_id}, user_id={user_id}"
             )
             logger.info(f"   Query embedding length: {len(query_embedding)}")
 
             try:
-                result = supabase.rpc(
-                    "match_document_chunks",
-                    {
-                        "query_embedding": query_embedding,
-                        "match_count": limit * 3,  # Get more results to prioritize conversation docs
-                        "match_threshold": min_similarity,
-                        "p_client_id": client_id,
-                        "p_user_id": user_id,
-                    },
-                ).execute()
+                if _use_pinecone:
+                    pc_filter = {"client_id": {"$eq": client_id}}
+                    if user_id:
+                        pc_filter["user_id"] = {"$eq": user_id}
+                    chunks = _pinecone_search_and_hydrate(pc_filter, limit * 3, min_similarity)
+                else:
+                    result = supabase.rpc(
+                        "match_document_chunks",
+                        {
+                            "query_embedding": query_embedding,
+                            "match_count": limit * 3,
+                            "match_threshold": min_similarity,
+                            "p_client_id": client_id,
+                            "p_user_id": user_id,
+                        },
+                    ).execute()
+                    chunks = result.data
 
-                chunks = result.data
                 logger.info(f"   Found {len(chunks)} results")
                 if chunks:
                     logger.info(f"   Top result similarity: {chunks[0].get('similarity', 'N/A')}")
             except Exception as rpc_error:
-                logger.error(f"   RPC call failed: {rpc_error}")
+                logger.error(f"   Search failed: {rpc_error}")
                 chunks = []
 
     # Filter out conversation chunks if requested

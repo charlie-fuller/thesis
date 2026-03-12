@@ -198,16 +198,89 @@ async def ask_help_question(
             logger.info(f"Detected recency query - filtering to docs after {min_date[:10]}")
 
         # Step 2: Search help chunks via vector similarity
-        rpc_params = {
-            "query_embedding": query_embedding,
-            "match_count": chat_request.top_k,
-            "user_role": user_role,
-            "min_similarity": 0.4,  # Reject very low relevance matches
-        }
-        if min_date:
-            rpc_params["min_date"] = min_date
+        from services.pinecone_service import get_index as _get_pc_index
+        from services.pinecone_service import query_vectors as _query_pc
 
-        help_chunks = supabase.rpc("match_help_chunks", rpc_params).execute()
+        if _get_pc_index() is not None:
+            # Build Pinecone metadata filter
+            pc_filter_parts = []
+            if user_role:
+                pc_filter_parts.append({"role_access": {"$eq": user_role}})
+
+            pc_filter = {"$and": pc_filter_parts} if len(pc_filter_parts) > 1 else (pc_filter_parts[0] if pc_filter_parts else None)
+
+            matches = _query_pc(
+                embedding=query_embedding,
+                namespace="help_chunks",
+                top_k=chat_request.top_k * 2,  # Over-fetch for post-filtering
+                filter=pc_filter,
+            )
+            # Filter by minimum similarity
+            matches = [m for m in matches if m["score"] >= 0.4]
+
+            if matches:
+                chunk_ids = [m["id"] for m in matches]
+                scores_map = {m["id"]: m["score"] for m in matches}
+
+                # Fetch chunk details from Supabase
+                db_result = (
+                    supabase.table("help_chunks")
+                    .select("id, document_id, content, heading_context, chunk_index, metadata")
+                    .in_("id", chunk_ids)
+                    .execute()
+                )
+
+                # Get document titles
+                doc_ids_set = list({r["document_id"] for r in (db_result.data or [])})
+                docs_result = (
+                    supabase.table("help_documents")
+                    .select("id, title, file_path, category, created_at")
+                    .in_("id", doc_ids_set)
+                    .execute()
+                ) if doc_ids_set else type("R", (), {"data": []})()
+                doc_map = {d["id"]: d for d in (docs_result.data or [])}
+
+                # Build help_chunks compatible format
+                formatted_chunks = []
+                for row in db_result.data or []:
+                    doc = doc_map.get(row["document_id"], {})
+                    # Apply date filter if needed
+                    if min_date and doc.get("created_at", "") < min_date:
+                        continue
+                    formatted_chunks.append({
+                        "id": row["id"],
+                        "content": row["content"],
+                        "heading_context": row.get("heading_context", ""),
+                        "document_title": doc.get("title", "Unknown"),
+                        "file_path": doc.get("file_path", ""),
+                        "similarity": scores_map.get(str(row["id"]), 0),
+                        "created_at": doc.get("created_at"),
+                    })
+                formatted_chunks.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+                formatted_chunks = formatted_chunks[:chat_request.top_k]
+
+                # Create a compatible result object
+                class _HelpChunksResult:
+                    def __init__(self, data):
+                        self.data = data
+                help_chunks = _HelpChunksResult(formatted_chunks)
+            else:
+                class _HelpChunksResult:
+                    def __init__(self, data):
+                        self.data = data
+                help_chunks = _HelpChunksResult([])
+        else:
+            # Fallback to pgvector RPC
+            rpc_params = {
+                "query_embedding": query_embedding,
+                "match_count": chat_request.top_k,
+                "user_role": user_role,
+                "min_similarity": 0.4,
+            }
+            if min_date:
+                rpc_params["min_date"] = min_date
+
+            help_chunks = supabase.rpc("match_help_chunks", rpc_params).execute()
 
         if not help_chunks.data:
             logger.warning(f"No help chunks found for query: {chat_request.message[:50]}")
@@ -558,23 +631,84 @@ async def search_help_docs(
         query_embedding = create_embedding(query, input_type="query")
 
         # Search help chunks
-        rpc_params = {
-            "query_embedding": query_embedding,
-            "match_count": top_k,
-            "user_role": user_role,
-            "min_similarity": 0.4,
-        }
-        if min_date:
-            rpc_params["min_date"] = min_date
+        from services.pinecone_service import get_index as _get_pc_idx
+        from services.pinecone_service import query_vectors as _qv_pc
 
-        results = supabase.rpc("match_help_chunks", rpc_params).execute()
+        if _get_pc_idx() is not None:
+            pc_filter = None
+            if user_role:
+                pc_filter = {"role_access": {"$eq": user_role}}
 
-        return {
-            "query": query,
-            "results": results.data,
-            "recency_filtered": is_recency_query,
-            "min_date": min_date,
-        }
+            matches = _qv_pc(
+                embedding=query_embedding,
+                namespace="help_chunks",
+                top_k=top_k * 2,
+                filter=pc_filter,
+            )
+            matches = [m for m in matches if m["score"] >= 0.4]
+
+            if matches:
+                chunk_ids = [m["id"] for m in matches]
+                scores_map = {m["id"]: m["score"] for m in matches}
+
+                db_result = (
+                    supabase.table("help_chunks")
+                    .select("id, document_id, content, heading_context, chunk_index, metadata")
+                    .in_("id", chunk_ids)
+                    .execute()
+                )
+                doc_ids_set = list({r["document_id"] for r in (db_result.data or [])})
+                docs_result = (
+                    supabase.table("help_documents")
+                    .select("id, title, file_path, category, created_at")
+                    .in_("id", doc_ids_set)
+                    .execute()
+                ) if doc_ids_set else type("R", (), {"data": []})()
+                doc_map = {d["id"]: d for d in (docs_result.data or [])}
+
+                search_results = []
+                for row in db_result.data or []:
+                    doc = doc_map.get(row["document_id"], {})
+                    if min_date and doc.get("created_at", "") < min_date:
+                        continue
+                    search_results.append({
+                        "id": row["id"],
+                        "content": row["content"],
+                        "heading_context": row.get("heading_context", ""),
+                        "document_title": doc.get("title", "Unknown"),
+                        "file_path": doc.get("file_path", ""),
+                        "similarity": scores_map.get(str(row["id"]), 0),
+                        "created_at": doc.get("created_at"),
+                    })
+                search_results.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+                search_results = search_results[:top_k]
+            else:
+                search_results = []
+
+            return {
+                "query": query,
+                "results": search_results,
+                "recency_filtered": is_recency_query,
+                "min_date": min_date,
+            }
+        else:
+            rpc_params = {
+                "query_embedding": query_embedding,
+                "match_count": top_k,
+                "user_role": user_role,
+                "min_similarity": 0.4,
+            }
+            if min_date:
+                rpc_params["min_date"] = min_date
+
+            results = supabase.rpc("match_help_chunks", rpc_params).execute()
+
+            return {
+                "query": query,
+                "results": results.data,
+                "recency_filtered": is_recency_query,
+                "min_date": min_date,
+            }
 
     except Exception as e:
         logger.error(f"Error searching help docs: {e}")
@@ -755,35 +889,83 @@ async def test_help_search(query: str = "How do I customize the theme?"):
         query_embedding = create_embedding(test_query, input_type="query")
         embedding_len = len(query_embedding)
 
-        # Step 2: Test RPC call with new parameters
-        rpc_params = {
-            "query_embedding": query_embedding,
-            "match_count": 5,
-            "user_role": "admin",
-            "min_similarity": 0.4,
-        }
-        if min_date:
-            rpc_params["min_date"] = min_date
+        # Step 2: Test vector search
+        from services.pinecone_service import get_index as _get_pc_test
+        from services.pinecone_service import query_vectors as _qv_pc_test
 
-        help_chunks = supabase.rpc("match_help_chunks", rpc_params).execute()
+        using_pinecone = _get_pc_test() is not None
 
-        return {
-            "status": "success",
-            "test_query": test_query,
-            "embedding_dimension": embedding_len,
-            "chunks_found": len(help_chunks.data) if help_chunks.data else 0,
-            "recency_filtered": is_recency_query,
-            "min_date": min_date,
-            "sample_results": [
-                {
-                    "title": chunk["document_title"],
-                    "section": chunk["heading_context"],
-                    "similarity": chunk["similarity"],
-                    "created_at": chunk.get("created_at"),
-                }
-                for chunk in (help_chunks.data[:3] if help_chunks.data else [])
-            ],
-        }
+        if using_pinecone:
+            matches = _qv_pc_test(
+                embedding=query_embedding,
+                namespace="help_chunks",
+                top_k=5,
+                filter={"role_access": {"$eq": "admin"}},
+            )
+            matches = [m for m in matches if m["score"] >= 0.4]
+
+            if matches:
+                chunk_ids = [m["id"] for m in matches]
+                scores_map = {m["id"]: m["score"] for m in matches}
+
+                db_result = supabase.table("help_chunks").select("id, document_id, heading_context").in_("id", chunk_ids).execute()
+                doc_ids_set = list({r["document_id"] for r in (db_result.data or [])})
+                docs_result = supabase.table("help_documents").select("id, title, created_at").in_("id", doc_ids_set).execute() if doc_ids_set else type("R", (), {"data": []})()
+                doc_map = {d["id"]: d for d in (docs_result.data or [])}
+
+                sample_results = []
+                for row in db_result.data or []:
+                    doc = doc_map.get(row["document_id"], {})
+                    sample_results.append({
+                        "title": doc.get("title", "Unknown"),
+                        "section": row.get("heading_context", ""),
+                        "similarity": scores_map.get(str(row["id"]), 0),
+                        "created_at": doc.get("created_at"),
+                    })
+                sample_results.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+            else:
+                sample_results = []
+
+            return {
+                "status": "success",
+                "test_query": test_query,
+                "embedding_dimension": embedding_len,
+                "chunks_found": len(matches),
+                "recency_filtered": is_recency_query,
+                "min_date": min_date,
+                "backend": "pinecone",
+                "sample_results": sample_results[:3],
+            }
+        else:
+            rpc_params = {
+                "query_embedding": query_embedding,
+                "match_count": 5,
+                "user_role": "admin",
+                "min_similarity": 0.4,
+            }
+            if min_date:
+                rpc_params["min_date"] = min_date
+
+            help_chunks = supabase.rpc("match_help_chunks", rpc_params).execute()
+
+            return {
+                "status": "success",
+                "test_query": test_query,
+                "embedding_dimension": embedding_len,
+                "chunks_found": len(help_chunks.data) if help_chunks.data else 0,
+                "recency_filtered": is_recency_query,
+                "min_date": min_date,
+                "backend": "pgvector",
+                "sample_results": [
+                    {
+                        "title": chunk["document_title"],
+                        "section": chunk["heading_context"],
+                        "similarity": chunk["similarity"],
+                        "created_at": chunk.get("created_at"),
+                    }
+                    for chunk in (help_chunks.data[:3] if help_chunks.data else [])
+                ],
+            }
 
     except Exception as e:
         import traceback

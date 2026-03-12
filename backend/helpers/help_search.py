@@ -27,13 +27,63 @@ def search_help_chunks(query: str, user_role: str, top_k: int = 3) -> tuple[List
     # Step 1: Generate query embedding
     query_embedding = create_embedding(query, input_type="query")
 
-    # Step 2: Search help chunks via vector similarity
-    help_chunks = supabase.rpc(
-        "match_help_chunks",
-        {"query_embedding": query_embedding, "match_count": top_k, "user_role": user_role},
-    ).execute()
+    # Step 2: Search help chunks - try Pinecone first, fall back to pgvector
+    from services.pinecone_service import get_index, query_vectors
 
-    if not help_chunks.data:
+    chunks_data = []
+
+    if get_index() is not None:
+        pc_filter = None
+        if user_role:
+            pc_filter = {"role_access": {"$eq": user_role}}
+
+        matches = query_vectors(
+            embedding=query_embedding,
+            namespace="help_chunks",
+            top_k=top_k * 2,
+            filter=pc_filter,
+        )
+        matches = [m for m in matches if m["score"] >= 0.4]
+
+        if matches:
+            chunk_ids = [m["id"] for m in matches]
+            scores_map = {m["id"]: m["score"] for m in matches}
+
+            db_result = (
+                supabase.table("help_chunks")
+                .select("id, document_id, content, heading_context")
+                .in_("id", chunk_ids)
+                .execute()
+            )
+            doc_ids_set = list({r["document_id"] for r in (db_result.data or [])})
+            docs_result = (
+                supabase.table("help_documents")
+                .select("id, title, file_path")
+                .in_("id", doc_ids_set)
+                .execute()
+            ) if doc_ids_set else type("R", (), {"data": []})()
+            doc_map = {d["id"]: d for d in (docs_result.data or [])}
+
+            for row in db_result.data or []:
+                doc = doc_map.get(row["document_id"], {})
+                chunks_data.append({
+                    "document_title": doc.get("title", "Unknown"),
+                    "heading_context": row.get("heading_context", ""),
+                    "file_path": doc.get("file_path", ""),
+                    "content": row["content"],
+                    "similarity": scores_map.get(str(row["id"]), 0),
+                })
+            chunks_data.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+            chunks_data = chunks_data[:top_k]
+    else:
+        # Fallback to pgvector RPC
+        help_chunks = supabase.rpc(
+            "match_help_chunks",
+            {"query_embedding": query_embedding, "match_count": top_k, "user_role": user_role},
+        ).execute()
+        chunks_data = help_chunks.data or []
+
+    if not chunks_data:
         logger.warning(f"No help chunks found for query: {query[:50]}")
         return [], "No specific documentation found for this query."
 
@@ -41,7 +91,7 @@ def search_help_chunks(query: str, user_role: str, top_k: int = 3) -> tuple[List
     context_parts = []
     sources = []
 
-    for i, chunk in enumerate(help_chunks.data):
+    for i, chunk in enumerate(chunks_data):
         context_parts.append(
             f"[Source {i + 1}: {chunk['document_title']} - {chunk['heading_context']}]\n{chunk['content']}"
         )

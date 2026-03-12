@@ -955,8 +955,6 @@ async def scan_document(
                     "confidence": "medium",
                     "suggested_priority": 3,
                     "created_at": now,
-                    # Add embedding for future semantic matching
-                    "embedding": task_embedding,
                     "embedding_status": "completed" if task_embedding else "pending",
                 }
 

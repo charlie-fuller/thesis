@@ -216,6 +216,7 @@ def process_document(file_path: Path, force: bool = False) -> Dict:
     # Process each section into chunks
     chunks_created = 0
     chunk_index = 0
+    pinecone_batch = []
 
     for heading, section_content in sections:
         # Chunk the section content
@@ -233,11 +234,10 @@ def process_document(file_path: Path, force: bool = False) -> Dict:
                 embedding = create_embedding(embedding_content, input_type="document")
 
                 # Insert chunk
-                supabase.table("help_chunks").insert(
+                insert_result = supabase.table("help_chunks").insert(
                     {
                         "document_id": document_id,
                         "content": chunk_text_content,
-                        "embedding": embedding,
                         "chunk_index": chunk_index,
                         "heading_context": heading,
                         "role_access": ROLE_ACCESS_MAP.get(category, ["admin", "user"]),
@@ -245,12 +245,37 @@ def process_document(file_path: Path, force: bool = False) -> Dict:
                     }
                 ).execute()
 
+                # Upsert to Pinecone
+                if insert_result.data:
+                    chunk_id = insert_result.data[0]["id"]
+                    role_access = ROLE_ACCESS_MAP.get(category, ["admin", "user"])
+                    pinecone_batch.append({
+                        "id": str(chunk_id),
+                        "values": embedding,
+                        "metadata": {
+                            "document_id": document_id,
+                            "category": category,
+                            "title": title,
+                            "heading": heading,
+                            "role_access": role_access[0] if role_access else "user",
+                        },
+                    })
+
                 chunks_created += 1
                 chunk_index += 1
 
             except Exception as e:
                 logger.error(f"Error creating embedding for chunk {chunk_index}: {e}")
                 continue
+
+    # Batch upsert all vectors to Pinecone
+    if pinecone_batch:
+        try:
+            from services.pinecone_service import upsert_vectors
+
+            upsert_vectors(vectors=pinecone_batch, namespace="help_chunks")
+        except Exception as e:
+            logger.error(f"Pinecone upsert failed for {relative_path}: {e}")
 
     logger.info(f"Created {chunks_created} chunks for {relative_path}")
 

@@ -170,17 +170,42 @@ async def sync_kb_from_filesystem() -> Dict:
                             "kb_id": kb_id,
                             "chunk_index": chunk["chunk_index"],
                             "content": chunk["content"].replace("\x00", ""),
-                            "embedding": embedding,
                             "metadata": {"filename": filename},
                         }
                     )
 
                 # Batch insert
+                all_inserted = []
                 batch_size = DATABASE.BATCH_INSERT_SIZE
                 for batch_start in range(0, len(chunks_to_insert), batch_size):
                     batch = chunks_to_insert[batch_start : batch_start + batch_size]
-                    await asyncio.to_thread(
+                    insert_result = await asyncio.to_thread(
                         lambda b=batch: supabase.table("disco_system_kb_chunks").insert(b).execute()
+                    )
+                    if insert_result.data:
+                        all_inserted.extend(insert_result.data)
+
+                # Upsert vectors to Pinecone
+                pinecone_vectors = []
+                for inserted_chunk, embedding in zip(all_inserted, embeddings, strict=False):
+                    pinecone_vectors.append(
+                        {
+                            "id": str(inserted_chunk["id"]),
+                            "values": embedding,
+                            "metadata": {
+                                "kb_id": kb_id,
+                                "filename": filename,
+                                "category": category,
+                                "chunk_index": inserted_chunk.get("chunk_index", 0),
+                            },
+                        }
+                    )
+
+                if pinecone_vectors:
+                    from services.pinecone_service import upsert_vectors
+
+                    await asyncio.to_thread(
+                        lambda: upsert_vectors(vectors=pinecone_vectors, namespace="disco_system_kb_chunks")
                     )
 
             stats["files_processed"].append(filename)
@@ -216,23 +241,58 @@ async def search_system_kb(
             lambda: generate_embeddings([query], input_type=EMBEDDING.INPUT_TYPE_QUERY)[0]
         )
 
-        # Call vector search function
-        result = await asyncio.to_thread(
-            lambda: supabase.rpc(
-                "match_disco_system_kb_chunks",
-                {
-                    "query_embedding": query_embedding,
-                    "match_count": limit,
-                    "match_threshold": min_similarity,
-                },
-            ).execute()
-        )
+        # Try Pinecone first
+        from services.pinecone_service import get_index, query_vectors
 
-        chunks = result.data or []
+        if get_index() is not None:
+            pc_filter = {}
+            if category:
+                pc_filter["category"] = {"$eq": category}
 
-        # Filter by category if specified
-        if category and chunks:
-            chunks = [c for c in chunks if c.get("category") == category]
+            matches = await asyncio.to_thread(
+                lambda: query_vectors(
+                    embedding=query_embedding,
+                    namespace="disco_system_kb_chunks",
+                    top_k=limit,
+                    filter=pc_filter if pc_filter else None,
+                )
+            )
+            matches = [m for m in matches if m["score"] >= min_similarity]
+
+            if matches:
+                chunk_ids = [m["id"] for m in matches]
+                scores_map = {m["id"]: m["score"] for m in matches}
+
+                db_result = await asyncio.to_thread(
+                    lambda: supabase.table("disco_system_kb_chunks")
+                    .select("id, kb_id, content, chunk_index, metadata")
+                    .in_("id", chunk_ids)
+                    .execute()
+                )
+                chunks = []
+                for row in db_result.data or []:
+                    row["similarity"] = scores_map.get(str(row["id"]), 0)
+                    chunks.append(row)
+                chunks.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+            else:
+                chunks = []
+        else:
+            # Fallback to pgvector RPC
+            result = await asyncio.to_thread(
+                lambda: supabase.rpc(
+                    "match_disco_system_kb_chunks",
+                    {
+                        "query_embedding": query_embedding,
+                        "match_count": limit,
+                        "match_threshold": min_similarity,
+                    },
+                ).execute()
+            )
+            chunks = result.data or []
+
+            # Filter by category if specified (pgvector fallback only)
+            if category and chunks:
+                chunks = [c for c in chunks if c.get("category") == category]
 
         logger.info(f"Found {len(chunks)} matching KB chunks")
         return chunks

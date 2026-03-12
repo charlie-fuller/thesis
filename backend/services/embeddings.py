@@ -71,30 +71,37 @@ async def embed_meeting_room_message(supabase_client, message_id: UUID, content:
         # Create embedding
         embedding = create_embedding(content, input_type=EMBEDDING.INPUT_TYPE_DOCUMENT)
 
-        # Update message with embedding
+        # Fetch message metadata for Pinecone
         result = (
             supabase_client.table("meeting_room_messages")
-            .update({"embedding": embedding, "embedding_status": "completed"})
+            .select("id, meeting_room_id")
             .eq("id", str(message_id))
             .execute()
         )
 
-        if result.data:
-            logger.info(f"Embedded meeting room message {message_id}")
-            return True
-        else:
+        if not result.data:
             logger.warning(f"No message found with ID {message_id}")
             return False
 
+        msg_data = result.data[0] if result.data else {}
+        from services.pinecone_service import upsert_vectors
+
+        metadata = {
+            "message_id": str(message_id),
+        }
+        if msg_data.get("meeting_room_id"):
+            metadata["meeting_room_id"] = str(msg_data["meeting_room_id"])
+
+        upsert_vectors(
+            vectors=[{"id": str(message_id), "values": embedding, "metadata": metadata}],
+            namespace="meeting_room_messages",
+        )
+
+        logger.info(f"Embedded meeting room message {message_id}")
+        return True
+
     except Exception as e:
         logger.error(f"Error embedding message {message_id}: {e}")
-        # Mark as failed
-        try:
-            supabase_client.table("meeting_room_messages").update({"embedding_status": "failed"}).eq(
-                "id", str(message_id)
-            ).execute()
-        except Exception:
-            pass
         return False
 
 
@@ -112,11 +119,10 @@ async def embed_pending_meeting_messages(
         Number of messages successfully embedded
     """
     try:
-        # Query for pending messages
+        # Query for messages (embeddings stored in Pinecone, not Supabase)
         query = (
             supabase_client.table("meeting_room_messages")
             .select("id, content")
-            .eq("embedding_status", "pending")
             .limit(limit)
         )
 
@@ -141,23 +147,25 @@ async def embed_pending_meeting_messages(
             try:
                 embeddings = create_embeddings_batch(texts, input_type=EMBEDDING.INPUT_TYPE_DOCUMENT)
 
-                # Update each message with its embedding
-                for msg_id, embedding in zip(ids, embeddings, strict=False):
-                    supabase_client.table("meeting_room_messages").update(
-                        {"embedding": embedding, "embedding_status": "completed"}
-                    ).eq("id", msg_id).execute()
+                # Update each message status and collect for Pinecone
+                pinecone_vectors = []
+                for msg_id, embedding, msg in zip(ids, embeddings, batch, strict=False):
                     embedded_count += 1
+
+                    # Collect for Pinecone batch upsert
+                    pinecone_vectors.append(
+                        {"id": str(msg_id), "values": embedding, "metadata": {"message_id": str(msg_id)}}
+                    )
+
+                # Batch upsert to Pinecone
+                if pinecone_vectors:
+                    from services.pinecone_service import upsert_vectors
+
+                    upsert_vectors(vectors=pinecone_vectors, namespace="meeting_room_messages")
 
             except Exception as e:
                 logger.error(f"Error embedding batch: {e}")
-                # Mark batch as failed
-                for msg_id in ids:
-                    try:
-                        supabase_client.table("meeting_room_messages").update({"embedding_status": "failed"}).eq(
-                            "id", msg_id
-                        ).execute()
-                    except Exception:
-                        pass
+                pass  # Error already logged above
 
         logger.info(f"Embedded {embedded_count} meeting room messages")
         return embedded_count
@@ -194,7 +202,57 @@ async def search_meeting_room_messages(
         # Create query embedding
         query_embedding = create_embedding(query, input_type=EMBEDDING.INPUT_TYPE_QUERY)
 
-        # Call the vector search function
+        # Try Pinecone first
+        from services.pinecone_service import get_index, query_vectors
+
+        if get_index() is not None:
+            # Build Pinecone metadata filter
+            pc_filter = {}
+            if client_id:
+                pc_filter["client_id"] = {"$eq": str(client_id)}
+            if user_id:
+                pc_filter["user_id"] = {"$eq": str(user_id)}
+            if meeting_room_id:
+                pc_filter["meeting_room_id"] = {"$eq": str(meeting_room_id)}
+
+            matches = query_vectors(
+                embedding=query_embedding,
+                namespace="meeting_room_messages",
+                top_k=match_count,
+                filter=pc_filter if pc_filter else None,
+            )
+
+            if not matches:
+                return []
+
+            # Filter by threshold (Pinecone uses cosine similarity, higher = more similar)
+            matches = [m for m in matches if m["score"] >= match_threshold]
+
+            if not matches:
+                return []
+
+            # Fetch full message data from Supabase
+            message_ids = [m["id"] for m in matches]
+            scores_map = {m["id"]: m["score"] for m in matches}
+
+            msg_result = (
+                supabase_client.table("meeting_room_messages")
+                .select("id, content, user_id, meeting_room_id, client_id, created_at")
+                .in_("id", message_ids)
+                .execute()
+            )
+
+            # Combine with similarity scores
+            results = []
+            for msg in msg_result.data or []:
+                msg["similarity"] = scores_map.get(msg["id"], 0)
+                results.append(msg)
+
+            # Sort by similarity descending
+            results.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+            return results
+
+        # Fallback to pgvector RPC
         result = supabase_client.rpc(
             "match_meeting_room_messages",
             {

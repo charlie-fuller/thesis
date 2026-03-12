@@ -112,7 +112,6 @@ def test_database_storage(embedding):
                     "document_id": document_id,
                     "client_id": "1c9351f8-9053-4ce0-a793-d260573afa04",
                     "content": "This is a test document about innovation and efficiency.",
-                    "embedding": embedding,
                     "chunk_index": 0,
                     "metadata": {"test": True},
                 }
@@ -126,12 +125,12 @@ def test_database_storage(embedding):
         # Verify we can retrieve it
         verify_result = supabase.table("document_chunks").select("*").eq("id", chunk_id).execute()
 
-        if verify_result.data and verify_result.data[0]["embedding"]:
-            print("✓ Successfully retrieved embedding from database")
-            print(f"   Retrieved dimension: {len(verify_result.data[0]['embedding'])}")
+        if verify_result.data:
+            print("✓ Successfully retrieved chunk from database")
+            print(f"   Chunk ID: {chunk_id}")
             return True
         else:
-            print("❌ Failed to retrieve embedding")
+            print("❌ Failed to retrieve chunk")
             return False
 
     except Exception as e:
