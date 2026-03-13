@@ -283,25 +283,16 @@ export default function CommandTerminal() {
 
   const formatProjectList = () => {
     if (projectsRef.current.length === 0) return '**Link to project?** No active projects found. Press Enter to skip.'
-    const list = projectsRef.current.map((p, i) => `  ${i + 1}. ${p.name}`).join('\n')
-    return `**Link to project?** Type a name (or number) to match, or Enter to skip.\n\n${list}`
+    return '**Link to project?** Type a name to match, or Enter to skip.'
   }
 
   const formatInitiativeList = () => {
     if (initiativesRef.current.length === 0) return '**Link to initiative?** No active initiatives found. Press Enter to skip.'
-    const list = initiativesRef.current.map((i, idx) => `  ${idx + 1}. ${i.name}`).join('\n')
-    return `**Link to initiative?** Type a name (or number) to match, or Enter to skip.\n\n${list}`
+    return '**Link to initiative?** Type a name to match, or Enter to skip.'
   }
 
   const formatLocationPrompt = () => {
-    let prompt = '**Location/category** — where should this be filed?'
-    if (foldersRef.current.length > 0) {
-      const list = foldersRef.current.slice(0, 15).map((f, i) => `  ${i + 1}. ${f}`).join('\n')
-      prompt += ` Type a name to match, or Enter to skip.\n\n${list}`
-    } else {
-      prompt += ' Type a folder name (e.g. `research`, `meeting-notes`), or Enter to skip.'
-    }
-    return prompt
+    return '**Location/category** — where should this be filed? Type a folder name (e.g. `research`, `meeting-notes`), or Enter to skip.'
   }
 
   const submitExport = useCallback(async () => {
@@ -749,7 +740,7 @@ export default function CommandTerminal() {
         </select>
       </div>
       {/* Hint bar */}
-      <div className="flex items-center justify-between px-4 py-1 border-t border-gray-800/50 bg-gray-900/80 text-gray-600 text-[10px] font-mono">
+      <div className="flex items-center justify-between px-4 py-1 border-t border-gray-800/50 bg-gray-900/80 text-gray-600 text-sm font-mono">
         <span><span className="text-gray-500">/help</span> commands · <span className="text-gray-500">/export</span> save to KB · <span className="text-gray-500">↑↓</span> history</span>
         <span><span className="text-gray-500">/clear</span> reset</span>
       </div>
