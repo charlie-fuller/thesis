@@ -178,71 +178,87 @@ export default function CommandTerminal() {
     inputRef.current?.focus()
   }, [])
 
-  const submitExport = useCallback(async () => {
-    const { title, location, projectId, initiativeId } = exportDataRef.current
-
-    if (history.length === 0) {
-      setHistory(prev => [...prev, { input: '(saving...)', output: 'Nothing to export — conversation is empty.', toolCalls: [], isError: true }])
-      return
+  // --- Fuzzy matching ---
+  // Score how well `query` matches `target` (higher = better, 0 = no match)
+  const fuzzyScore = (query: string, target: string): number => {
+    const q = query.toLowerCase().trim()
+    const t = target.toLowerCase().trim()
+    if (!q || !t) return 0
+    // Exact match
+    if (q === t) return 100
+    // Target contains query as substring
+    if (t.includes(q)) return 80 + (q.length / t.length) * 15
+    // Query contains target as substring (user typed more than needed)
+    if (q.includes(t)) return 70
+    // Word-level matching: how many query words appear in target
+    const qWords = q.split(/\s+/)
+    const tWords = t.split(/\s+/)
+    let wordHits = 0
+    for (const qw of qWords) {
+      if (tWords.some(tw => tw.includes(qw) || qw.includes(tw))) wordHits++
+      // Partial word match (handles typos by checking if start matches)
+      else if (tWords.some(tw => tw.startsWith(qw.slice(0, 3)) || qw.startsWith(tw.slice(0, 3)))) wordHits += 0.5
     }
+    if (wordHits > 0) return 30 + (wordHits / qWords.length) * 40
+    // Character overlap ratio (handles typos)
+    const qChars = new Set(q.replace(/\s/g, '').split(''))
+    const tChars = new Set(t.replace(/\s/g, '').split(''))
+    let overlap = 0
+    for (const c of qChars) { if (tChars.has(c)) overlap++ }
+    const ratio = overlap / Math.max(qChars.size, tChars.size)
+    return ratio > 0.5 ? ratio * 30 : 0
+  }
 
-    const displayTitle = title || `Command Session ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
-
-    // Build markdown from conversation history
-    const lines = [`# ${displayTitle}\n`, `*Exported: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}*\n`]
-    for (const entry of history.filter(e => !e.input.startsWith('/export') && !e.input.startsWith('export:'))) {
-      lines.push(`---\n## User\n\n${entry.input}\n`)
-      if (entry.output) {
-        lines.push(`## Assistant\n\n${entry.output}\n`)
+  const fuzzyMatch = (query: string, items: Array<{ id: string; name: string }>): { id: string; name: string; score: number } | null => {
+    if (!query.trim() || items.length === 0) return null
+    // Check for number selection first
+    const num = parseInt(query.trim(), 10)
+    if (!isNaN(num) && num >= 1 && num <= items.length) {
+      return { ...items[num - 1], score: 100 }
+    }
+    let best: { id: string; name: string; score: number } | null = null
+    for (const item of items) {
+      const score = fuzzyScore(query, item.name)
+      if (score > 0 && (!best || score > best.score)) {
+        best = { ...item, score }
       }
     }
-    const content = lines.join('\n')
+    return best && best.score >= 20 ? best : null
+  }
 
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const body: Record<string, unknown> = { title: displayTitle, content }
-      if (location) body.location = location
-      if (projectId) body.project_id = projectId
-      if (initiativeId) body.initiative_id = initiativeId
-
-      const res = await fetch(`${apiUrl}/api/documents/export-to-kb`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify(body),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || 'Export failed')
-
-      const parts = [`Saved to KB: **${displayTitle}**`, `Document ID: \`${data.document_id}\``]
-      if (location) parts.push(`Location: \`${location}\``)
-      if (data.linked_project) parts.push(`Linked to project: \`${data.linked_project}\``)
-      if (data.linked_initiative) parts.push(`Linked to initiative: \`${data.linked_initiative}\``)
-
-      setHistory(prev => [...prev, { input: 'export: saving...', output: parts.join('\n'), toolCalls: [] }])
-    } catch (err) {
-      setHistory(prev => [...prev, {
-        input: 'export: saving...',
-        output: `Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        toolCalls: [],
-        isError: true,
-      }])
+  const fuzzyMatchLocation = (query: string, folders: string[]): string | null => {
+    if (!query.trim() || folders.length === 0) return null
+    let best: { path: string; score: number } | null = null
+    for (const folder of folders) {
+      // Also match against the last segment of the path
+      const segments = folder.split('/')
+      const lastSegment = segments[segments.length - 1]
+      const fullScore = fuzzyScore(query, folder)
+      const segScore = fuzzyScore(query, lastSegment)
+      const score = Math.max(fullScore, segScore)
+      if (score > 0 && (!best || score > best.score)) {
+        best = { path: folder, score }
+      }
     }
-  }, [history, session])
+    return best && best.score >= 20 ? best.path : null
+  }
 
+  // --- Export state refs ---
   const projectsRef = useRef<Array<{ id: string; name: string }>>([])
   const initiativesRef = useRef<Array<{ id: string; name: string }>>([])
+  const foldersRef = useRef<string[]>([])
+  const resolvedProjectRef = useRef<{ id: string; name: string } | null>(null)
+  const resolvedInitiativeRef = useRef<{ id: string; name: string } | null>(null)
+  const resolvedLocationRef = useRef<string>('')
 
   const fetchOptions = useCallback(async () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-    const headers = { Authorization: `Bearer ${session?.access_token}` }
+    const headers: Record<string, string> = { Authorization: `Bearer ${session?.access_token}` }
     try {
-      const [projRes, initRes] = await Promise.all([
+      const [projRes, initRes, folderRes] = await Promise.all([
         fetch(`${apiUrl}/api/projects/`, { headers }),
         fetch(`${apiUrl}/api/disco/initiatives`, { headers }),
+        fetch(`${apiUrl}/api/documents/folders`, { headers }),
       ])
       if (projRes.ok) {
         const projects = await projRes.json()
@@ -256,6 +272,10 @@ export default function CommandTerminal() {
           .filter((i: { status?: string }) => i.status !== 'archived' && i.status !== 'cancelled')
           .map((i: { id: string; name: string }) => ({ id: i.id, name: i.name }))
       }
+      if (folderRes.ok) {
+        const data = await folderRes.json()
+        foldersRef.current = (data.folders || []).map((f: { path: string }) => f.path)
+      }
     } catch {
       // Continue with empty lists
     }
@@ -264,25 +284,85 @@ export default function CommandTerminal() {
   const formatProjectList = () => {
     if (projectsRef.current.length === 0) return '**Link to project?** No active projects found. Press Enter to skip.'
     const list = projectsRef.current.map((p, i) => `  ${i + 1}. ${p.name}`).join('\n')
-    return `**Link to project?** Enter a number or press Enter to skip.\n\n${list}`
+    return `**Link to project?** Type a name (or number) to match, or Enter to skip.\n\n${list}`
   }
 
   const formatInitiativeList = () => {
     if (initiativesRef.current.length === 0) return '**Link to initiative?** No active initiatives found. Press Enter to skip.'
     const list = initiativesRef.current.map((i, idx) => `  ${idx + 1}. ${i.name}`).join('\n')
-    return `**Link to initiative?** Enter a number or press Enter to skip.\n\n${list}`
+    return `**Link to initiative?** Type a name (or number) to match, or Enter to skip.\n\n${list}`
   }
 
-  const resolveSelection = (value: string, items: Array<{ id: string; name: string }>): string => {
-    if (!value) return ''
-    const num = parseInt(value, 10)
-    if (!isNaN(num) && num >= 1 && num <= items.length) {
-      return items[num - 1].id
+  const formatLocationPrompt = () => {
+    let prompt = '**Location/category** — where should this be filed?'
+    if (foldersRef.current.length > 0) {
+      const list = foldersRef.current.slice(0, 15).map((f, i) => `  ${i + 1}. ${f}`).join('\n')
+      prompt += ` Type a name to match, or Enter to skip.\n\n${list}`
+    } else {
+      prompt += ' Type a folder name (e.g. `research`, `meeting-notes`), or Enter to skip.'
     }
-    // Try matching by name
-    const match = items.find(item => item.name.toLowerCase() === value.toLowerCase())
-    return match?.id || value
+    return prompt
   }
+
+  const submitExport = useCallback(async () => {
+    const { title } = exportDataRef.current
+    const location = resolvedLocationRef.current
+    const project = resolvedProjectRef.current
+    const initiative = resolvedInitiativeRef.current
+
+    if (history.length === 0) {
+      setHistory(prev => [...prev, { input: '(saving...)', output: 'Nothing to export — conversation is empty.', toolCalls: [], isError: true }])
+      return
+    }
+
+    const displayTitle = title || `Command Session ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
+
+    // Build markdown from conversation history (exclude export wizard entries)
+    const lines = [`# ${displayTitle}\n`, `*Exported: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}*\n`]
+    for (const entry of history.filter(e => !e.input.startsWith('/export') && !e.input.startsWith('export:'))) {
+      lines.push(`---\n## User\n\n${entry.input}\n`)
+      if (entry.output) {
+        lines.push(`## Assistant\n\n${entry.output}\n`)
+      }
+    }
+    const content = lines.join('\n')
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const body: Record<string, unknown> = { title: displayTitle, content }
+      if (location) body.location = location
+      if (project) body.project_id = project.id
+      if (initiative) body.initiative_id = initiative.id
+
+      const res = await fetch(`${apiUrl}/api/documents/export-to-kb`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify(body),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Export failed')
+
+      // Build summary with resolved names
+      const parts = [`Saved **${displayTitle}**`]
+      if (location) parts[0] += ` @ \`${location}\``
+      if (project) parts.push(`Linked to project: **${project.name}**`)
+      if (initiative) parts.push(`Linked to initiative: **${initiative.name}**`)
+      parts.push(`Document ID: \`${data.document_id}\``)
+
+      setHistory(prev => [...prev, { input: 'export: saving...', output: parts.join('\n'), toolCalls: [] }])
+    } catch (err) {
+      setHistory(prev => [...prev, {
+        input: 'export: saving...',
+        output: `Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        toolCalls: [],
+        isError: true,
+      }])
+    }
+  }, [history, session])
 
   const handleExportStep = useCallback((input: string) => {
     const value = input.trim()
@@ -290,29 +370,59 @@ export default function CommandTerminal() {
     switch (exportStep) {
       case 'title': {
         exportDataRef.current.title = value
-        setHistory(prev => [...prev, { input: value || '(default)', output: '**Location/category** (e.g. `research`, `meeting-notes`). Press Enter to skip.', toolCalls: [] }])
+        setHistory(prev => [...prev, { input: value || '(default)', output: formatLocationPrompt(), toolCalls: [] }])
         setExportStep('location')
         break
       }
       case 'location': {
-        exportDataRef.current.location = value
-        setHistory(prev => [...prev, { input: value || '(skip)', output: formatProjectList(), toolCalls: [] }])
+        if (value) {
+          const matched = fuzzyMatchLocation(value, foldersRef.current)
+          if (matched) {
+            resolvedLocationRef.current = matched
+            setHistory(prev => [...prev, { input: value, output: `Matched location: **${matched}**\n\n${formatProjectList()}`, toolCalls: [] }])
+          } else {
+            // Use the raw input as a new location
+            resolvedLocationRef.current = value
+            setHistory(prev => [...prev, { input: value, output: `New location: **${value}**\n\n${formatProjectList()}`, toolCalls: [] }])
+          }
+        } else {
+          resolvedLocationRef.current = ''
+          setHistory(prev => [...prev, { input: '(skip)', output: formatProjectList(), toolCalls: [] }])
+        }
         setExportStep('project')
         break
       }
       case 'project': {
-        const projectId = resolveSelection(value, projectsRef.current)
-        const displayName = projectId && projectsRef.current.find(p => p.id === projectId)?.name
-        exportDataRef.current.projectId = projectId
-        setHistory(prev => [...prev, { input: displayName || value || '(skip)', output: formatInitiativeList(), toolCalls: [] }])
+        if (value) {
+          const match = fuzzyMatch(value, projectsRef.current)
+          if (match) {
+            resolvedProjectRef.current = { id: match.id, name: match.name }
+            setHistory(prev => [...prev, { input: value, output: `Matched project: **${match.name}**\n\n${formatInitiativeList()}`, toolCalls: [] }])
+          } else {
+            resolvedProjectRef.current = null
+            setHistory(prev => [...prev, { input: value, output: `No matching project found for "${value}". Skipping.\n\n${formatInitiativeList()}`, toolCalls: [], isError: true }])
+          }
+        } else {
+          resolvedProjectRef.current = null
+          setHistory(prev => [...prev, { input: '(skip)', output: formatInitiativeList(), toolCalls: [] }])
+        }
         setExportStep('initiative')
         break
       }
       case 'initiative': {
-        const initiativeId = resolveSelection(value, initiativesRef.current)
-        const displayName = initiativeId && initiativesRef.current.find(i => i.id === initiativeId)?.name
-        exportDataRef.current.initiativeId = initiativeId
-        setHistory(prev => [...prev, { input: displayName || value || '(skip)', output: 'Exporting...', toolCalls: [] }])
+        if (value) {
+          const match = fuzzyMatch(value, initiativesRef.current)
+          if (match) {
+            resolvedInitiativeRef.current = { id: match.id, name: match.name }
+            setHistory(prev => [...prev, { input: value, output: `Matched initiative: **${match.name}**\n\nExporting...`, toolCalls: [] }])
+          } else {
+            resolvedInitiativeRef.current = null
+            setHistory(prev => [...prev, { input: value, output: `No matching initiative found for "${value}". Skipping.\n\nExporting...`, toolCalls: [], isError: true }])
+          }
+        } else {
+          resolvedInitiativeRef.current = null
+          setHistory(prev => [...prev, { input: '(skip)', output: 'Exporting...', toolCalls: [] }])
+        }
         setExportStep(null)
         submitExport()
         break
@@ -326,6 +436,9 @@ export default function CommandTerminal() {
       return
     }
     exportDataRef.current = { title: '', location: '', projectId: '', initiativeId: '' }
+    resolvedProjectRef.current = null
+    resolvedInitiativeRef.current = null
+    resolvedLocationRef.current = ''
     await fetchOptions()
     setHistory(prev => [...prev, { input: '/export', output: '**Filename/title** for this export? Press Enter for default.', toolCalls: [] }])
     setExportStep('title')
@@ -368,15 +481,11 @@ export default function CommandTerminal() {
         input: '/help',
         output: [
           '**Available commands:**',
-          '- `/export <title> [project:<id>] [initiative:<id>] [location:<path>]`',
-          '  Save this conversation to the Knowledge Base, optionally linked to a project and/or initiative',
+          '- `/export` — Save this conversation to the Knowledge Base',
+          '  Walks you through: title, location, project link, initiative link',
+          '  Uses fuzzy matching — type naturally, it will find the best match',
           '- `/clear` — Clear conversation history',
           '- `/help` — Show this help',
-          '',
-          '**Export examples:**',
-          '- `/export Debug Session` — save with title',
-          '- `/export Sprint Review project:abc-123` — save and link to project',
-          '- `/export Discovery Notes init:def-456` — save and link to initiative',
           '',
           'Or type any question to query the database via AI.',
         ].join('\n'),
