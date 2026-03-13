@@ -107,6 +107,15 @@ Examples:
 
 Press Ctrl+L to clear, Up/Down for history.`
 
+type ExportStep = 'title' | 'location' | 'project' | 'initiative' | null
+
+interface ExportData {
+  title: string
+  location: string
+  projectId: string
+  initiativeId: string
+}
+
 export default function CommandTerminal() {
   const { session } = useAuth()
   const [history, setHistory] = useState<CommandEntry[]>([])
@@ -117,6 +126,8 @@ export default function CommandTerminal() {
   const [streamingToolCalls, setStreamingToolCalls] = useState<ToolCall[]>([])
   const [model, setModel] = useState<ModelId>('sonnet')
   const [fontSize, setFontSize] = useState<FontSizeId>('sm')
+  const [exportStep, setExportStep] = useState<ExportStep>(null)
+  const exportDataRef = useRef<ExportData>({ title: '', location: '', projectId: '', initiativeId: '' })
   const outputRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -167,36 +178,19 @@ export default function CommandTerminal() {
     inputRef.current?.focus()
   }, [])
 
-  const handleExport = useCallback(async (args: string) => {
-    // Parse args: /export <title> [location:<path>] [project:<id>] [initiative:<id>]
-    const tokens = args.trim().split(/\s+/)
-    const kwargs: Record<string, string> = {}
-    const positional: string[] = []
-
-    for (const token of tokens) {
-      if (token.includes(':') && !token.startsWith('/')) {
-        const [k, ...rest] = token.split(':')
-        kwargs[k] = rest.join(':')
-      } else {
-        positional.push(token)
-      }
-    }
-
-    const title = positional.join(' ') || `Command Session ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
-    const location = kwargs.location || kwargs.loc || undefined
-    const projectId = kwargs.project || kwargs.proj || undefined
-    const initiativeId = kwargs.initiative || kwargs.init || undefined
-
-    const cmdStr = `/export ${args}`.trim()
+  const submitExport = useCallback(async () => {
+    const { title, location, projectId, initiativeId } = exportDataRef.current
 
     if (history.length === 0) {
-      setHistory(prev => [...prev, { input: cmdStr, output: 'Nothing to export — conversation is empty.', toolCalls: [], isError: true }])
+      setHistory(prev => [...prev, { input: '(saving...)', output: 'Nothing to export — conversation is empty.', toolCalls: [], isError: true }])
       return
     }
 
+    const displayTitle = title || `Command Session ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
+
     // Build markdown from conversation history
-    const lines = [`# ${title}\n`, `*Exported: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}*\n`]
-    for (const entry of history) {
+    const lines = [`# ${displayTitle}\n`, `*Exported: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}*\n`]
+    for (const entry of history.filter(e => !e.input.startsWith('/export') && !e.input.startsWith('export:'))) {
       lines.push(`---\n## User\n\n${entry.input}\n`)
       if (entry.output) {
         lines.push(`## Assistant\n\n${entry.output}\n`)
@@ -206,7 +200,7 @@ export default function CommandTerminal() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const body: Record<string, unknown> = { title, content }
+      const body: Record<string, unknown> = { title: displayTitle, content }
       if (location) body.location = location
       if (projectId) body.project_id = projectId
       if (initiativeId) body.initiative_id = initiativeId
@@ -223,14 +217,15 @@ export default function CommandTerminal() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Export failed')
 
-      const parts = [`Saved to KB: **${title}**`, `Document ID: \`${data.document_id}\``]
+      const parts = [`Saved to KB: **${displayTitle}**`, `Document ID: \`${data.document_id}\``]
+      if (location) parts.push(`Location: \`${location}\``)
       if (data.linked_project) parts.push(`Linked to project: \`${data.linked_project}\``)
       if (data.linked_initiative) parts.push(`Linked to initiative: \`${data.linked_initiative}\``)
 
-      setHistory(prev => [...prev, { input: cmdStr, output: parts.join('\n'), toolCalls: [] }])
+      setHistory(prev => [...prev, { input: 'export: saving...', output: parts.join('\n'), toolCalls: [] }])
     } catch (err) {
       setHistory(prev => [...prev, {
-        input: cmdStr,
+        input: 'export: saving...',
         output: `Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
         toolCalls: [],
         isError: true,
@@ -238,15 +233,123 @@ export default function CommandTerminal() {
     }
   }, [history, session])
 
+  const projectsRef = useRef<Array<{ id: string; name: string }>>([])
+  const initiativesRef = useRef<Array<{ id: string; name: string }>>([])
+
+  const fetchOptions = useCallback(async () => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    const headers = { Authorization: `Bearer ${session?.access_token}` }
+    try {
+      const [projRes, initRes] = await Promise.all([
+        fetch(`${apiUrl}/api/projects/`, { headers }),
+        fetch(`${apiUrl}/api/disco/initiatives`, { headers }),
+      ])
+      if (projRes.ok) {
+        const projects = await projRes.json()
+        projectsRef.current = projects
+          .filter((p: { status?: string }) => p.status !== 'archived' && p.status !== 'cancelled')
+          .map((p: { id: string; name: string }) => ({ id: p.id, name: p.name }))
+      }
+      if (initRes.ok) {
+        const initiatives = await initRes.json()
+        initiativesRef.current = (Array.isArray(initiatives) ? initiatives : initiatives.data || [])
+          .filter((i: { status?: string }) => i.status !== 'archived' && i.status !== 'cancelled')
+          .map((i: { id: string; name: string }) => ({ id: i.id, name: i.name }))
+      }
+    } catch {
+      // Continue with empty lists
+    }
+  }, [session])
+
+  const formatProjectList = () => {
+    if (projectsRef.current.length === 0) return '**Link to project?** No active projects found. Press Enter to skip.'
+    const list = projectsRef.current.map((p, i) => `  ${i + 1}. ${p.name}`).join('\n')
+    return `**Link to project?** Enter a number or press Enter to skip.\n\n${list}`
+  }
+
+  const formatInitiativeList = () => {
+    if (initiativesRef.current.length === 0) return '**Link to initiative?** No active initiatives found. Press Enter to skip.'
+    const list = initiativesRef.current.map((i, idx) => `  ${idx + 1}. ${i.name}`).join('\n')
+    return `**Link to initiative?** Enter a number or press Enter to skip.\n\n${list}`
+  }
+
+  const resolveSelection = (value: string, items: Array<{ id: string; name: string }>): string => {
+    if (!value) return ''
+    const num = parseInt(value, 10)
+    if (!isNaN(num) && num >= 1 && num <= items.length) {
+      return items[num - 1].id
+    }
+    // Try matching by name
+    const match = items.find(item => item.name.toLowerCase() === value.toLowerCase())
+    return match?.id || value
+  }
+
+  const handleExportStep = useCallback((input: string) => {
+    const value = input.trim()
+
+    switch (exportStep) {
+      case 'title': {
+        exportDataRef.current.title = value
+        setHistory(prev => [...prev, { input: value || '(default)', output: '**Location/category** (e.g. `research`, `meeting-notes`). Press Enter to skip.', toolCalls: [] }])
+        setExportStep('location')
+        break
+      }
+      case 'location': {
+        exportDataRef.current.location = value
+        setHistory(prev => [...prev, { input: value || '(skip)', output: formatProjectList(), toolCalls: [] }])
+        setExportStep('project')
+        break
+      }
+      case 'project': {
+        const projectId = resolveSelection(value, projectsRef.current)
+        const displayName = projectId && projectsRef.current.find(p => p.id === projectId)?.name
+        exportDataRef.current.projectId = projectId
+        setHistory(prev => [...prev, { input: displayName || value || '(skip)', output: formatInitiativeList(), toolCalls: [] }])
+        setExportStep('initiative')
+        break
+      }
+      case 'initiative': {
+        const initiativeId = resolveSelection(value, initiativesRef.current)
+        const displayName = initiativeId && initiativesRef.current.find(i => i.id === initiativeId)?.name
+        exportDataRef.current.initiativeId = initiativeId
+        setHistory(prev => [...prev, { input: displayName || value || '(skip)', output: 'Exporting...', toolCalls: [] }])
+        setExportStep(null)
+        submitExport()
+        break
+      }
+    }
+  }, [exportStep, submitExport])
+
+  const startExport = useCallback(async () => {
+    if (history.length === 0) {
+      setHistory(prev => [...prev, { input: '/export', output: 'Nothing to export — conversation is empty.', toolCalls: [], isError: true }])
+      return
+    }
+    exportDataRef.current = { title: '', location: '', projectId: '', initiativeId: '' }
+    await fetchOptions()
+    setHistory(prev => [...prev, { input: '/export', output: '**Filename/title** for this export? Press Enter for default.', toolCalls: [] }])
+    setExportStep('title')
+  }, [history, fetchOptions])
+
   const handleSubmit = useCallback(async () => {
     const input = currentInput.trim()
-    if (!input || isStreaming) return
+    if (!input && !exportStep) return
+    if (isStreaming) return
+
+    // Handle export wizard steps
+    if (exportStep) {
+      setCurrentInput('')
+      handleExportStep(input)
+      return
+    }
+
+    if (!input) return
 
     // Handle client-side slash commands
     if (input.startsWith('/export')) {
       setCurrentInput('')
       setHistoryIndex(-1)
-      handleExport(input.slice(7))
+      startExport()
       return
     }
 
@@ -374,7 +477,7 @@ export default function CommandTerminal() {
       // Re-focus input after command completes
       setTimeout(() => inputRef.current?.focus(), 50)
     }
-  }, [currentInput, isStreaming, session, history, model])
+  }, [currentInput, isStreaming, session, history, model, exportStep, handleExportStep, startExport])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
@@ -496,7 +599,7 @@ export default function CommandTerminal() {
           onKeyDown={handleKeyDown}
           disabled={isStreaming}
           className="flex-1 bg-transparent text-gray-100 font-mono text-sm outline-none placeholder-gray-600 disabled:opacity-50"
-          placeholder={isStreaming ? 'Processing...' : 'Type a command...'}
+          placeholder={isStreaming ? 'Processing...' : exportStep ? `Enter ${exportStep} (or press Enter to skip)...` : 'Type a command...'}
           autoComplete="off"
           spellCheck={false}
         />
