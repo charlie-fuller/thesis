@@ -10,7 +10,7 @@ export default function QuickActionsPanel() {
   const [systemStatus, setSystemStatus] = useState<'healthy' | 'degraded' | 'down'>('healthy');
   const [healthMetrics, setHealthMetrics] = useState({
     supabase: { status: 'checking', responseTime: 0 },
-    railway: { status: 'checking', uptime: false },
+    backend: { status: 'checking', uptime: false },
     anthropic: { status: 'checking', latency: 0 },
     voyageAI: { status: 'checking', latency: 0 },
     neo4j: { status: 'checking', responseTime: 0 }
@@ -28,7 +28,7 @@ export default function QuickActionsPanel() {
     try {
       const response = await apiGet<{ success: boolean; health: {
         supabase: { status: string; responseTime: number };
-        railway: { status: string; uptime: boolean };
+        backend: { status: string; uptime: boolean };
         anthropic: { status: string; latency: number };
         voyageAI: { status: string; latency: number };
         neo4j: { status: string; responseTime: number };
@@ -40,17 +40,17 @@ export default function QuickActionsPanel() {
         setHealthMetrics(response.health);
 
         // Determine overall system status based on all services
-        const { supabase, railway, anthropic, voyageAI, neo4j } = response.health;
+        const { supabase, backend, anthropic, voyageAI, neo4j } = response.health;
 
-        // Critical services: Supabase and Railway must be up
-        if (supabase.status === 'error' || railway.status === 'error') {
+        // Critical services: Supabase and Backend must be up
+        if (supabase.status === 'error' || backend.status === 'error') {
           setSystemStatus('down');
         }
         // All critical services operational
         // Non-critical services (Anthropic, Voyage AI, Neo4j) can be idle, active, not_configured, or unknown
         else if (
           supabase.status === 'connected' &&
-          railway.status === 'running'
+          backend.status === 'running'
         ) {
           // Check if auxiliary services have actual errors
           const errorStatuses = ['error', 'down', 'auth_error'];
@@ -366,13 +366,13 @@ export default function QuickActionsPanel() {
           </div>
         </div>
 
-        {/* Railway (API) */}
+        {/* Backend API */}
         <div className="text-center group relative">
-          <div className={`text-2xl md:text-3xl font-bold mb-2 capitalize ${getServiceStatusColor(healthMetrics.railway?.status || 'checking')}`}>
-            {healthMetrics.railway?.status || 'Checking'}
+          <div className={`text-2xl md:text-3xl font-bold mb-2 capitalize ${getServiceStatusColor(healthMetrics.backend?.status || 'checking')}`}>
+            {healthMetrics.backend?.status || 'Checking'}
           </div>
           <div className="text-sm md:text-base font-medium text-secondary mb-1 flex items-center justify-center gap-1">
-            Railway
+            Fly.io
             <svg className="w-4 h-4 text-muted opacity-50 group-hover:opacity-100 transition-opacity cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -381,7 +381,7 @@ export default function QuickActionsPanel() {
           {/* Tooltip */}
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-48 z-10 pointer-events-none">
             <div className="font-medium mb-1">Backend API Server</div>
-            <div className="text-gray-300">FastAPI backend hosted on Railway. Handles all API requests, chat processing, and integrations.</div>
+            <div className="text-gray-300">FastAPI backend hosted on Fly.io. Handles all API requests, chat processing, and integrations.</div>
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
           </div>
         </div>

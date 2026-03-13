@@ -337,7 +337,7 @@ app.add_middleware(CustomCORSMiddleware)
 # ============================================================================
 # HTTPS Redirect Fix Middleware
 # ============================================================================
-# Railway/proxies terminate TLS and forward requests as HTTP internally.
+# Fly.io/proxies terminate TLS and forward requests as HTTP internally.
 # FastAPI's trailing-slash redirects use the internal HTTP scheme, causing
 # mixed content errors. This middleware intercepts redirects and fixes the scheme.
 
@@ -363,8 +363,10 @@ class HTTPSRedirectFixMiddleware:
                     for name, value in headers:
                         if name.lower() == b"location":
                             location = value.decode("utf-8")
-                            # Replace http:// with https:// for railway.app URLs
-                            if "railway.app" in location and location.startswith("http://"):
+                            # Replace http:// with https:// for production URLs behind proxy
+                            if location.startswith("http://") and (
+                                "fly.dev" in location or "vercel.app" in location
+                            ):
                                 location = location.replace("http://", "https://", 1)
                                 value = location.encode("utf-8")
                         new_headers.append((name, value))
@@ -610,7 +612,7 @@ async def root():
         "message": "Thesis API is running",
         "version": "1.0.1",
         "status": "healthy",
-        "deploy_marker": "2025-12-28-meeting-cors-verify",
+        "deploy_marker": "2026-03-13-flyio-railway-cleanup",
     }
 
 

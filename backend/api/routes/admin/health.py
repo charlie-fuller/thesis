@@ -25,7 +25,7 @@ async def get_system_health(current_user: dict = Depends(require_admin)):
     try:
         health_data = {
             "supabase": {"status": "checking", "responseTime": 0},
-            "railway": {"status": "running"},
+            "backend": {"status": "running"},
             "anthropic": {"status": "checking", "latency": 0},
             "voyageAI": {"status": "checking", "latency": 0},
             "neo4j": {"status": "checking", "responseTime": 0},
@@ -43,8 +43,8 @@ async def get_system_health(current_user: dict = Depends(require_admin)):
             logger.error(f"Supabase health check failed: {str(e)}")
             health_data["supabase"] = {"status": "error", "responseTime": 0}
 
-        # 2. Railway (Backend API) - If this endpoint is responding, Railway is running
-        health_data["railway"] = {"status": "running", "uptime": True}
+        # 2. Backend API - If this endpoint is responding, the backend is running
+        health_data["backend"] = {"status": "running", "uptime": True}
 
         # 3. Check Anthropic (Claude) - Make a real API call to verify connectivity
         try:
@@ -125,7 +125,7 @@ async def get_system_health(current_user: dict = Depends(require_admin)):
             health_data["neo4j"] = {"status": "error", "responseTime": 0}
 
         logger.info(
-            f"Health check: Supabase {db_time}ms, Railway OK, "
+            f"Health check: Supabase {db_time}ms, Backend OK, "
             f"Anthropic {health_data['anthropic']['status']}, "
             f"Voyage {health_data['voyageAI']['status']}, "
             f"Neo4j {health_data['neo4j']['status']} ({neo4j_time}ms)"

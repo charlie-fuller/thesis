@@ -2,7 +2,7 @@
 """Remote Vault Sync Client.
 
 Local script that watches your Obsidian vault and syncs changes to the
-remote Thesis backend (Railway). Runs on your local machine and uploads
+remote Thesis backend (Fly.io). Runs on your local machine and uploads
 file content via authenticated API calls.
 
 Usage:
@@ -10,7 +10,7 @@ Usage:
     python -m scripts.remote_vault_sync
 
 Environment Variables (in .env or exported):
-    REMOTE_API_URL - Railway backend URL (default: https://thesis-production.up.railway.app)
+    REMOTE_API_URL - Backend URL (default: https://thesis-genai-api.fly.dev)
     VAULT_PATH - Path to your Obsidian vault
     SUPABASE_URL - Supabase project URL (for auth)
     SUPABASE_ANON_KEY - Supabase anon key (for auth)
@@ -39,7 +39,7 @@ from watchdog.observers import Observer
 load_dotenv()
 
 # Configuration
-REMOTE_API_URL = os.getenv("REMOTE_API_URL", "https://thesis-production-badf.up.railway.app")
+REMOTE_API_URL = os.getenv("REMOTE_API_URL", "https://thesis-genai-api.fly.dev")
 VAULT_PATH = os.getenv("VAULT_PATH", os.getenv("OBSIDIAN_VAULT_PATH", ""))
 SUPABASE_URL = os.getenv("SUPABASE_URL", os.getenv("NEXT_PUBLIC_SUPABASE_URL", ""))
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", ""))

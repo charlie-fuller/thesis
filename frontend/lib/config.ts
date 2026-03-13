@@ -7,13 +7,13 @@
  * Backend API base URL
  * Uses NEXT_PUBLIC_API_URL from environment variables
  * Falls back to localhost for development if not set
- * Forces HTTPS for production URLs (railway.app, etc.)
+ * Forces HTTPS for production URLs (fly.dev, vercel.app)
  */
 function getApiBaseUrl(): string {
   const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
   // Force HTTPS for production URLs
-  if (url.includes('railway.app') || url.includes('vercel.app')) {
+  if (url.includes('fly.dev') || url.includes('vercel.app')) {
     return url.replace('http://', 'https://')
   }
 
