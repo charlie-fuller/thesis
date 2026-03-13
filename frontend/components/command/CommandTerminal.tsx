@@ -181,6 +181,7 @@ export default function CommandTerminal() {
   // --- Fuzzy matching ---
   // Score how well `query` matches `target` (higher = better, 0 = no match)
   const fuzzyScore = (query: string, target: string): number => {
+    if (!query || !target) return 0
     const q = query.toLowerCase().trim()
     const t = target.toLowerCase().trim()
     if (!q || !t) return 0
@@ -263,13 +264,13 @@ export default function CommandTerminal() {
       if (projRes.ok) {
         const projects = await projRes.json()
         projectsRef.current = projects
-          .filter((p: { status?: string }) => p.status !== 'archived' && p.status !== 'cancelled')
+          .filter((p: { status?: string; name?: string }) => p.name && p.status !== 'archived' && p.status !== 'cancelled')
           .map((p: { id: string; name: string }) => ({ id: p.id, name: p.name }))
       }
       if (initRes.ok) {
         const initiatives = await initRes.json()
         initiativesRef.current = (Array.isArray(initiatives) ? initiatives : initiatives.data || [])
-          .filter((i: { status?: string }) => i.status !== 'archived' && i.status !== 'cancelled')
+          .filter((i: { status?: string; name?: string }) => i.name && i.status !== 'archived' && i.status !== 'cancelled')
           .map((i: { id: string; name: string }) => ({ id: i.id, name: i.name }))
       }
       if (folderRes.ok) {
