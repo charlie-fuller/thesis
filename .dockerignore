@@ -15,4 +15,5 @@ supabase/
 tests/
 scripts/
 docs/
+!docs/help/
 __pycache__/
