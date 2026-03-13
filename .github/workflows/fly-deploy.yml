@@ -1,0 +1,22 @@
+name: Deploy Backend to Fly.io
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'Dockerfile'
+      - 'fly.toml'
+      - 'docs/help/**'
+
+jobs:
+  deploy:
+    name: Deploy to Fly.io
+    runs-on: ubuntu-latest
+    concurrency: deploy-group
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
