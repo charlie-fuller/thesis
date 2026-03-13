@@ -832,13 +832,13 @@ async def upload_remote_file(
 
         status = "updated" if existing.data else "created"
 
-        # Auto-link to DISCO initiatives if this is a new document
+        # Auto-link to DISCO initiatives and projects if this is a new document
         if status == "created":
             from services.obsidian_sync import auto_link_document_to_initiatives
 
             linked = auto_link_document_to_initiatives(doc_id, file_path, current_user["id"])
             if linked:
-                logger.info(f"[Remote Upload] Auto-linked to {linked} initiative(s)")
+                logger.info(f"[Remote Upload] Auto-linked to {linked} initiative(s)/project(s)")
 
         logger.info(f"[Remote Upload] {status}: {file_path}")
 

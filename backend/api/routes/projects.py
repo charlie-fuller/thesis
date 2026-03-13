@@ -2288,6 +2288,148 @@ async def kraken_execute_tasks(
     )
 
 
+# ============================================================================
+# FOLDER LINKING (Auto-link subscriptions - mirrors initiative folder links)
+# ============================================================================
+
+
+class ProjectLinkFolderRequest(BaseModel):
+    """Request body for linking a vault folder to a project."""
+
+    folder_path: str
+    recursive: bool = True
+    backfill: bool = True
+
+
+@router.post("/{project_id}/folders/link")
+async def api_link_project_folder(
+    project_id: str,
+    data: ProjectLinkFolderRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Link a vault folder to a project.
+
+    New documents synced into this folder will be automatically linked.
+    Optionally backfills existing documents in the folder.
+    """
+    user_id = current_user["id"]
+    folder_path = data.folder_path.strip().strip("/")
+
+    if not folder_path:
+        raise HTTPException(status_code=400, detail="folder_path is required")
+
+    # Upsert folder link
+    await asyncio.to_thread(
+        lambda: supabase.table("project_folders")
+        .upsert(
+            {
+                "project_id": project_id,
+                "folder_path": folder_path,
+                "recursive": data.recursive,
+                "linked_by": user_id,
+            },
+            on_conflict="project_id,folder_path",
+        )
+        .execute()
+    )
+
+    logger.info(f"Linked folder '{folder_path}' to project {project_id} (recursive={data.recursive})")
+
+    backfilled = 0
+
+    if data.backfill:
+        # Find documents in this folder
+        query = supabase.table("documents").select("id")
+        if data.recursive:
+            query = query.ilike("obsidian_file_path", f"{folder_path}/%")
+        else:
+            query = query.ilike("obsidian_file_path", f"{folder_path}/%")
+
+        docs_result = await asyncio.to_thread(lambda: query.execute())
+
+        if docs_result.data:
+            for doc in docs_result.data:
+                doc_id = doc["id"]
+                try:
+                    if not data.recursive:
+                        doc_detail = await asyncio.to_thread(
+                            lambda did=doc_id: supabase.table("documents")
+                            .select("obsidian_file_path")
+                            .eq("id", did)
+                            .single()
+                            .execute()
+                        )
+                        if doc_detail.data:
+                            path = doc_detail.data["obsidian_file_path"]
+                            remainder = path[len(folder_path) + 1 :]
+                            if "/" in remainder:
+                                continue  # Skip subfolder docs
+
+                    await asyncio.to_thread(
+                        lambda did=doc_id: supabase.table("project_documents")
+                        .upsert(
+                            {
+                                "project_id": project_id,
+                                "document_id": did,
+                            },
+                            on_conflict="project_id,document_id",
+                        )
+                        .execute()
+                    )
+                    backfilled += 1
+                except Exception as e:
+                    logger.warning(f"Failed to backfill document {doc_id} to project: {e}")
+
+        logger.info(f"Backfilled {backfilled} documents from folder '{folder_path}' to project {project_id}")
+
+    return {
+        "success": True,
+        "folder_path": folder_path,
+        "recursive": data.recursive,
+        "backfilled_count": backfilled,
+    }
+
+
+@router.get("/{project_id}/folders")
+async def api_list_project_folders(
+    project_id: str,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """List all folder subscriptions for a project."""
+    result = await asyncio.to_thread(
+        lambda: supabase.table("project_folders")
+        .select("id, folder_path, recursive, linked_at, linked_by")
+        .eq("project_id", project_id)
+        .order("folder_path")
+        .execute()
+    )
+
+    return {"folders": result.data or []}
+
+
+@router.delete("/{project_id}/folders/{folder_path:path}")
+async def api_unlink_project_folder(
+    project_id: str,
+    folder_path: str,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Unlink a folder from this project."""
+    await asyncio.to_thread(
+        lambda: supabase.table("project_folders")
+        .delete()
+        .eq("project_id", project_id)
+        .eq("folder_path", folder_path)
+        .execute()
+    )
+
+    logger.info(f"Unlinked folder '{folder_path}' from project {project_id}")
+
+    return {"success": True, "message": f"Folder '{folder_path}' unlinked from project"}
+
+
 @router.get("/{project_id}/kraken/evaluation")
 async def kraken_get_evaluation(
     project_id: str,
