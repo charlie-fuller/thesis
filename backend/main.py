@@ -39,82 +39,83 @@ limiter = Limiter(key_func=get_remote_address)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle."""
-    # Startup
-    # Start Google Drive sync scheduler
-    try:
-        from services.sync_scheduler import start_scheduler
+    import asyncio
 
-        start_scheduler(check_interval_minutes=5)
-        logger.info("Google Drive sync scheduler started")
-    except Exception as e:
-        logger.error(f"Warning: Could not start sync scheduler: {e}")
+    # Startup — defer schedulers 30s so health check responds immediately
+    async def _deferred_schedulers():
+        await asyncio.sleep(30)
+        logger.info("Starting deferred schedulers (30s post-startup)")
 
-    # Start Atlas research scheduler
-    try:
-        from services.research_scheduler import start_research_scheduler
+        # Google Drive sync disabled (packages removed)
+        # sync_scheduler intentionally not started
 
-        start_research_scheduler(hour_utc=6, minute=0)
-        logger.info("Atlas research scheduler started")
-    except Exception as e:
-        logger.error(f"Warning: Could not start research scheduler: {e}")
+        # Start Atlas research scheduler
+        try:
+            from services.research_scheduler import start_research_scheduler
 
-    # Start Knowledge Graph sync scheduler
-    try:
-        from services.graph_sync_scheduler import start_graph_sync_scheduler
+            start_research_scheduler(hour_utc=6, minute=0)
+            logger.info("Atlas research scheduler started")
+        except Exception as e:
+            logger.error(f"Warning: Could not start research scheduler: {e}")
 
-        start_graph_sync_scheduler(hour_utc=3, minute=0)
-        logger.info("Knowledge Graph sync scheduler started")
-    except Exception as e:
-        logger.error(f"Warning: Could not start graph sync scheduler: {e}")
+        # Start Knowledge Graph sync scheduler
+        try:
+            from services.graph_sync_scheduler import start_graph_sync_scheduler
 
-    # Start Stakeholder Engagement scheduler (weekly)
-    try:
-        from services.engagement_scheduler import start_engagement_scheduler
+            start_graph_sync_scheduler(hour_utc=3, minute=0)
+            logger.info("Knowledge Graph sync scheduler started")
+        except Exception as e:
+            logger.error(f"Warning: Could not start graph sync scheduler: {e}")
 
-        start_engagement_scheduler(day_of_week="sun", hour_utc=4, minute=0)
-        logger.info("Stakeholder engagement scheduler started")
-    except Exception as e:
-        logger.error(f"Warning: Could not start engagement scheduler: {e}")
+        # Start Stakeholder Engagement scheduler (weekly)
+        try:
+            from services.engagement_scheduler import start_engagement_scheduler
 
-    # Start Manifesto Compliance Digest scheduler (weekly)
-    try:
-        from services.manifesto_digest_scheduler import start_manifesto_digest_scheduler
+            start_engagement_scheduler(day_of_week="sun", hour_utc=4, minute=0)
+            logger.info("Stakeholder engagement scheduler started")
+        except Exception as e:
+            logger.error(f"Warning: Could not start engagement scheduler: {e}")
 
-        start_manifesto_digest_scheduler(day_of_week="mon", hour_utc=7, minute=0)
-        logger.info("Manifesto compliance digest scheduler started")
-    except Exception as e:
-        logger.error(f"Warning: Could not start manifesto digest scheduler: {e}")
+        # Start Manifesto Compliance Digest scheduler (weekly)
+        try:
+            from services.manifesto_digest_scheduler import start_manifesto_digest_scheduler
 
-    # Start Discovery Inbox scan scheduler (daily)
-    try:
-        from services.discovery_scan_scheduler import start_discovery_scan_scheduler
+            start_manifesto_digest_scheduler(day_of_week="mon", hour_utc=7, minute=0)
+            logger.info("Manifesto compliance digest scheduler started")
+        except Exception as e:
+            logger.error(f"Warning: Could not start manifesto digest scheduler: {e}")
 
-        start_discovery_scan_scheduler(hour_utc=5, minute=0)
-        logger.info("Discovery scan scheduler started")
-    except Exception as e:
-        logger.error(f"Warning: Could not start discovery scan scheduler: {e}")
+        # Start Discovery Inbox scan scheduler (daily)
+        try:
+            from services.discovery_scan_scheduler import start_discovery_scan_scheduler
 
-    # Start Vault Watcher (if VAULT_WATCHER_USER_ID is configured)
-    try:
-        from services.vault_watcher_scheduler import start_vault_watcher
+            start_discovery_scan_scheduler(hour_utc=5, minute=0)
+            logger.info("Discovery scan scheduler started")
+        except Exception as e:
+            logger.error(f"Warning: Could not start discovery scan scheduler: {e}")
 
-        if start_vault_watcher(initial_sync=True):
-            logger.info("Vault watcher started")
-        # If not started, start_vault_watcher logs the reason
-    except Exception as e:
-        logger.error(f"Warning: Could not start vault watcher: {e}")
+        logger.info("All deferred schedulers started")
 
-    logger.info("Application startup complete")
+    # Vault watcher deferred 60s (heaviest startup task — initial_sync disabled)
+    async def _deferred_vault_watcher():
+        await asyncio.sleep(60)
+        try:
+            from services.vault_watcher_scheduler import start_vault_watcher
+
+            if start_vault_watcher(initial_sync=False):
+                logger.info("Vault watcher started (60s deferred, no initial sync)")
+        except Exception as e:
+            logger.error(f"Warning: Could not start vault watcher: {e}")
+
+    asyncio.create_task(_deferred_schedulers())
+    asyncio.create_task(_deferred_vault_watcher())
+
+    logger.info("Application startup complete (schedulers deferred 30s)")
 
     yield  # Application is running
 
     # Shutdown
-    try:
-        from services.sync_scheduler import stop_scheduler
-
-        stop_scheduler()
-    except Exception as e:
-        logger.error(f"Warning during sync scheduler shutdown: {e}")
+    # sync_scheduler removed (Google Drive disabled)
 
     try:
         from services.research_scheduler import stop_research_scheduler
@@ -271,16 +272,16 @@ class CustomCORSMiddleware:
         method = scope.get("method", "")
 
         # Log all incoming requests for debugging
-        logger.info(f"CORS middleware: {method} {path} from origin: '{origin}'")
+        logger.debug(f"CORS middleware: {method} {path} from origin: '{origin}'")
 
         # Check if origin is allowed
         is_allowed = origin in allowed_origins
-        logger.info(f"CORS origin allowed: {is_allowed}")
+        logger.debug(f"CORS origin allowed: {is_allowed}")
 
         # Handle preflight OPTIONS requests
         if method == "OPTIONS":
             if is_allowed:
-                logger.info(f"CORS preflight ALLOWED for {path} from {origin}")
+                logger.debug(f"CORS preflight ALLOWED for {path} from {origin}")
                 response = Response(
                     status_code=200,
                     headers={
@@ -455,7 +456,6 @@ from api.routes import (
     meeting_prep,
     meeting_rooms,
     obsidian_sync,
-    opportunities,
     pipeline,
     projects,
     research,
@@ -491,8 +491,6 @@ app.include_router(meeting_rooms.router)
 app.include_router(research.router)
 app.include_router(projects.router)
 app.include_router(glean_connectors.router)
-# NOTE: opportunities.router kept for backward compatibility during transition to /api/projects
-app.include_router(opportunities.router)
 app.include_router(discovery.router)
 app.include_router(stakeholder_metrics.router)
 app.include_router(meeting_prep.router)

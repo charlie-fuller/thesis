@@ -203,7 +203,7 @@ When creating tasks from extracted items:
                 logger.warning(f"No client_id found for user {context.user_id}")
                 return "\n[Task Context: Unable to load tasks - user not associated with a client]\n"
 
-            # Query tasks for this client
+            # Query tasks for this client (limit 200 for performance)
             result = (
                 self.supabase.table("project_tasks")
                 .select(
@@ -211,6 +211,8 @@ When creating tasks from extracted items:
                 )
                 .eq("client_id", client_id)
                 .neq("status", "completed")
+                .order("due_date", desc=False)
+                .limit(200)
                 .execute()
             )
 

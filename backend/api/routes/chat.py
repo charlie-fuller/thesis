@@ -437,15 +437,18 @@ Instructions:
         # Build conversation history for Claude
         conversation_messages = []
         if chat_request.conversation_id:
-            # Fetch ALL previous messages from this conversation
-            # Claude Sonnet 4 has 200K token context - let it use full conversation
+            # Fetch recent messages from this conversation (limit 50 for performance)
             history_result = (
                 supabase.table("messages")
                 .select("role,content")
                 .eq("conversation_id", chat_request.conversation_id)
-                .order("created_at", desc=False)
+                .order("created_at", desc=True)
+                .limit(50)
                 .execute()
             )
+            # Reverse to chronological order after limiting
+            if history_result.data:
+                history_result.data.reverse()
 
             if history_result.data:
                 for msg in history_result.data:
@@ -1921,14 +1924,18 @@ Instructions:
             conversation_messages = []
 
             if chat_request.conversation_id:
-                # Fetch conversation history
+                # Fetch recent conversation history (limit 50 for performance)
                 history_result = (
                     supabase.table("messages")
                     .select("role,content,metadata")
                     .eq("conversation_id", chat_request.conversation_id)
-                    .order("created_at", desc=False)
+                    .order("created_at", desc=True)
+                    .limit(50)
                     .execute()
                 )
+                # Reverse to chronological order after limiting
+                if history_result.data:
+                    history_result.data.reverse()
 
                 if history_result.data:
                     # Track if a different agent was previously responding
@@ -2656,9 +2663,12 @@ Maintain the same format and style as your original response, but provide more c
                     supabase.table("messages")
                     .select("role,content")
                     .eq("conversation_id", dig_request.conversation_id)
-                    .order("created_at", desc=False)
+                    .order("created_at", desc=True)
+                    .limit(50)
                     .execute()
                 )
+                if history_result.data:
+                    history_result.data.reverse()
 
                 if history_result.data:
                     for msg in history_result.data:

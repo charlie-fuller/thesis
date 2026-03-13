@@ -2,6 +2,9 @@
 
 Provides factory functions to create fully configured agents
 with proper initialization and specialist registration.
+
+All agent imports are deferred to function call time to avoid
+loading 22 agent modules at startup.
 """
 
 import logging
@@ -11,55 +14,64 @@ import anthropic
 
 from supabase import Client
 
-from .architect import ArchitectAgent
-
-# Stakeholder Perspective Agents
-from .atlas import AtlasAgent
-from .capital import CapitalAgent
-
-# Internal Enablement Agents
-from .catalyst import CatalystAgent
-
-# Personal Development Agent
-from .compass import CompassAgent
-from .coordinator import CoordinatorAgent
-from .counselor import CounselorAgent
-
-# Brand & Voice Agent
-from .echo import EchoAgent
-
-# Meta-Agents (always present in meetings)
-from .facilitator import FacilitatorAgent
-from .glean_evaluator import GleanEvaluatorAgent
-from .guardian import GuardianAgent
-
-# Context-Specific Agents
-from .initiative_agent import InitiativeAgent
-from .kraken import KrakenAgent
-from .manual import ManualAgent
-
-# Systems Thinking Agent
-from .nexus import NexusAgent
-from .operator import OperatorAgent
-from .oracle import OracleAgent
-from .pioneer import PioneerAgent
-from .project_agent import ProjectAgent
-from .reporter import ReporterAgent
-from .sage import SageAgent
-from .scholar import ScholarAgent
-
-# Consulting/Implementation Agents
-from .strategist import StrategistAgent
-
-# Personal Productivity Agent
-from .taskmaster import TaskmasterAgent
-
 logger = logging.getLogger(__name__)
+
+
+def _get_agent_class(name: str):
+    """Lazy-import and return an agent class by name.
+
+    This avoids importing all 22 agent modules at module load time,
+    saving ~1-2s on cold start.
+    """
+    _registry = {
+        # Stakeholder Perspective Agents
+        "atlas": (".atlas", "AtlasAgent"),
+        "capital": (".capital", "CapitalAgent"),
+        "guardian": (".guardian", "GuardianAgent"),
+        "counselor": (".counselor", "CounselorAgent"),
+        "oracle": (".oracle", "OracleAgent"),
+        "sage": (".sage", "SageAgent"),
+        # Consulting/Implementation Agents
+        "strategist": (".strategist", "StrategistAgent"),
+        "architect": (".architect", "ArchitectAgent"),
+        "operator": (".operator", "OperatorAgent"),
+        "pioneer": (".pioneer", "PioneerAgent"),
+        # Internal Enablement Agents
+        "catalyst": (".catalyst", "CatalystAgent"),
+        "scholar": (".scholar", "ScholarAgent"),
+        "glean_evaluator": (".glean_evaluator", "GleanEvaluatorAgent"),
+        "manual": (".manual", "ManualAgent"),
+        # Systems Thinking Agent
+        "nexus": (".nexus", "NexusAgent"),
+        # Brand & Voice Agent
+        "echo": (".echo", "EchoAgent"),
+        # Personal Development Agent
+        "compass": (".compass", "CompassAgent"),
+        # Personal Productivity Agent
+        "taskmaster": (".taskmaster", "TaskmasterAgent"),
+        # Task Automation Agent
+        "kraken": (".kraken", "KrakenAgent"),
+        # Meta-Agents
+        "facilitator": (".facilitator", "FacilitatorAgent"),
+        "reporter": (".reporter", "ReporterAgent"),
+        # Context-Specific Agents
+        "project_agent": (".project_agent", "ProjectAgent"),
+        "initiative_agent": (".initiative_agent", "InitiativeAgent"),
+    }
+
+    key = name.lower()
+    if key not in _registry:
+        return None
+
+    module_path, class_name = _registry[key]
+    import importlib
+    module = importlib.import_module(module_path, package="agents")
+    return getattr(module, class_name)
 
 
 async def create_coordinator(
     supabase: Client, anthropic_client: anthropic.Anthropic, register_specialists: bool = True
-) -> CoordinatorAgent:
+):
     """Create and configure a Coordinator agent with all specialists.
 
     Args:
@@ -70,6 +82,8 @@ async def create_coordinator(
     Returns:
         Fully configured CoordinatorAgent ready for use
     """
+    CoordinatorAgent = _get_agent_class("coordinator")
+
     # Create the coordinator
     coordinator = CoordinatorAgent(supabase=supabase, anthropic_client=anthropic_client)
 
@@ -77,43 +91,22 @@ async def create_coordinator(
     await coordinator.initialize()
 
     if register_specialists:
-        # Create and register all specialist agents
-        specialists = {
-            # Stakeholder Perspective Agents
-            "atlas": AtlasAgent(supabase, anthropic_client),
-            "capital": CapitalAgent(supabase, anthropic_client),
-            "guardian": GuardianAgent(supabase, anthropic_client),
-            "counselor": CounselorAgent(supabase, anthropic_client),
-            "oracle": OracleAgent(supabase, anthropic_client),
-            "sage": SageAgent(supabase, anthropic_client),
-            # Consulting/Implementation Agents
-            "strategist": StrategistAgent(supabase, anthropic_client),
-            "architect": ArchitectAgent(supabase, anthropic_client),
-            "operator": OperatorAgent(supabase, anthropic_client),
-            "pioneer": PioneerAgent(supabase, anthropic_client),
-            # Internal Enablement Agents
-            "catalyst": CatalystAgent(supabase, anthropic_client),
-            "scholar": ScholarAgent(supabase, anthropic_client),
-            "glean_evaluator": GleanEvaluatorAgent(supabase, anthropic_client),
-            "manual": ManualAgent(supabase, anthropic_client),
-            # Systems Thinking Agent
-            "nexus": NexusAgent(supabase, anthropic_client),
-            # Brand & Voice Agent
-            "echo": EchoAgent(supabase, anthropic_client),
-            # Personal Development Agent
-            "compass": CompassAgent(supabase, anthropic_client),
-            # Personal Productivity Agent
-            "taskmaster": TaskmasterAgent(supabase, anthropic_client),
-            # Task Automation Agent
-            "kraken": KrakenAgent(supabase, anthropic_client),
-            # Context-Specific Agents
-            "project_agent": ProjectAgent(supabase, anthropic_client),
-            "initiative_agent": InitiativeAgent(supabase, anthropic_client),
-        }
+        # Only import and register agents as needed
+        specialist_names = [
+            "atlas", "capital", "guardian", "counselor", "oracle", "sage",
+            "strategist", "architect", "operator", "pioneer",
+            "catalyst", "scholar", "glean_evaluator", "manual",
+            "nexus", "echo", "compass", "taskmaster", "kraken",
+            "project_agent", "initiative_agent",
+        ]
 
-        # Initialize all specialists
-        for name, agent in specialists.items():
+        for name in specialist_names:
             try:
+                agent_class = _get_agent_class(name)
+                if agent_class is None:
+                    logger.error(f"Unknown specialist: {name}")
+                    continue
+                agent = agent_class(supabase, anthropic_client)
                 await agent.initialize()
                 coordinator.register_specialist(name, agent)
                 logger.info(f"Registered specialist: {name}")
@@ -127,50 +120,14 @@ async def create_specialist(name: str, supabase: Client, anthropic_client: anthr
     """Create a single specialist agent by name.
 
     Args:
-        name: Name of the specialist (all 14 agents supported)
+        name: Name of the specialist
         supabase: Supabase client
         anthropic_client: Anthropic client
 
     Returns:
         The specialist agent, or None if name is invalid
     """
-    agent_classes = {
-        # Stakeholder Perspective Agents
-        "atlas": AtlasAgent,
-        "capital": CapitalAgent,
-        "guardian": GuardianAgent,
-        "counselor": CounselorAgent,
-        "oracle": OracleAgent,
-        "sage": SageAgent,
-        # Consulting/Implementation Agents
-        "strategist": StrategistAgent,
-        "architect": ArchitectAgent,
-        "operator": OperatorAgent,
-        "pioneer": PioneerAgent,
-        # Internal Enablement Agents
-        "catalyst": CatalystAgent,
-        "scholar": ScholarAgent,
-        "glean_evaluator": GleanEvaluatorAgent,
-        "manual": ManualAgent,
-        # Systems Thinking Agent
-        "nexus": NexusAgent,
-        # Brand & Voice Agent
-        "echo": EchoAgent,
-        # Personal Development Agent
-        "compass": CompassAgent,
-        # Personal Productivity Agent
-        "taskmaster": TaskmasterAgent,
-        # Task Automation Agent
-        "kraken": KrakenAgent,
-        # Meta-Agents
-        "facilitator": FacilitatorAgent,
-        "reporter": ReporterAgent,
-        # Context-Specific Agents
-        "project_agent": ProjectAgent,
-        "initiative_agent": InitiativeAgent,
-    }
-
-    agent_class = agent_classes.get(name.lower())
+    agent_class = _get_agent_class(name)
     if not agent_class:
         logger.error(f"Unknown specialist: {name}")
         return None
