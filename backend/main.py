@@ -449,13 +449,11 @@ from api.routes import (
     entity_corrections,
     entity_registry,
     glean_connectors,
-    google_drive,
     graph,
     help_chat,
     images,
     meeting_prep,
     meeting_rooms,
-    notion,
     obsidian_sync,
     opportunities,
     pipeline,
@@ -476,8 +474,9 @@ app.include_router(chat.router)
 app.include_router(conversations.router)
 app.include_router(documents.router)
 app.include_router(users.router)
-app.include_router(google_drive.router)
-app.include_router(notion.router)
+# Google Drive and Notion integrations disabled (packages removed)
+# app.include_router(google_drive.router)
+# app.include_router(notion.router)
 app.include_router(admin.router)
 app.include_router(document_mappings.router)
 app.include_router(clients.router)

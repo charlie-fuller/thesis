@@ -16,7 +16,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from database import get_supabase
-from services.google_drive_sync import sync_folder
+try:
+    from services.google_drive_sync import sync_folder
+except ImportError:
+    sync_folder = None
 
 # Get centralized Supabase client
 supabase = get_supabase()
