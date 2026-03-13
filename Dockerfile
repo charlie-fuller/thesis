@@ -20,7 +20,6 @@ COPY backend/ ./
 COPY docs/help ./docs_help
 
 # Expose port (Railway uses dynamic PORT)
-EXPOSE 8000
+EXPOSE 8080
 
-# Start command - uses PORT env var from Railway, defaults to 8000
-CMD python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}

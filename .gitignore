@@ -89,3 +89,6 @@ DEPLOYMENT_STATUS.md
 !backend/.env.vault
 .vercel
 .env*.local
+
+# Database backups (contain credentials)
+database/backups/

@@ -60,6 +60,17 @@ class SaveFromChatRequest(BaseModel):
     agent_ids: Optional[List[str]] = None
 
 
+class ExportToKBRequest(BaseModel):
+    """Request body for exporting content to KB with optional project/initiative linking."""
+
+    title: str
+    content: str
+    location: Optional[str] = None  # Virtual folder path for organization
+    project_id: Optional[str] = None
+    initiative_id: Optional[str] = None
+    agent_ids: Optional[List[str]] = None
+
+
 class BatchTagsRequest(BaseModel):
     """Request body for fetching tags for multiple documents."""
 

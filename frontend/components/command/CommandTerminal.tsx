@@ -20,7 +20,18 @@ interface CommandEntry {
 
 const HISTORY_KEY = 'thesis_command_history'
 const MODEL_KEY = 'thesis_command_model'
+const FONT_SIZE_KEY = 'thesis_command_font_size'
 const MAX_HISTORY = 100
+
+const FONT_SIZES = [
+  { id: 'xs', label: 'XS', px: '11px' },
+  { id: 'sm', label: 'S', px: '13px' },
+  { id: 'md', label: 'M', px: '14px' },
+  { id: 'lg', label: 'L', px: '16px' },
+  { id: 'xl', label: 'XL', px: '18px' },
+] as const
+
+type FontSizeId = typeof FONT_SIZES[number]['id']
 
 const MODELS = [
   { id: 'haiku', label: 'Haiku', description: 'Fast' },
@@ -105,6 +116,7 @@ export default function CommandTerminal() {
   const [streamingOutput, setStreamingOutput] = useState('')
   const [streamingToolCalls, setStreamingToolCalls] = useState<ToolCall[]>([])
   const [model, setModel] = useState<ModelId>('sonnet')
+  const [fontSize, setFontSize] = useState<FontSizeId>('sm')
   const outputRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -122,6 +134,10 @@ export default function CommandTerminal() {
       const savedModel = localStorage.getItem(MODEL_KEY)
       if (savedModel && MODELS.some(m => m.id === savedModel)) {
         setModel(savedModel as ModelId)
+      }
+      const savedFontSize = localStorage.getItem(FONT_SIZE_KEY)
+      if (savedFontSize && FONT_SIZES.some(f => f.id === savedFontSize)) {
+        setFontSize(savedFontSize as FontSizeId)
       }
     } catch {
       // Ignore parse errors
@@ -151,9 +167,120 @@ export default function CommandTerminal() {
     inputRef.current?.focus()
   }, [])
 
+  const handleExport = useCallback(async (args: string) => {
+    // Parse args: /export <title> [location:<path>] [project:<id>] [initiative:<id>]
+    const tokens = args.trim().split(/\s+/)
+    const kwargs: Record<string, string> = {}
+    const positional: string[] = []
+
+    for (const token of tokens) {
+      if (token.includes(':') && !token.startsWith('/')) {
+        const [k, ...rest] = token.split(':')
+        kwargs[k] = rest.join(':')
+      } else {
+        positional.push(token)
+      }
+    }
+
+    const title = positional.join(' ') || `Command Session ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
+    const location = kwargs.location || kwargs.loc || undefined
+    const projectId = kwargs.project || kwargs.proj || undefined
+    const initiativeId = kwargs.initiative || kwargs.init || undefined
+
+    const cmdStr = `/export ${args}`.trim()
+
+    if (history.length === 0) {
+      setHistory(prev => [...prev, { input: cmdStr, output: 'Nothing to export — conversation is empty.', toolCalls: [], isError: true }])
+      return
+    }
+
+    // Build markdown from conversation history
+    const lines = [`# ${title}\n`, `*Exported: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}*\n`]
+    for (const entry of history) {
+      lines.push(`---\n## User\n\n${entry.input}\n`)
+      if (entry.output) {
+        lines.push(`## Assistant\n\n${entry.output}\n`)
+      }
+    }
+    const content = lines.join('\n')
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const body: Record<string, unknown> = { title, content }
+      if (location) body.location = location
+      if (projectId) body.project_id = projectId
+      if (initiativeId) body.initiative_id = initiativeId
+
+      const res = await fetch(`${apiUrl}/api/documents/export-to-kb`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify(body),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Export failed')
+
+      const parts = [`Saved to KB: **${title}**`, `Document ID: \`${data.document_id}\``]
+      if (data.linked_project) parts.push(`Linked to project: \`${data.linked_project}\``)
+      if (data.linked_initiative) parts.push(`Linked to initiative: \`${data.linked_initiative}\``)
+
+      setHistory(prev => [...prev, { input: cmdStr, output: parts.join('\n'), toolCalls: [] }])
+    } catch (err) {
+      setHistory(prev => [...prev, {
+        input: cmdStr,
+        output: `Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        toolCalls: [],
+        isError: true,
+      }])
+    }
+  }, [history, session])
+
   const handleSubmit = useCallback(async () => {
     const input = currentInput.trim()
     if (!input || isStreaming) return
+
+    // Handle client-side slash commands
+    if (input.startsWith('/export')) {
+      setCurrentInput('')
+      setHistoryIndex(-1)
+      handleExport(input.slice(7))
+      return
+    }
+
+    if (input === '/clear') {
+      setCurrentInput('')
+      setHistoryIndex(-1)
+      setHistory([])
+      localStorage.removeItem(HISTORY_KEY)
+      return
+    }
+
+    if (input === '/help') {
+      setCurrentInput('')
+      setHistoryIndex(-1)
+      setHistory(prev => [...prev, {
+        input: '/help',
+        output: [
+          '**Available commands:**',
+          '- `/export <title> [project:<id>] [initiative:<id>] [location:<path>]`',
+          '  Save this conversation to the Knowledge Base, optionally linked to a project and/or initiative',
+          '- `/clear` — Clear conversation history',
+          '- `/help` — Show this help',
+          '',
+          '**Export examples:**',
+          '- `/export Debug Session` — save with title',
+          '- `/export Sprint Review project:abc-123` — save and link to project',
+          '- `/export Discovery Notes init:def-456` — save and link to initiative',
+          '',
+          'Or type any question to query the database via AI.',
+        ].join('\n'),
+        toolCalls: [],
+      }])
+      return
+    }
 
     setCurrentInput('')
     setHistoryIndex(-1)
@@ -289,10 +416,16 @@ export default function CommandTerminal() {
   return (
     <div
       className="flex flex-col h-full bg-gray-950 rounded-lg overflow-hidden border border-gray-800"
-      onClick={() => inputRef.current?.focus()}
+      onClick={() => {
+        // Only refocus input if user hasn't selected text
+        const selection = window.getSelection()
+        if (!selection || selection.isCollapsed) {
+          inputRef.current?.focus()
+        }
+      }}
     >
       {/* Output area */}
-      <div ref={outputRef} className="flex-1 overflow-y-auto p-4 font-mono text-sm leading-relaxed">
+      <div ref={outputRef} className="flex-1 overflow-y-auto p-4 font-mono leading-relaxed" style={{ fontSize: FONT_SIZES.find(f => f.id === fontSize)?.px || '13px' }}>
         {/* Welcome message (only when no history) */}
         {history.length === 0 && !isStreaming && (
           <pre className="text-gray-500 whitespace-pre-wrap mb-4">{WELCOME_MESSAGE}</pre>
@@ -384,6 +517,29 @@ export default function CommandTerminal() {
             </option>
           ))}
         </select>
+        <select
+          value={fontSize}
+          onChange={e => {
+            const val = e.target.value as FontSizeId
+            setFontSize(val)
+            localStorage.setItem(FONT_SIZE_KEY, val)
+          }}
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          className="bg-gray-800 text-gray-400 text-xs font-mono border border-gray-700 rounded px-2 py-1 outline-none focus:border-gray-500 cursor-pointer"
+          title="Font size"
+        >
+          {FONT_SIZES.map(f => (
+            <option key={f.id} value={f.id}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {/* Hint bar */}
+      <div className="flex items-center justify-between px-4 py-1 border-t border-gray-800/50 bg-gray-900/80 text-gray-600 text-[10px] font-mono">
+        <span><span className="text-gray-500">/help</span> commands · <span className="text-gray-500">/export</span> save to KB · <span className="text-gray-500">↑↓</span> history</span>
+        <span><span className="text-gray-500">/clear</span> reset</span>
       </div>
     </div>
   )

@@ -38,7 +38,7 @@ See `/docs/ARCHITECTURE.md` for full agent roster, capabilities, and database sc
 | Graph DB | Neo4j Aura |
 | AI/ML | Anthropic Claude, Voyage AI embeddings |
 | Memory | Mem0 |
-| Deployment | Railway (backend), Vercel (frontend) |
+| Deployment | Fly.io (backend), Vercel (frontend) |
 
 ## Key Directories
 
@@ -108,7 +108,7 @@ Claude has access to these CLIs and services for Thesis development:
 | `supabase` | `supabase projects list`, `supabase projects api-keys --project-ref imdavfgreeddxluslsdl` | Linked project: Thesis (imdavfgreeddxluslsdl) |
 | `op` (1Password) | `op item get "Thesis Supabase JWT JWK"`, `op item list --vault "Employee"` | Secrets storage |
 | `dotenvx` | Decrypt `.env` files with `DOTENV_PRIVATE_KEY` | Private key in backend/.env.keys |
-| `railway` | Deploy backend, check logs | MCP server available |
+| `flyctl` | Deploy backend, check logs, manage secrets | `flyctl deploy`, `flyctl logs`, `flyctl secrets set` |
 | `gh` (GitHub) | PRs, issues, code search | Full repo access, can push |
 | `git` | Commits, branches, push to origin | Main branch: main |
 
@@ -128,6 +128,23 @@ Claude has access to these CLIs and services for Thesis development:
 - **Repo:** anthropics/thesis (or charlie.fuller's fork)
 - Can create branches, commits, PRs
 - Use `gh pr create`, `gh issue list`, etc.
+
+## Deployment
+
+- **Backend**: Fly.io
+  - App: `thesis-genai-api` at https://thesis-genai-api.fly.dev
+  - Region: dfw, shared-cpu-1x, 512MB
+  - Dockerfile: `python:3.11-slim` + gcc
+  - Config: `fly.toml` (auto_stop/auto_start, health check on /health)
+  - Deploy: `flyctl deploy` from repo root
+  - Secrets: `flyctl secrets list` / `flyctl secrets set KEY=value`
+  - Logs: `flyctl logs -a thesis-genai-api`
+  - Scales to zero when idle, wakes on request (~5s cold start)
+  - JWT: ES256 via JWK from Supabase JWKS endpoint (not HS256)
+- **Frontend**: Vercel
+  - https://thesis-mvp.vercel.app
+  - `NEXT_PUBLIC_API_URL` points to Fly.io backend
+- **Migrated from Railway**: 2026-03-11
 
 ## Code Conventions
 
