@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useHelpChat } from '@/contexts/HelpChatContext'
 import UserMenu from './UserMenu'
 
 interface PageHeaderProps {
@@ -15,6 +16,28 @@ interface PageHeaderProps {
   tabSwitcher?: React.ReactNode
   // New prop: show help toggle using context (no callback needed)
   showHelpToggle?: boolean
+}
+
+function HelpToggleButton() {
+  const { isOpen, toggleOpen } = useHelpChat()
+  return (
+    <button
+      onClick={toggleOpen}
+      className={`p-1.5 rounded transition-colors ${
+        isOpen
+          ? 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30'
+          : 'text-muted hover:text-primary'
+      }`}
+      aria-label={isOpen ? 'Close Help' : 'Open Help'}
+      title={isOpen ? 'Close Help' : 'Open Help'}
+    >
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    </button>
+  )
 }
 
 export default function PageHeader({
@@ -158,20 +181,9 @@ export default function PageHeader({
                 </svg>
               </button>
             )}
-            {/* Help button - navigates to /help?tab=ask */}
+            {/* Help button - toggles slide-in help panel */}
             {showHelpToggle && (
-              <button
-                onClick={() => router.push('/help?tab=ask')}
-                className="p-1.5 rounded transition-colors text-muted hover:text-primary"
-                aria-label="Open Help"
-                title="Open Help"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-              </button>
+              <HelpToggleButton />
             )}
           </div>
         </div>

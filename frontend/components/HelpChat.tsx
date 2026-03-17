@@ -212,10 +212,8 @@ export default function HelpChat() {
   // Full chat interface as right sidebar
   return (
     <div
-      className="bg-card border-l border-default flex flex-col flex-shrink-0"
+      className="bg-card flex flex-col flex-shrink-0 h-full"
       style={{
-        width: '400px',
-        height: '100%',
         backgroundColor: 'var(--color-bg-card)',
       }}
     >
@@ -279,6 +277,17 @@ export default function HelpChat() {
                 d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
                 clipRule="evenodd"
               />
+            </svg>
+          </button>
+
+          {/* Close button */}
+          <button
+            onClick={toggleOpen}
+            className="p-1.5 hover:bg-hover rounded transition-colors"
+            title="Close help"
+          >
+            <svg className="h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
