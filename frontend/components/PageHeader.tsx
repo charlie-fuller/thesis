@@ -24,7 +24,7 @@ export default function PageHeader({
   onToggleLeftPanel,
   onToggleRightPanel,
   tabSwitcher,
-  showHelpToggle = false,
+  showHelpToggle = true,
 }: PageHeaderProps) {
   const { isAdmin, hasDiscoAccess } = useAuth()
   const { theme } = useTheme()
@@ -43,7 +43,6 @@ export default function PageHeader({
     { href: '/intelligence', label: 'Intelligence' },
     { href: '/command', label: 'Command' },
     { href: '/manifesto', label: 'Manifesto' },
-    { href: '/help', label: 'Help' },
   ]
 
   const isActive = (href: string) => {
