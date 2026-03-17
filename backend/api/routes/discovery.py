@@ -305,14 +305,18 @@ async def get_all_pending_candidates(
 
         user_id = current_user["id"]
 
+        # Check if a background scan is actually running for this user
+        from api.routes.pipeline import _active_user_scans
+
+        scan_actually_running = user_id in _active_user_scans
+
         # Use Granola scanner's status function to get accurate pending count
         granola_status = get_scan_status(user_id)
         pending_count = granola_status.get("pending_files", 0)
 
-        if pending_count > 0:
+        if scan_actually_running and pending_count > 0:
             next_doc = granola_status.get("next_document")
             if next_doc:
-                # Truncate long filenames
                 display_name = next_doc[:40] + "..." if len(next_doc) > 40 else next_doc
                 message = f"Analyzing: {display_name}"
             else:
@@ -324,7 +328,10 @@ async def get_all_pending_candidates(
                 current_document=next_doc,
             )
         else:
-            scanning_status = ScanningStatus(active=False, pending_documents=0)
+            scanning_status = ScanningStatus(
+                active=False,
+                pending_documents=pending_count,
+            )
     except Exception as e:
         logger.warning(f"Failed to get scanning status: {e}")
         scanning_status = ScanningStatus(active=False, pending_documents=0)

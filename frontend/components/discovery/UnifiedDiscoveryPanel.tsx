@@ -190,6 +190,10 @@ export default function UnifiedDiscoveryPanel() {
               <p className="text-sm text-secondary">
                 {scanning.message || 'Analyzing documents for tasks, projects, stakeholders...'}
               </p>
+            ) : scanning?.pending_documents ? (
+              <p className="text-sm text-secondary">
+                {scanning.pending_documents} unscanned document{scanning.pending_documents !== 1 ? 's' : ''} - click Scan Now to process
+              </p>
             ) : (
               <p className="text-sm text-secondary">All caught up - no items to review</p>
             )}
