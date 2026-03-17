@@ -207,9 +207,6 @@ export default function KBFinderContent({
     if (doc.source_platform === 'obsidian') {
       return <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">Vault</span>
     }
-    if (doc.source_platform === 'notion') {
-      return <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">Notion</span>
-    }
     return <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">Upload</span>
   }
 

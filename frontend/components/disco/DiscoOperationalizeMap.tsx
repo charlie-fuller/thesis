@@ -122,7 +122,7 @@ const outputSteps: OutputStep[] = [
     color: '#64748b', // slate
     details: [
       'Document status → "exported"',
-      'Jira, Confluence, Notion integration',
+      'Jira, Confluence integration',
       'PDF/Markdown download',
       'API webhook triggers',
       'Audit trail maintained'

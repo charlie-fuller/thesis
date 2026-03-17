@@ -424,7 +424,7 @@ async def search_documents(
         q: Search query for filename/title
         tags: Comma-separated list of tags to filter by
         sort: Sort order - 'recent' (default), 'oldest', 'name_asc', 'name_desc'
-        source: Filter by source platform - 'obsidian', 'google_drive', 'notion', 'upload'
+        source: Filter by source platform - 'obsidian', 'google_drive', 'upload'
         folder: Filter by Obsidian folder path prefix
         limit: Number of results per page
         offset: Pagination offset
@@ -437,7 +437,7 @@ async def search_documents(
             .select(
                 "id, filename, title, obsidian_file_path, uploaded_at, original_date, source_platform, "
                 "processed, processing_status, processing_error, storage_url, external_url, "
-                "file_size, sync_cadence, google_drive_file_id, notion_page_id, tags_cache",
+                "file_size, sync_cadence, google_drive_file_id, tags_cache",
                 count="exact",
             )
             .eq("uploaded_by", user_id)

@@ -43,10 +43,9 @@ export interface Document {
   chunk_count: number;
   access_count: number;
   storage_url?: string;
-  source_platform?: 'upload' | 'google_drive' | 'notion';
+  source_platform?: 'upload' | 'google_drive';
   external_url?: string;
   google_drive_file_id?: string;
-  notion_page_id?: string;
   sync_cadence?: 'manual' | 'daily' | 'weekly' | 'monthly';
 }
 
@@ -137,7 +136,7 @@ export interface QuickPromptsResponse {
 }
 
 // ============================================================================
-// Integration Types (Google Drive, Notion)
+// Integration Types (Google Drive)
 // ============================================================================
 
 export interface GoogleDriveStatus {
@@ -155,22 +154,6 @@ export interface GoogleDriveFile {
   mimeType: string;
   size?: string;
   modifiedTime?: string;
-}
-
-export interface NotionStatus {
-  connected: boolean;
-  workspace_name?: string;
-  workspace_id?: string;
-  document_count: number;
-  last_sync?: string;
-}
-
-export interface NotionPage {
-  id: string;
-  title: string;
-  url?: string;
-  icon?: string;
-  last_edited_time?: string;
 }
 
 // ============================================================================

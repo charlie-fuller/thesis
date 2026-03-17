@@ -15,15 +15,6 @@ import {
   type GoogleDriveStatus,
   type GoogleDriveFile
 } from '@/lib/googleDrive'
-import {
-  getNotionStatus,
-  connectNotion,
-  syncNotion,
-  disconnectNotion,
-  getNotionPages,
-  type NotionStatus,
-  type NotionPage
-} from '@/lib/notion'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import { API_BASE_URL } from '@/lib/config'
 import ConfirmModal from '@/components/ConfirmModal'
@@ -58,7 +49,8 @@ export default function KBSyncSettingsModal({
   onDocumentsChange
 }: KBSyncSettingsModalProps) {
   const { profile } = useAuth()
-  const [activeTab, setActiveTab] = useState<'vault' | 'drive' | 'notion' | 'uploads'>('vault')
+  const [activeTab, setActiveTab] = useState<'vault' | 'drive' | 'uploads'>('vault')
+
 
   // --- Obsidian state ---
   const [obsidianStatus, setObsidianStatus] = useState<ObsidianStatus | null>(null)
@@ -88,15 +80,7 @@ export default function KBSyncSettingsModal({
   const [selectedDriveFileIds, setSelectedDriveFileIds] = useState<Set<string>>(new Set())
   const [showDisconnectModal, setShowDisconnectModal] = useState(false)
 
-  // --- Notion state ---
-  const [notionStatus, setNotionStatus] = useState<NotionStatus | null>(null)
-  const [notionSyncing, setNotionSyncing] = useState(false)
-  const [notionSyncError, setNotionSyncError] = useState<string | null>(null)
-  const [notionSyncSuccess, setNotionSyncSuccess] = useState<string | null>(null)
-  const [notionPages, setNotionPages] = useState<NotionPage[]>([])
-  const [notionPagesLoading, setNotionPagesLoading] = useState(false)
-  const [selectedNotionPageIds, setSelectedNotionPageIds] = useState<Set<string>>(new Set())
-  const [showNotionDisconnectModal, setShowNotionDisconnectModal] = useState(false)
+
 
   // --- Obsidian handlers ---
   const checkObsidianStatusFn = useCallback(async () => {
@@ -347,102 +331,19 @@ export default function KBSyncSettingsModal({
     })
   }
 
-  // --- Notion handlers ---
-  const checkNotionStatus = useCallback(async () => {
-    try {
-      const status = await getNotionStatus()
-      setNotionStatus(status)
-    } catch (err) {
-      logger.error('Error checking Notion status:', err)
-    }
-  }, [])
-
-  async function handleConnectNotion() {
-    try {
-      setNotionSyncError(null)
-      await connectNotion()
-    } catch (err) {
-      setNotionSyncError(err instanceof Error ? err.message : 'Failed to connect Notion')
-    }
-  }
-
-  async function loadNotionPages() {
-    try {
-      setNotionPagesLoading(true)
-      const response = await getNotionPages()
-      setNotionPages(response.pages)
-    } catch (err) {
-      logger.error('Failed to load Notion pages:', err)
-      setNotionSyncError(err instanceof Error ? err.message : 'Failed to load pages')
-    } finally {
-      setNotionPagesLoading(false)
-    }
-  }
-
-  async function handleNotionSync() {
-    if (selectedNotionPageIds.size === 0) {
-      setNotionSyncError('Please select at least one page to sync')
-      return
-    }
-    try {
-      setNotionSyncing(true)
-      setNotionSyncError(null)
-      setNotionSyncSuccess(null)
-      await syncNotion(Array.from(selectedNotionPageIds))
-      setNotionSyncSuccess(`Sync started for ${selectedNotionPageIds.size} page(s)!`)
-      setTimeout(() => onDocumentsChange(), 1500)
-      setTimeout(() => setNotionSyncSuccess(null), 10000)
-    } catch (err) {
-      setNotionSyncError(err instanceof Error ? err.message : 'Sync failed')
-    } finally {
-      setNotionSyncing(false)
-    }
-  }
-
-  async function handleNotionDisconnectConfirm() {
-    setShowNotionDisconnectModal(false)
-    try {
-      setNotionSyncError(null)
-      await disconnectNotion()
-      setNotionSyncSuccess('Notion disconnected')
-      await checkNotionStatus()
-      setTimeout(() => setNotionSyncSuccess(null), 3000)
-    } catch (err) {
-      setNotionSyncError(err instanceof Error ? err.message : 'Failed to disconnect')
-    }
-  }
-
-  function toggleNotionPageSelection(pageId: string) {
-    setSelectedNotionPageIds(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(pageId)) newSet.delete(pageId)
-      else newSet.add(pageId)
-      return newSet
-    })
-  }
-
   // Load statuses when modal opens
   useEffect(() => {
     if (isOpen) {
       checkObsidianStatusFn()
       checkDriveStatus()
-      checkNotionStatus()
     }
-  }, [isOpen, checkObsidianStatusFn, checkDriveStatus, checkNotionStatus])
-
-  // Load Notion pages when that tab is selected
-  useEffect(() => {
-    if (activeTab === 'notion' && notionStatus?.connected && notionPages.length === 0) {
-      loadNotionPages()
-    }
-  }, [activeTab, notionStatus?.connected])
+  }, [isOpen, checkObsidianStatusFn, checkDriveStatus])
 
   if (!isOpen) return null
 
   const tabs = [
     { id: 'vault' as const, label: 'Vault' },
     { id: 'drive' as const, label: 'Drive' },
-    { id: 'notion' as const, label: 'Notion' },
     { id: 'uploads' as const, label: 'Uploads' }
   ]
 
@@ -812,87 +713,6 @@ export default function KBSyncSettingsModal({
               </div>
             )}
 
-            {/* === NOTION TAB === */}
-            {activeTab === 'notion' && (
-              <div className="space-y-4">
-                {!notionStatus ? (
-                  <p className="text-sm text-muted">Checking Notion status...</p>
-                ) : !notionStatus.connected ? (
-                  <div className="text-center py-6">
-                    <p className="text-sm text-muted mb-3">Connect Notion to sync pages</p>
-                    <button onClick={handleConnectNotion} className="btn-primary">
-                      Connect Notion
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm">
-                        <div className="text-green-600 font-medium">Connected</div>
-                        <div className="text-xs text-muted">Workspace: {notionStatus.workspace_name || 'Unknown'}</div>
-                      </div>
-                      <button
-                        onClick={() => setShowNotionDisconnectModal(true)}
-                        className="btn-secondary text-red-600 hover:bg-red-50"
-                      >
-                        Disconnect
-                      </button>
-                    </div>
-
-                    {/* Page Selection */}
-                    <div className="bg-gray-50 dark:bg-gray-800 border border-default rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm font-medium text-secondary">Select Pages to Sync</label>
-                        {notionPages.length > 0 && (
-                          <div className="flex gap-2">
-                            <button onClick={() => setSelectedNotionPageIds(new Set(notionPages.map(p => p.id)))} className="text-xs text-blue-600 hover:text-blue-800">Select All</button>
-                            <button onClick={() => setSelectedNotionPageIds(new Set())} className="text-xs text-gray-600 hover:text-gray-800">Deselect All</button>
-                          </div>
-                        )}
-                      </div>
-                      {notionPagesLoading ? (
-                        <div className="text-sm text-muted py-4 text-center">Loading pages...</div>
-                      ) : notionPages.length === 0 ? (
-                        <div className="text-sm text-muted py-4 text-center">No pages found. Make sure pages are shared with the integration.</div>
-                      ) : (
-                        <div className="max-h-64 overflow-y-auto space-y-2 bg-white dark:bg-gray-900 rounded p-2">
-                          {notionPages.map(page => (
-                            <label key={page.id} className="flex items-start gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded cursor-pointer">
-                              <input type="checkbox" checked={selectedNotionPageIds.has(page.id)} onChange={() => toggleNotionPageSelection(page.id)} className="mt-0.5" />
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-primary truncate">{page.title || 'Untitled'}</div>
-                              </div>
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                      {selectedNotionPageIds.size > 0 && (
-                        <div className="mt-3 flex items-center justify-between">
-                          <div className="text-xs text-muted">{selectedNotionPageIds.size} page{selectedNotionPageIds.size === 1 ? '' : 's'} selected</div>
-                          <button onClick={handleNotionSync} disabled={notionSyncing} className="btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                            {notionSyncing ? 'Syncing...' : 'Sync Selected'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Messages */}
-                    {notionSyncSuccess && (
-                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                        <span className="text-sm text-green-800 dark:text-green-200">{notionSyncSuccess}</span>
-                      </div>
-                    )}
-                    {notionSyncError && (
-                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                        <span className="text-red-600 dark:text-red-400 font-bold">Error: </span>
-                        <span className="text-sm text-red-800 dark:text-red-200">{notionSyncError}</span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
             {/* === UPLOADS TAB === */}
             {activeTab === 'uploads' && (
               <div className="space-y-4">
@@ -922,16 +742,6 @@ export default function KBSyncSettingsModal({
         confirmVariant="danger"
         onConfirm={handleDisconnectConfirm}
         onCancel={() => setShowDisconnectModal(false)}
-      />
-      <ConfirmModal
-        open={showNotionDisconnectModal}
-        title="Disconnect Notion"
-        message="Are you sure you want to disconnect Notion? Synced pages will remain in your knowledge base."
-        confirmText="Disconnect"
-        cancelText="Cancel"
-        confirmVariant="danger"
-        onConfirm={handleNotionDisconnectConfirm}
-        onCancel={() => setShowNotionDisconnectModal(false)}
       />
     </>
   )

@@ -7,7 +7,7 @@ import TagSelector from '@/components/TagSelector'
 import ConfirmModal from '@/components/ConfirmModal'
 
 type SortOption = 'recent' | 'oldest' | 'name_asc' | 'name_desc'
-type SourceOption = '' | 'obsidian' | 'google_drive' | 'notion' | 'upload'
+type SourceOption = '' | 'obsidian' | 'google_drive' | 'upload'
 type RightPanelView = 'preview' | 'tags'
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -21,7 +21,6 @@ const SOURCE_OPTIONS: { value: SourceOption; label: string }[] = [
   { value: '', label: 'All Sources' },
   { value: 'obsidian', label: 'Vault' },
   { value: 'google_drive', label: 'Google Drive' },
-  { value: 'notion', label: 'Notion' },
   { value: 'upload', label: 'Uploaded' },
 ]
 

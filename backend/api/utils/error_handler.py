@@ -66,8 +66,6 @@ class ErrorCode(str, Enum):
     ANTHROPIC_API_ERROR = "ANTHROPIC_API_ERROR"
     VOYAGE_API_ERROR = "VOYAGE_API_ERROR"
     GOOGLE_DRIVE_ERROR = "GOOGLE_DRIVE_ERROR"
-    NOTION_ERROR = "NOTION_ERROR"
-
     # Database
     DATABASE_ERROR = "DATABASE_ERROR"
     DATABASE_CONNECTION_ERROR = "DATABASE_CONNECTION_ERROR"
@@ -241,12 +239,6 @@ class ExternalServiceError(ThesisError):
 
 class GoogleDriveError(ExternalServiceError):
     """Raised when Google Drive operations fail."""
-
-    pass
-
-
-class NotionError(ExternalServiceError):
-    """Raised when Notion operations fail."""
 
     pass
 
@@ -608,11 +600,6 @@ def wrap_external_service_error(error: Exception, service_name: str, operation: 
             f"{service_name} {operation} failed: {str(error)}",
             details={"service": service_name, "operation": operation},
         )
-    elif "notion" in service_name.lower():
-        return NotionError(
-            f"{service_name} {operation} failed: {str(error)}",
-            details={"service": service_name, "operation": operation},
-        )
     else:
         return ExternalServiceError(
             f"{service_name} {operation} failed: {str(error)}",
@@ -648,7 +635,6 @@ __all__ = [
     # External services
     "ExternalServiceError",
     "GoogleDriveError",
-    "NotionError",
     "AnthropicAPIError",
     "VoyageAPIError",
     # Database

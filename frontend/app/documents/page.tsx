@@ -22,15 +22,6 @@ import {
   type GoogleDriveStatus,
   type GoogleDriveFile
 } from '@/lib/googleDrive'
-import {
-  getNotionStatus,
-  connectNotion,
-  syncNotion,
-  disconnectNotion,
-  getNotionPages,
-  type NotionStatus,
-  type NotionPage
-} from '@/lib/notion'
 import { apiGet, apiPatch, apiPost, apiDelete } from '@/lib/api'
 import { API_BASE_URL } from '@/lib/config'
 
@@ -45,7 +36,6 @@ interface Document {
   source_platform?: string
   external_url?: string
   google_drive_file_id?: string
-  notion_page_id?: string
   sync_cadence?: string
   file_size?: number
   is_core_document?: boolean
@@ -77,23 +67,6 @@ function DocumentsContent() {
   const [selectedDriveFileIds, setSelectedDriveFileIds] = useState<Set<string>>(new Set())
   const [isFileUrl, setIsFileUrl] = useState<boolean>(false)
 
-  // Notion state
-  const [notionStatus, setNotionStatus] = useState<NotionStatus | null>(null)
-  const [notionSyncing, setNotionSyncing] = useState(false)
-  const [, setNotionSyncError] = useState<string | null>(null)
-  const [, setNotionSyncSuccess] = useState<string | null>(null)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for future Notion UI section
-  const [_notionExpanded, setNotionExpanded] = useState<boolean>(false)
-  const [showNotionDisconnectModal, setShowNotionDisconnectModal] = useState(false)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for future Notion feature
-  const [, _setNotionPageIds] = useState<string>('')
-  const [, setNotionSyncFrequency] = useState<string>('manual')
-  const [, setNotionNextSyncScheduled] = useState<string | null>(null)
-  const [notionPages, setNotionPages] = useState<NotionPage[]>([])
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for future Notion feature
-  const [_notionPagesLoading, setNotionPagesLoading] = useState(false)
-  const [selectedNotionPageIds, setSelectedNotionPageIds] = useState<Set<string>>(new Set())
-
   // Document actions state
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
   const [syncingDocId, setSyncingDocId] = useState<string | null>(null)
@@ -104,7 +77,7 @@ function DocumentsContent() {
   const [docSyncCadence, setDocSyncCadence] = useState<string>('manual')
   const [tempSyncCadence, setTempSyncCadence] = useState<string>('manual')
 
-  // General document notifications (separate from Drive/Notion specific ones)
+  // General document notifications (separate from Drive specific ones)
   const [generalSuccess, setGeneralSuccess] = useState<string | null>(null)
   const [generalError, setGeneralError] = useState<string | null>(null)
 
@@ -166,22 +139,11 @@ function DocumentsContent() {
     }
   }, [loadSyncSettings])
 
-  // Notion status check function (not memoized to avoid TypeScript confusion)
-  async function checkNotionStatusFn() {
-    try {
-      const status = await getNotionStatus()
-      setNotionStatus(status)
-    } catch (err) {
-      logger.error('Error checking Notion status:', err)
-    }
-  }
-
   // Now use the functions in useEffect hooks
   useEffect(() => {
     loadDocuments()
     checkDriveStatus()
-    checkNotionStatusFn()
-     
+
     // Intentionally run only on mount - including function dependencies would cause infinite re-fetch loops
   }, [])
 
@@ -217,13 +179,6 @@ function DocumentsContent() {
         loadDocuments()
       } else if (event.data.type === 'google_drive_error') {
         setSyncError(event.data.message || 'Failed to connect Google Drive')
-      } else if (event.data.type === 'notion_connected') {
-        setNotionSyncSuccess('Notion connected successfully!')
-        checkNotionStatusFn()
-        loadDocuments()
-        loadNotionPages()
-      } else if (event.data.type === 'notion_error') {
-        setNotionSyncError(event.data.message || 'Failed to connect Notion')
       }
     }
 
@@ -232,58 +187,6 @@ function DocumentsContent() {
      
     // Event listener setup - only needs to run once on mount, handler uses current state via closures
   }, [])
-
-  // Listen for Notion OAuth completion (for when popup loses window.opener)
-  useEffect(() => {
-    const handleNotionOAuthComplete = () => {
-      // Wait a moment for the backend to process
-      setTimeout(async () => {
-        try {
-          const status = await getNotionStatus()
-
-          if (status.connected) {
-            setNotionSyncSuccess('Notion connected successfully!')
-            setNotionStatus(status)  // IMPORTANT: Update the state
-            loadDocuments()
-            loadNotionPages()
-          } else {
-            logger.warn('⚠️ Notion not connected yet, retrying in 2 seconds...')
-            // Try again after a longer delay
-            setTimeout(async () => {
-              const retryStatus = await getNotionStatus()
-
-              if (retryStatus.connected) {
-                setNotionSyncSuccess('Notion connected successfully!')
-                setNotionStatus(retryStatus)  // IMPORTANT: Update the state
-                loadDocuments()
-                loadNotionPages()
-              } else {
-                logger.error('❌ Notion still not connected after retry')
-                setNotionSyncError('Connection succeeded but unable to detect status. Please refresh the page.')
-              }
-            }, 2000)
-          }
-        } catch (err) {
-          logger.error('❌ Error checking Notion status after OAuth:', err)
-          setNotionSyncError('Failed to verify connection. Please refresh the page.')
-        }
-      }, 1000)
-    }
-
-    window.addEventListener('notion-oauth-complete', handleNotionOAuthComplete)
-    return () => window.removeEventListener('notion-oauth-complete', handleNotionOAuthComplete)
-     
-    // Custom event listener setup - only needs to run once on mount
-  }, [])
-
-  // Load Notion pages when connected and expanded
-  useEffect(() => {
-    if (notionStatus?.connected && _notionExpanded && notionPages.length === 0) {
-      loadNotionPages()
-    }
-
-    // Only depend on connection status and expanded state - loadNotionPages is stable and notionPages is checked inline
-  }, [notionStatus?.connected, _notionExpanded])
 
   // Check for OAuth callback
   useEffect(() => {
@@ -327,45 +230,6 @@ function DocumentsContent() {
       }
     }
 
-    // Check for Notion OAuth callback
-    const notionParam = searchParams?.get('notion')
-    if (notionParam === 'connected') {
-      if (window.opener) {
-        try {
-          window.opener.postMessage({ type: 'notion_connected' }, window.location.origin)
-          // Give parent time to receive message, then close
-          setTimeout(() => window.close(), 100)
-        } catch (e) {
-          logger.error('Failed to communicate with parent window:', e)
-          // Close anyway - parent will detect closure and check status
-          window.close()
-        }
-      } else {
-        // This is the main window (not a popup)
-        setNotionSyncSuccess('Notion connected successfully!')
-        checkNotionStatusFn()
-        loadNotionPages()
-        window.history.replaceState({}, '', '/documents')
-      }
-    } else if (notionParam === 'error') {
-      const message = searchParams?.get('message') || 'Failed to connect Notion'
-      if (window.opener) {
-        try {
-          window.opener.postMessage({
-            type: 'notion_error',
-            message
-          }, window.location.origin)
-          setTimeout(() => window.close(), 100)
-        } catch (e) {
-          logger.error('Failed to communicate with parent window:', e)
-          window.close()
-        }
-      } else{
-        setNotionSyncError(message)
-        window.history.replaceState({}, '', '/documents')
-      }
-    }
-     
     // OAuth redirect check - only needs to run once on mount to check URL params, uses searchParams from props
   }, [])
 
@@ -588,118 +452,6 @@ function DocumentsContent() {
       setTimeout(() => setSyncSuccess(null), 3000)
     } catch (err) {
       setSyncError(err instanceof Error ? err.message : 'Failed to disconnect')
-    }
-  }
-
-  // Notion handler functions
-  async function handleConnectNotion() {
-    try {
-      setNotionSyncError(null)
-      await connectNotion()
-      // The OAuth flow will redirect back to this page
-    } catch (err) {
-      setNotionSyncError(err instanceof Error ? err.message : 'Failed to connect Notion')
-    }
-  }
-
-  async function handleNotionSync() {
-    if (selectedNotionPageIds.size === 0) {
-      setNotionSyncError('Please select at least one page to sync')
-      return
-    }
-
-    try {
-      setNotionSyncing(true)
-      setNotionSyncError(null)
-      setNotionSyncSuccess(null)
-
-      const pageIdArray = Array.from(selectedNotionPageIds)
-
-      await syncNotion(pageIdArray)
-
-      setNotionSyncSuccess(
-        `Sync started for ${pageIdArray.length} page(s)! Pages are being downloaded and will appear below with a "Processing" tag. The tag will disappear when each page is ready.`
-      )
-
-      // Wait a moment for background task to create initial records, then refresh
-      setTimeout(async () => {
-        await loadDocuments(false)
-      }, 1500)
-
-      setTimeout(() => setNotionSyncSuccess(null), 10000)
-    } catch (err) {
-      setNotionSyncError(err instanceof Error ? err.message : 'Sync failed')
-    } finally {
-      setNotionSyncing(false)
-    }
-  }
-
-  async function loadNotionPages() {
-    try {
-      setNotionPagesLoading(true)
-      const response = await getNotionPages()
-      setNotionPages(response.pages)
-    } catch (err) {
-      logger.error('Failed to load Notion pages:', err)
-      setNotionSyncError(err instanceof Error ? err.message : 'Failed to load pages')
-    } finally {
-      setNotionPagesLoading(false)
-    }
-  }
-
-  function toggleNotionPageSelection(pageId: string) {
-    setSelectedNotionPageIds(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(pageId)) {
-        newSet.delete(pageId)
-      } else {
-        newSet.add(pageId)
-      }
-      return newSet
-    })
-  }
-
-  function selectAllNotionPages() {
-    setSelectedNotionPageIds(new Set(notionPages.map(p => p.id)))
-  }
-
-  function deselectAllNotionPages() {
-    setSelectedNotionPageIds(new Set())
-  }
-
-  function handleNotionDisconnectClick() {
-    setShowNotionDisconnectModal(true)
-  }
-
-  async function handleNotionDisconnectConfirm() {
-    setShowNotionDisconnectModal(false)
-
-    try {
-      setNotionSyncError(null)
-      await disconnectNotion()
-      setNotionSyncSuccess('Notion disconnected')
-      await checkNotionStatusFn()
-
-      setTimeout(() => setNotionSyncSuccess(null), 3000)
-    } catch (err) {
-      setNotionSyncError(err instanceof Error ? err.message : 'Failed to disconnect')
-    }
-  }
-
-  async function handleNotionSyncFrequencyChange(newFrequency: string) {
-    try {
-      setNotionSyncError(null)
-
-      const data = await apiPatch<{ sync_frequency: string; next_sync_scheduled: string | null }>('/api/notion/sync-settings', {
-        sync_frequency: newFrequency
-      })
-
-      setNotionSyncFrequency(data.sync_frequency)
-      setNotionNextSyncScheduled(data.next_sync_scheduled)
-      setNotionSyncSuccess('Sync settings updated successfully')
-      setTimeout(() => setNotionSyncSuccess(null), 3000)
-    } catch (err) {
-      setNotionSyncError(err instanceof Error ? err.message : 'Failed to update settings')
     }
   }
 
@@ -1025,9 +777,6 @@ function DocumentsContent() {
           )}
         </div>
 
-        {/* Notion Integration Section - Hidden for now
-           To re-enable, uncomment this section */}
-
         {/* Upload Section */}
         <div className={`card mb-3 ${uploadExpanded ? 'p-6' : 'p-2'}`}>
           <div className="flex items-center justify-between gap-3">
@@ -1150,31 +899,6 @@ function DocumentsContent() {
                   </div>
                 )}
 
-                {notionSyncing && (
-                  <div className="border border-black bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <LoadingSpinner size="sm" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 mb-2">Syncing from Notion:</p>
-                        <div className="space-y-1">
-                          {documents.filter(doc => !doc.processed && doc.source_platform === 'notion').map(doc => (
-                            <div key={doc.id} className="flex items-center gap-2 text-sm text-gray-800">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Processing
-                              </span>
-                              <span className="truncate">{doc.filename}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {documents.filter(doc => !doc.is_core_document).map((doc) => (
                   <div
                     key={doc.id}
@@ -1212,11 +936,6 @@ function DocumentsContent() {
                           {doc.source_platform === 'google_drive' && (
                             <span className="inline-flex items-center gap-1 flex-shrink-0" title="Google Drive">
                               <Image src="/logos/google-drive.svg" alt="Google Drive" width={20} height={20} className="w-5 h-5" />
-                            </span>
-                          )}
-                          {doc.source_platform === 'notion' && (
-                            <span className="inline-flex items-center gap-1 flex-shrink-0" title="Notion">
-                              <Image src="/logos/notion.svg" alt="Notion" width={20} height={20} className="w-5 h-5" />
                             </span>
                           )}
                         </div>
@@ -1352,18 +1071,6 @@ function DocumentsContent() {
         onCancel={() => setShowDisconnectModal(false)}
       />
 
-      {/* Notion Disconnect Confirmation Modal */}
-      <ConfirmModal
-        open={showNotionDisconnectModal}
-        title="Disconnect Notion"
-        message="Are you sure you want to disconnect Notion? Synced pages will remain in your knowledge base."
-        confirmText="Disconnect"
-        cancelText="Cancel"
-        confirmVariant="danger"
-        onConfirm={handleNotionDisconnectConfirm}
-        onCancel={() => setShowNotionDisconnectModal(false)}
-      />
-
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         open={showDeleteModal}
@@ -1409,7 +1116,7 @@ function DocumentsContent() {
               <div>
                 <label className="text-sm font-medium text-secondary">Source</label>
                 <p className="text-sm text-primary mt-1">
-                  {selectedDoc.source_platform === 'google_drive' ? 'Google Drive' : selectedDoc.source_platform === 'notion' ? 'Notion' : 'Direct Upload'}
+                  {selectedDoc.source_platform === 'google_drive' ? 'Google Drive' : 'Direct Upload'}
                 </p>
               </div>
 
@@ -1437,8 +1144,8 @@ function DocumentsContent() {
                 </div>
               )}
 
-              {/* Sync Cadence Setting - for Google Drive and Notion documents */}
-              {(selectedDoc.source_platform === 'google_drive' || selectedDoc.source_platform === 'notion') && (
+              {/* Sync Cadence Setting - for Google Drive documents */}
+              {selectedDoc.source_platform === 'google_drive' && (
                 <div className="border-t border-gray-200 pt-3 mt-3">
                   <label className="text-sm font-medium text-secondary block mb-2">
                     Automatic Sync Cadence
@@ -1454,14 +1161,14 @@ function DocumentsContent() {
                     <option value="monthly">Monthly</option>
                   </select>
                   <p className="text-xs text-muted mt-1">
-                    Set how often this document should automatically sync from {selectedDoc.source_platform === 'google_drive' ? 'Google Drive' : 'Notion'}
+                    Set how often this document should automatically sync from Google Drive
                   </p>
                 </div>
               )}
             </div>
 
             <div className="mt-6 flex justify-end gap-2">
-              {(selectedDoc.source_platform === 'google_drive' || selectedDoc.source_platform === 'notion') ? (
+              {selectedDoc.source_platform === 'google_drive' ? (
                 <>
                   <button
                     onClick={() => setShowInfoModal(false)}

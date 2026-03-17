@@ -271,7 +271,7 @@ async def update_document_sync_cadence(
     request: SyncCadenceUpdate,
     current_user: dict = Depends(get_current_user),
 ):
-    """Update the sync cadence for a document (for Google Drive/Notion documents).
+    """Update the sync cadence for a document (for Google Drive documents).
 
     Args:
         document_id: UUID of the document.

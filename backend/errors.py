@@ -31,7 +31,6 @@ from api.utils.error_handler import (
     InvalidInputError,
     # Not found
     NotFoundError,
-    NotionError,
     QueryExecutionError,
     RateLimitError,
     TextExtractionError,
@@ -154,7 +153,6 @@ __all__ = [
     # External services
     "ExternalServiceError",
     "GoogleDriveError",
-    "NotionError",
     "AnthropicAPIError",
     "VoyageAPIError",
     # Database

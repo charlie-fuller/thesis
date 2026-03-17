@@ -67,8 +67,6 @@ function DocumentItem({
         return <span className="text-purple-500 text-xs">Vault</span>
       case 'google_drive':
         return <span className="text-blue-500 text-xs">Drive</span>
-      case 'notion':
-        return <span className="text-slate-500 text-xs">Notion</span>
       default:
         return <span className="text-slate-400 text-xs">Uploaded</span>
     }

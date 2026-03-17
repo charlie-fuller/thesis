@@ -124,7 +124,7 @@ npm start
 ### Knowledge Base
 - Document upload with auto-classification
 - Agent-filtered RAG retrieval
-- Google Drive and Notion integration
+- Google Drive integration
 - Local vault sync
 
 ### DISCo Pipeline

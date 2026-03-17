@@ -441,7 +441,7 @@ async def list_user_documents_paginated(
         essential_columns = (
             "id, filename, title, uploaded_at, processed, processing_status, "
             "source_platform, file_size, obsidian_file_path, external_url, "
-            "google_drive_file_id, notion_page_id, sync_cadence, storage_url"
+            "google_drive_file_id, sync_cadence, storage_url"
         )
 
         # Fetch documents with pagination
@@ -553,7 +553,6 @@ async def get_user_document_counts(current_user: dict = Depends(get_current_user
                     "success": True,
                     "total": counts_result.data.get("total_count", 0),
                     "google_drive": counts_result.data.get("google_drive_count", 0),
-                    "notion": counts_result.data.get("notion_count", 0),
                     "obsidian": counts_result.data.get("obsidian_count", 0),
                     "upload": counts_result.data.get("upload_count", 0),
                     "cached": True,
@@ -568,7 +567,7 @@ async def get_user_document_counts(current_user: dict = Depends(get_current_user
         )
 
         docs = docs_result.data or []
-        counts = {"google_drive": 0, "notion": 0, "obsidian": 0, "upload": 0}
+        counts = {"google_drive": 0, "obsidian": 0, "upload": 0}
 
         for doc in docs:
             platform = doc.get("source_platform") or "upload"
@@ -581,7 +580,6 @@ async def get_user_document_counts(current_user: dict = Depends(get_current_user
             "success": True,
             "total": len(docs),
             "google_drive": counts["google_drive"],
-            "notion": counts["notion"],
             "obsidian": counts["obsidian"],
             "upload": counts["upload"],
             "cached": False,

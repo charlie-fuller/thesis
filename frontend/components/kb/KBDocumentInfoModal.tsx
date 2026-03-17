@@ -21,7 +21,6 @@ export interface Document {
   storage_url: string
   external_url?: string
   google_drive_file_id?: string
-  notion_page_id?: string
   sync_cadence?: string
   file_size?: number
   source_platform?: string
@@ -320,7 +319,7 @@ export default function KBDocumentInfoModal({
           <div>
             <label className="text-sm font-medium text-secondary">Source</label>
             <p className="text-sm text-primary mt-1">
-              {doc.source_platform === 'google_drive' ? 'Google Drive' : doc.source_platform === 'notion' ? 'Notion' : doc.source_platform === 'obsidian' ? 'Local Vault' : 'Direct Upload'}
+              {doc.source_platform === 'google_drive' ? 'Google Drive' : doc.source_platform === 'obsidian' ? 'Local Vault' : 'Direct Upload'}
             </p>
           </div>
 
@@ -506,7 +505,7 @@ export default function KBDocumentInfoModal({
           </div>
 
           {/* Sync Cadence Setting */}
-          {(doc.source_platform === 'google_drive' || doc.source_platform === 'notion') && (
+          {doc.source_platform === 'google_drive' && (
             <div className="border-t border-default pt-3 mt-3">
               <label className="text-sm font-medium text-secondary block mb-2">
                 Automatic Sync Cadence
@@ -522,7 +521,7 @@ export default function KBDocumentInfoModal({
                 <option value="monthly">Monthly</option>
               </select>
               <p className="text-xs text-muted mt-1">
-                Set how often this document should automatically sync from {doc.source_platform === 'google_drive' ? 'Google Drive' : 'Notion'}
+                Set how often this document should automatically sync from Google Drive
               </p>
             </div>
           )}

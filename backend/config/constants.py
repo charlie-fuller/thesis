@@ -215,10 +215,6 @@ class OAuthConfig:
     # Google OAuth scopes
     GOOGLE_DRIVE_SCOPES: List[str] = None
 
-    # Notion OAuth endpoints
-    NOTION_AUTH_URI: str = "https://api.notion.com/v1/oauth/authorize"
-    NOTION_TOKEN_URI: str = "https://api.notion.com/v1/oauth/token"
-
     # OAuth state expiry (seconds)
     # Rationale: 10 minutes is standard OAuth flow timeout
     STATE_EXPIRY_SECONDS: int = 600
@@ -228,11 +224,6 @@ class OAuthConfig:
     def GOOGLE_REDIRECT_URI(self) -> str:
         backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
         return f"{backend_url}/api/google-drive/oauth-callback"
-
-    @property
-    def NOTION_REDIRECT_URI(self) -> str:
-        backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
-        return f"{backend_url}/api/notion/oauth-callback"
 
     def __post_init__(self):
         if self.GOOGLE_DRIVE_SCOPES is None:
@@ -316,7 +307,6 @@ class RedirectConfig:
                 "OAUTH_SUCCESS_PATHS",
                 {
                     "google_drive": "/documents?provider=google_drive&status=connected",
-                    "notion": "/documents?provider=notion&status=connected",
                 },
             )
 
@@ -326,7 +316,6 @@ class RedirectConfig:
                 "OAUTH_ERROR_PATHS",
                 {
                     "google_drive": "/documents?provider=google_drive&status=error",
-                    "notion": "/documents?provider=notion&status=error",
                 },
             )
 
