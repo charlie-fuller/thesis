@@ -50,8 +50,11 @@ import {
   AlertTriangle,
   RefreshCw,
   Download,
+  Network,
 } from 'lucide-react'
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
+import TaskDependencyGraph, { TaskGraphNode } from '@/components/tasks/TaskDependencyGraph'
 import ScoreJustification from './ScoreJustification'
 import DocumentViewerModal from './DocumentViewerModal'
 import ProjectNameModal from './ProjectNameModal'
@@ -270,6 +273,11 @@ export default function ProjectDetailModal({
     priority: number
     due_date: string | null
     assignee_name: string | null
+    assignee_user_id: string | null
+    assignee_stakeholder_id: string | null
+    depends_on: string[]
+    sequence_number: number | null
+    linked_project_id: string | null
   }
   const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([])
   const [tasksLoading, setTasksLoading] = useState(false)
@@ -314,9 +322,10 @@ export default function ProjectDetailModal({
   const [tasksGeneratedCount, setTasksGeneratedCount] = useState<number | null>(null)
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'documents' | 'disco' | 'kraken-guide' | 'scoring-guide'>('scores')
+  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'graph' | 'documents' | 'disco' | 'kraken-guide' | 'scoring-guide'>('details')
 
   const router = useRouter()
+  const { profile } = useAuth()
 
   // Individual section editing state (replaces global edit mode)
   const [editingSection, setEditingSection] = useState<
@@ -804,21 +813,25 @@ export default function ProjectDetailModal({
               <span className={`px-2 py-0.5 rounded text-xs font-medium ${tierConfig.color}`}>
                 Tier {project.tier}
               </span>
-              {editingSection === 'header' ? (
-                <select
-                  value={editForm.status}
-                  onChange={(e) => handleEditFormChange('status', e.target.value)}
-                  className="px-2 py-0.5 rounded text-xs font-medium border border-default bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {STATUS_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              ) : (
-                <span className={`text-xs font-medium ${statusConfig.color}`}>
-                  {statusConfig.label}
-                </span>
-              )}
+              <select
+                value={project.status}
+                onChange={async (e) => {
+                  const newStatus = e.target.value
+                  try {
+                    await apiPatch(`/api/projects/${project.id}`, { status: newStatus })
+                    setProject(prev => ({ ...prev, status: newStatus }))
+                    setEditForm(prev => ({ ...prev, status: newStatus }))
+                    onProjectUpdated?.({ ...project, status: newStatus })
+                  } catch (error) {
+                    console.error('Failed to update status:', error)
+                  }
+                }}
+                className={`px-2 py-0.5 rounded text-xs font-medium border border-transparent hover:border-default bg-transparent cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${statusConfig.color}`}
+              >
+                {STATUS_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
               {project.project_name && (
                 <span className="px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                   Active: {project.project_name}
@@ -891,11 +904,12 @@ export default function ProjectDetailModal({
         {/* Tab Bar */}
         <div className="flex border-b border-default px-6 bg-hover/30">
           {[
+            { id: 'details' as const, label: 'Details', icon: FileText },
             { id: 'scores' as const, label: 'Scores', icon: Target },
             { id: 'confidence' as const, label: 'Confidence', icon: Gauge },
             { id: 'alignment' as const, label: 'Alignment', icon: Target },
-            { id: 'details' as const, label: 'Details', icon: FileText },
             { id: 'tasks' as const, label: 'Tasks', icon: ListTodo },
+            { id: 'graph' as const, label: 'Graph', icon: Network },
             { id: 'documents' as const, label: 'Documents', icon: Link },
             { id: 'disco' as const, label: 'DISCO', icon: Compass },
             { id: 'kraken-guide' as const, label: 'Kraken Guide', icon: Zap },
@@ -1568,29 +1582,6 @@ export default function ProjectDetailModal({
                 </section>
               )}
 
-              {/* Activate Project CTA */}
-              {project.status === 'backlog' && (
-                <section className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
-                        <Rocket className="w-4 h-4" />
-                        Ready to move forward?
-                      </h3>
-                      <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                        Mark this project as active to start working on it.
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleConvertToProject}
-                      className="px-4 py-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2 text-sm font-medium"
-                    >
-                      <Rocket className="w-4 h-4" />
-                      Mark Active
-                    </button>
-                  </div>
-                </section>
-              )}
             </div>
           )}
 
@@ -1712,6 +1703,35 @@ export default function ProjectDetailModal({
                   taskCount={projectTasks.length}
                   taskIds={projectTasks.map(t => t.id)}
                   onTasksUpdated={fetchProjectTasks}
+                />
+              )}
+            </div>
+          )}
+
+          {/* GRAPH TAB */}
+          {activeTab === 'graph' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
+                  <Network className="w-4 h-4" />
+                  Task Dependency Graph
+                </h3>
+              </div>
+              {tasksLoading ? (
+                <div className="flex items-center gap-2 text-muted py-8">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Loading tasks...</span>
+                </div>
+              ) : (
+                <TaskDependencyGraph
+                  tasks={projectTasks as TaskGraphNode[]}
+                  currentUserId={profile?.id}
+                  currentUserName={profile?.name}
+                  onTaskClick={(taskId) => {
+                    window.open(`/tasks?project=${project.id}`, '_blank')
+                  }}
+                  height={450}
+                  colorBy="status"
                 />
               )}
             </div>
