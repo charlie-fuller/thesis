@@ -18,6 +18,11 @@ interface ObsidianStatus {
   pending_changes?: number
   total_files?: number
   unsynced_count?: number
+  agent_active?: boolean
+  agent_last_upload?: string | null
+  agent_uploads_count?: number
+  agent_sync_current?: number | null
+  agent_sync_total?: number | null
 }
 
 interface KBSyncSettingsModalProps {
@@ -67,6 +72,11 @@ export default function KBSyncSettingsModal({
         pending_changes?: number
         unsynced_count?: number
         last_sync?: string
+        agent_active?: boolean
+        agent_last_upload?: string | null
+        agent_uploads_count?: number
+        agent_sync_current?: number | null
+        agent_sync_total?: number | null
         sync_progress?: {
           is_syncing: boolean
           total_files: number
@@ -82,7 +92,12 @@ export default function KBSyncSettingsModal({
         document_count: response.files_synced,
         pending_changes: response.pending_changes,
         unsynced_count: response.unsynced_count,
-        last_sync: response.last_sync
+        last_sync: response.last_sync,
+        agent_active: response.agent_active,
+        agent_last_upload: response.agent_last_upload,
+        agent_uploads_count: response.agent_uploads_count,
+        agent_sync_current: response.agent_sync_current,
+        agent_sync_total: response.agent_sync_total,
       })
       return response
     } catch (err) {
@@ -226,6 +241,15 @@ export default function KBSyncSettingsModal({
     }
   }, [isOpen, checkObsidianStatusFn])
 
+  // Auto-refresh while agent is actively syncing
+  useEffect(() => {
+    if (!isOpen || !obsidianStatus?.agent_active) return
+    const interval = setInterval(() => {
+      checkObsidianStatusFn()
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [isOpen, obsidianStatus?.agent_active, checkObsidianStatusFn])
+
   if (!isOpen) return null
 
   const tabs = [
@@ -319,9 +343,10 @@ export default function KBSyncSettingsModal({
                             ({obsidianStatus.pending_changes} pending)
                           </button>
                         )}
-                        {obsidianStatus.last_sync && (
-                          <> - Last sync: {formatLastSync(obsidianStatus.last_sync)}</>
-                        )}
+                        {(() => {
+                          const lastSync = obsidianStatus.agent_last_upload || obsidianStatus.last_sync
+                          return lastSync ? <> - Last sync: {formatLastSync(lastSync)}</> : null
+                        })()}
                       </div>
                       {obsidianStatus.vault_path && !editingVaultPath && (
                         <button
@@ -356,53 +381,92 @@ export default function KBSyncSettingsModal({
                       onClick={handleCheckForUpdates}
                       disabled={checkingStatus || obsidianSyncing || syncingRecent}
                       className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Scan vault for new or changed files"
+                      title="Refresh sync status and document count"
                     >
-                      {checkingStatus ? 'Checking...' : 'Check for Updates'}
+                      {checkingStatus ? 'Refreshing...' : 'Refresh Status'}
                     </button>
                   </div>
 
-                  {/* Sync Options */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-lg">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-sm font-medium text-primary">Sync New & Changed</span>
-                        {(obsidianStatus.unsynced_count ?? 0) > 0 && (
-                          <span className="text-xs px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded">
-                            {obsidianStatus.unsynced_count} file{obsidianStatus.unsynced_count !== 1 ? 's' : ''}
+                  {/* Local Sync Agent Status */}
+                  {obsidianStatus.agent_active && (
+                    <div className="px-3 py-2.5 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                            Sync agent running
                           </span>
-                        )}
+                          {obsidianStatus.agent_sync_current != null && obsidianStatus.agent_sync_total != null ? (
+                            <span className="text-xs text-green-600 dark:text-green-400 ml-2">
+                              {obsidianStatus.agent_sync_current} of {obsidianStatus.agent_sync_total} files
+                              {obsidianStatus.agent_sync_total - obsidianStatus.agent_sync_current > 0 && (
+                                <> ({obsidianStatus.agent_sync_total - obsidianStatus.agent_sync_current} remaining)</>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-green-600 dark:text-green-400 ml-2">
+                              {obsidianStatus.agent_uploads_count} file{obsidianStatus.agent_uploads_count !== 1 ? 's' : ''} uploaded this session
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-xs text-muted mb-2">
-                        Only processes new, modified, or previously failed files. Existing documents and all project/initiative links are unchanged.
-                      </p>
-                      <button
-                        onClick={handleSyncRecent}
-                        disabled={obsidianSyncing || syncingRecent || (obsidianStatus.unsynced_count ?? 0) === 0}
-                        className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                      >
-                        {syncingRecent ? 'Syncing...' : (obsidianStatus.unsynced_count ?? 0) > 0
-                          ? `Sync ${obsidianStatus.unsynced_count} File${obsidianStatus.unsynced_count !== 1 ? 's' : ''}`
-                          : 'Everything Up to Date'}
-                      </button>
+                      {obsidianStatus.agent_sync_current != null && obsidianStatus.agent_sync_total != null && obsidianStatus.agent_sync_total > 0 && (
+                        <div className="mt-2 w-full bg-green-200 dark:bg-green-900 rounded-full h-1.5">
+                          <div
+                            className="bg-green-500 h-1.5 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.round((obsidianStatus.agent_sync_current / obsidianStatus.agent_sync_total) * 100)}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
+                  )}
 
-                    <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-lg">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-sm font-medium text-primary">Full Resync</span>
+                  {/* Sync Options */}
+                  {!obsidianStatus.agent_active && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-lg">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-sm font-medium text-primary">Sync New & Changed</span>
+                          {(obsidianStatus.unsynced_count ?? 0) > 0 && (
+                            <span className="text-xs px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded">
+                              {obsidianStatus.unsynced_count} file{obsidianStatus.unsynced_count !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted mb-2">
+                          Uploads new and modified files from the vault. Use this if files were added while the sync agent was stopped.
+                        </p>
+                        <button
+                          onClick={handleSyncRecent}
+                          disabled={obsidianSyncing || syncingRecent || (obsidianStatus.unsynced_count ?? 0) === 0}
+                          className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                          {syncingRecent ? 'Syncing...' : (obsidianStatus.unsynced_count ?? 0) > 0
+                            ? `Sync ${obsidianStatus.unsynced_count} File${obsidianStatus.unsynced_count !== 1 ? 's' : ''}`
+                            : 'Everything Up to Date'}
+                        </button>
                       </div>
-                      <p className="text-xs text-muted mb-2">
-                        Mirrors the vault: syncs changes first, detects moves, then removes files no longer in the vault. All project/initiative links are preserved.
-                      </p>
-                      <button
-                        onClick={handleObsidianFullSync}
-                        disabled={obsidianSyncing || syncingRecent}
-                        className="btn-secondary w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                      >
-                        {obsidianSyncing ? 'Syncing...' : 'Resync All Files'}
-                      </button>
+
+                      <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-lg">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-sm font-medium text-primary">Full Resync</span>
+                        </div>
+                        <p className="text-xs text-muted mb-2">
+                          Re-processes all vault files and removes documents for deleted files. Use if the KB seems out of sync with your vault.
+                        </p>
+                        <button
+                          onClick={handleObsidianFullSync}
+                          disabled={obsidianSyncing || syncingRecent}
+                          className="btn-secondary w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                          {obsidianSyncing ? 'Syncing...' : 'Resync All Files'}
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Pending Files Details */}
                   {showPendingDetails && (

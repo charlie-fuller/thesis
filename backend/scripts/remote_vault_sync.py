@@ -99,6 +99,19 @@ class RemoteVaultSyncer:
         """Get auth headers for API requests."""
         return {"Authorization": f"Bearer {self.auth_token}", "Content-Type": "application/json"}
 
+    def _try_refresh_token(self) -> bool:
+        """Try to refresh the auth token. Returns True if successful."""
+        saved = load_auth_tokens()
+        if not saved:
+            return False
+        refreshed = refresh_auth_token(saved.get("refresh_token", ""))
+        if refreshed and refreshed.get("access_token"):
+            self.auth_token = refreshed["access_token"]
+            save_auth_tokens(refreshed["access_token"], refreshed["refresh_token"])
+            print("[token refreshed]", end=" ", flush=True)
+            return True
+        return False
+
     def _should_sync(self, file_path: Path) -> bool:
         """Check if file should be synced."""
         # Check extension
@@ -156,7 +169,7 @@ class RemoteVaultSyncer:
         except Exception as e:
             return {"connected": False, "error": str(e)}
 
-    def upload_file(self, file_path: Path) -> dict:
+    def upload_file(self, file_path: Path, sync_current: int = None, sync_total: int = None) -> dict:
         """Upload a single file to remote API."""
         relative_path = str(file_path.relative_to(self.vault_path))
 
@@ -178,15 +191,19 @@ class RemoteVaultSyncer:
 
         try:
             stat = file_path.stat()
+            payload = {
+                "file_path": relative_path,
+                "content": content,
+                "content_type": content_type,
+                "file_mtime": stat.st_mtime,
+            }
+            if sync_current is not None and sync_total is not None:
+                payload["sync_current"] = sync_current
+                payload["sync_total"] = sync_total
             response = self.client.post(
                 f"{self.api_url}/api/obsidian/upload",
                 headers=self._get_headers(),
-                json={
-                    "file_path": relative_path,
-                    "content": content,
-                    "content_type": content_type,
-                    "file_mtime": stat.st_mtime,
-                },
+                json=payload,
             )
             response.raise_for_status()
             result = response.json()
@@ -198,6 +215,14 @@ class RemoteVaultSyncer:
             return result
 
         except httpx.HTTPStatusError as e:
+            # Auto-refresh token on 401 and retry once
+            if e.response.status_code == 401 and not getattr(self, '_retrying', False):
+                refreshed = self._try_refresh_token()
+                if refreshed:
+                    self._retrying = True
+                    result = self.upload_file(file_path, sync_current, sync_total)
+                    self._retrying = False
+                    return result
             self._error_count += 1
             return {
                 "success": False,
@@ -256,7 +281,7 @@ class RemoteVaultSyncer:
         for i, (file_path, _) in enumerate(files_to_sync, 1):
             relative_path = str(file_path.relative_to(self.vault_path))
             print(f"  [{i}/{len(files_to_sync)}] {relative_path}...", end=" ", flush=True)
-            result = self.upload_file(file_path)
+            result = self.upload_file(file_path, sync_current=i, sync_total=len(files_to_sync))
             status = result.get("status", result.get("error", "unknown"))
             print(status)
 

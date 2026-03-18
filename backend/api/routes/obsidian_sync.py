@@ -4,6 +4,7 @@ Handles configuration, sync triggers, and status for Obsidian vault integration.
 """
 
 import asyncio
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -26,6 +27,10 @@ from services.obsidian_sync import (
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/obsidian", tags=["obsidian"])
+
+# Track local sync agent activity (in-memory, per user)
+# Stores {user_id: {"last_upload": datetime, "uploads_since": int, "started_at": datetime}}
+_agent_activity: dict = {}
 
 # Lazy Supabase initialization to avoid import-time database connections
 _supabase = None
@@ -126,6 +131,24 @@ async def get_obsidian_status(current_user: dict = Depends(get_current_user)):
     """
     try:
         status = await asyncio.to_thread(get_sync_status, current_user["id"])
+
+        # Include local sync agent activity
+        agent_info = _agent_activity.get(current_user["id"])
+        if agent_info:
+            now_utc = datetime.now(timezone.utc)
+            seconds_since = (now_utc - agent_info["last_upload"]).total_seconds()
+            status["agent_active"] = seconds_since < 120  # active if upload within 2 min
+            status["agent_last_upload"] = agent_info["last_upload"].isoformat()
+            status["agent_uploads_count"] = agent_info["uploads_since"]
+            status["agent_sync_current"] = agent_info.get("sync_current")
+            status["agent_sync_total"] = agent_info.get("sync_total")
+        else:
+            status["agent_active"] = False
+            status["agent_last_upload"] = None
+            status["agent_uploads_count"] = 0
+            status["agent_sync_current"] = None
+            status["agent_sync_total"] = None
+
         return {"success": True, **status}
 
     except Exception as e:
@@ -676,6 +699,9 @@ class RemoteFileUploadRequest(BaseModel):
     content: str = Field(..., description="File content (text)")
     content_type: str = Field(default="text/markdown", description="MIME type of content")
     file_mtime: Optional[float] = Field(default=None, description="File modification time as Unix timestamp")
+    # Progress tracking from local agent
+    sync_current: Optional[int] = Field(default=None, description="Current file number in batch")
+    sync_total: Optional[int] = Field(default=None, description="Total files in batch")
 
 
 @router.post("/upload")
@@ -869,6 +895,23 @@ async def upload_remote_file(
                 logger.info(f"[Remote Upload] Auto-linked to {linked} initiative(s)/project(s)")
 
         logger.info(f"[Remote Upload] {status}: {file_path}")
+
+        # Track local agent activity
+        user_id = current_user["id"]
+        now_utc = datetime.now(timezone.utc)
+        if user_id not in _agent_activity:
+            _agent_activity[user_id] = {
+                "last_upload": now_utc,
+                "uploads_since": 1,
+                "started_at": now_utc,
+            }
+        else:
+            _agent_activity[user_id]["last_upload"] = now_utc
+            _agent_activity[user_id]["uploads_since"] += 1
+        # Track batch progress if provided
+        if request.sync_current is not None and request.sync_total is not None:
+            _agent_activity[user_id]["sync_current"] = request.sync_current
+            _agent_activity[user_id]["sync_total"] = request.sync_total
 
         return {
             "success": True,
