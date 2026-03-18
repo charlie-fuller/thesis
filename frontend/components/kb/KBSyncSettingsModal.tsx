@@ -52,6 +52,11 @@ export default function KBSyncSettingsModal({
   const [activeTab, setActiveTab] = useState<'vault' | 'drive' | 'uploads'>('vault')
 
 
+  // --- Vault path editing ---
+  const [editingVaultPath, setEditingVaultPath] = useState(false)
+  const [vaultPathInput, setVaultPathInput] = useState('')
+  const [vaultPathSaving, setVaultPathSaving] = useState(false)
+
   // --- Obsidian state ---
   const [obsidianStatus, setObsidianStatus] = useState<ObsidianStatus | null>(null)
   const [obsidianSyncing, setObsidianSyncing] = useState(false)
@@ -142,6 +147,23 @@ export default function KBSyncSettingsModal({
       await checkObsidianStatusFn()
     } finally {
       setCheckingStatus(false)
+    }
+  }
+
+  async function handleSaveVaultPath() {
+    if (!vaultPathInput.trim()) return
+    try {
+      setVaultPathSaving(true)
+      setObsidianSyncError(null)
+      await apiPost('/api/obsidian/configure', { vault_path: vaultPathInput.trim() })
+      setEditingVaultPath(false)
+      setObsidianSyncSuccess('Vault location updated')
+      setTimeout(() => setObsidianSyncSuccess(null), 3000)
+      await checkObsidianStatusFn()
+    } catch (err) {
+      setObsidianSyncError(err instanceof Error ? err.message : 'Failed to update vault location')
+    } finally {
+      setVaultPathSaving(false)
     }
   }
 
@@ -391,7 +413,25 @@ export default function KBSyncSettingsModal({
                 {!obsidianStatus ? (
                   <p className="text-sm text-muted">Checking vault status...</p>
                 ) : !obsidianStatus.connected ? (
-                  <p className="text-sm text-muted">Vault not configured. Set DISCO_REPO_PATH in backend settings.</p>
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted">No vault configured. Enter the absolute path to your Obsidian vault.</p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={vaultPathInput}
+                        onChange={(e) => setVaultPathInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveVaultPath() }}
+                        className="flex-1 text-sm font-mono px-3 py-2 border border-default rounded bg-white dark:bg-gray-900 text-primary"
+                        placeholder="/Users/you/Vault"
+                      />
+                      <button onClick={handleSaveVaultPath} disabled={vaultPathSaving || !vaultPathInput.trim()} className="btn-primary disabled:opacity-50">
+                        {vaultPathSaving ? 'Saving...' : 'Configure'}
+                      </button>
+                    </div>
+                    {obsidianSyncError && (
+                      <div className="text-sm text-red-600">{obsidianSyncError}</div>
+                    )}
+                  </div>
                 ) : (
                   <>
                     {/* Status */}
@@ -420,9 +460,32 @@ export default function KBSyncSettingsModal({
                             <> - Last sync: {formatLastSync(obsidianStatus.last_sync)}</>
                           )}
                         </div>
-                        {obsidianStatus.vault_path && (
-                          <div className="text-xs text-muted font-mono truncate max-w-md" title={obsidianStatus.vault_path}>
+                        {obsidianStatus.vault_path && !editingVaultPath && (
+                          <button
+                            onClick={() => { setVaultPathInput(obsidianStatus.vault_path || ''); setEditingVaultPath(true) }}
+                            className="text-xs text-muted font-mono truncate max-w-md hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer text-left"
+                            title="Click to change vault location"
+                          >
                             {obsidianStatus.vault_path}
+                          </button>
+                        )}
+                        {editingVaultPath && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <input
+                              type="text"
+                              value={vaultPathInput}
+                              onChange={(e) => setVaultPathInput(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveVaultPath(); if (e.key === 'Escape') setEditingVaultPath(false) }}
+                              className="flex-1 text-xs font-mono px-2 py-1 border border-default rounded bg-white dark:bg-gray-900 text-primary"
+                              placeholder="/path/to/vault"
+                              autoFocus
+                            />
+                            <button onClick={handleSaveVaultPath} disabled={vaultPathSaving} className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                              {vaultPathSaving ? '...' : 'Save'}
+                            </button>
+                            <button onClick={() => setEditingVaultPath(false)} className="text-xs px-2 py-1 text-muted hover:text-primary">
+                              Cancel
+                            </button>
                           </div>
                         )}
                       </div>
