@@ -2,27 +2,13 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { useSearchParams } from 'next/navigation'
-import Image from 'next/image'
 import DocumentUpload from '@/components/DocumentUpload'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import ConfirmModal from '@/components/ConfirmModal'
 import StorageIndicator from '@/components/StorageIndicator'
-import GoogleDrivePicker from '@/components/GoogleDrivePicker'
 import PageHeader from '@/components/PageHeader'
 import { logger } from '@/lib/logger'
-import {
-  getGoogleDriveStatus,
-  connectGoogleDrive,
-  syncGoogleDrive,
-  syncGoogleDriveFiles,
-  listFolderFiles,
-  disconnectGoogleDrive,
-  formatLastSync,
-  type GoogleDriveStatus,
-  type GoogleDriveFile
-} from '@/lib/googleDrive'
-import { apiGet, apiPatch, apiPost, apiDelete } from '@/lib/api'
+import { apiGet, apiDelete } from '@/lib/api'
 import { API_BASE_URL } from '@/lib/config'
 
 interface Document {
@@ -35,7 +21,6 @@ interface Document {
   storage_url: string
   source_platform?: string
   external_url?: string
-  google_drive_file_id?: string
   sync_cadence?: string
   file_size?: number
   is_core_document?: boolean
@@ -43,41 +28,19 @@ interface Document {
 
 function DocumentsContent() {
   const { profile } = useAuth()
-  const searchParams = useSearchParams()
-  // router intentionally not used - kept for potential future navigation needs
 
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Google Drive state
-  const [driveStatus, setDriveStatus] = useState<GoogleDriveStatus | null>(null)
-  const [syncing, setSyncing] = useState(false)
-  const [syncError, setSyncError] = useState<string | null>(null)
-  const [syncSuccess, setSyncSuccess] = useState<string | null>(null)
-  const [syncFrequency, setSyncFrequency] = useState<string>('manual')
-  const [nextSyncScheduled, setNextSyncScheduled] = useState<string | null>(null)
-  const [driveExpanded, setDriveExpanded] = useState<boolean>(false)
-  const [showDisconnectModal, setShowDisconnectModal] = useState(false)
-  const [selectedFolderId, setSelectedFolderId] = useState<string>('')
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- setter kept for picker callback
-  const [_selectedFolderName, setSelectedFolderName] = useState<string>('')
-  const [driveFiles, setDriveFiles] = useState<GoogleDriveFile[]>([])
-  const [driveFilesLoading, setDriveFilesLoading] = useState(false)
-  const [selectedDriveFileIds, setSelectedDriveFileIds] = useState<Set<string>>(new Set())
-  const [isFileUrl, setIsFileUrl] = useState<boolean>(false)
-
   // Document actions state
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
-  const [syncingDocId, setSyncingDocId] = useState<string | null>(null)
   const [showInfoModal, setShowInfoModal] = useState(false)
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [docToDelete, setDocToDelete] = useState<Document | null>(null)
-  const [docSyncCadence, setDocSyncCadence] = useState<string>('manual')
-  const [tempSyncCadence, setTempSyncCadence] = useState<string>('manual')
 
-  // General document notifications (separate from Drive specific ones)
+  // General document notifications
   const [generalSuccess, setGeneralSuccess] = useState<string | null>(null)
   const [generalError, setGeneralError] = useState<string | null>(null)
 
@@ -115,34 +78,9 @@ function DocumentsContent() {
     setStorageRefreshTrigger(prev => prev + 1)  // Refresh storage indicator
   }, [loadDocuments])
 
-  const loadSyncSettings = useCallback(async () => {
-    try {
-      const data = await apiGet<{ sync_frequency: string; next_sync_scheduled: string | null }>('/api/google-drive/sync-settings')
-      setSyncFrequency(data.sync_frequency || 'manual')
-      setNextSyncScheduled(data.next_sync_scheduled)
-    } catch (err) {
-      logger.error('Error loading sync settings:', err)
-    }
-  }, [])
-
-  const checkDriveStatus = useCallback(async () => {
-    try {
-      const status = await getGoogleDriveStatus()
-      setDriveStatus(status)
-
-      // Load sync settings if connected
-      if (status.connected) {
-        loadSyncSettings()
-      }
-    } catch (err) {
-      logger.error('Error checking Drive status:', err)
-    }
-  }, [loadSyncSettings])
-
   // Now use the functions in useEffect hooks
   useEffect(() => {
     loadDocuments()
-    checkDriveStatus()
 
     // Intentionally run only on mount - including function dependencies would cause infinite re-fetch loops
   }, [])
@@ -161,77 +99,6 @@ function DocumentsContent() {
       return () => clearInterval(intervalId)
     }
   }, [documents, loadDocuments])
-
-  // Listen for messages from OAuth popup
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      // Accept messages from same origin or from backend (for OAuth callbacks)
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || ''
-      const allowedOrigins = [window.location.origin, backendUrl, 'null'] // 'null' for about:blank popups
-      if (!allowedOrigins.some(origin => event.origin === origin || event.origin.startsWith(origin))) {
-        return
-      }
-
-      if (event.data.type === 'google_drive_connected') {
-        setSyncSuccess('Google Drive connected successfully!')
-        setDriveExpanded(true) // Auto-expand the Google Drive accordion
-        checkDriveStatus()
-        loadDocuments()
-      } else if (event.data.type === 'google_drive_error') {
-        setSyncError(event.data.message || 'Failed to connect Google Drive')
-      }
-    }
-
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-     
-    // Event listener setup - only needs to run once on mount, handler uses current state via closures
-  }, [])
-
-  // Check for OAuth callback
-  useEffect(() => {
-    const driveParam = searchParams?.get('google_drive')
-    if (driveParam === 'connected') {
-      // Check if this is a popup window (opened by window.open)
-      if (window.opener) {
-        // This is a popup - close it and notify parent
-        try {
-          window.opener.postMessage({ type: 'google_drive_connected' }, window.location.origin)
-          window.close()
-        } catch (e) {
-          logger.error('Failed to close popup:', e)
-        }
-      } else {
-        // This is the main window - show success message
-        setSyncSuccess('Google Drive connected successfully!')
-        checkDriveStatus()
-        // Clear URL parameter
-        window.history.replaceState({}, '', '/documents')
-      }
-    } else if (driveParam === 'error') {
-      const message = searchParams?.get('message') || 'Failed to connect Google Drive'
-
-      // Check if this is a popup window
-      if (window.opener) {
-        // Notify parent and close
-        try {
-          window.opener.postMessage({
-            type: 'google_drive_error',
-            message
-          }, window.location.origin)
-          window.close()
-        } catch (e) {
-          logger.error('Failed to close popup:', e)
-        }
-      } else {
-        // Show error in main window
-        setSyncError(message)
-        window.history.replaceState({}, '', '/documents')
-      }
-    }
-
-    // OAuth redirect check - only needs to run once on mount to check URL params, uses searchParams from props
-  }, [])
 
   function formatDate(isoString: string) {
     const date = new Date(isoString)
@@ -252,252 +119,10 @@ function DocumentsContent() {
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
   }
 
-  async function handleSyncFrequencyChange(newFrequency: string) {
-    try {
-      setSyncError(null)
-
-      const data = await apiPatch<{ sync_frequency: string; next_sync_scheduled: string | null }>('/api/google-drive/sync-settings', {
-        sync_frequency: newFrequency,
-        default_folder_id: driveStatus?.folder_id,
-        default_folder_name: driveStatus?.folder_name
-      })
-
-      setSyncFrequency(data.sync_frequency)
-      setNextSyncScheduled(data.next_sync_scheduled)
-      setSyncSuccess('Sync settings updated successfully')
-      setTimeout(() => setSyncSuccess(null), 3000)
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Failed to update settings')
-    }
-  }
-
-  async function handleConnectDrive() {
-    try {
-      setSyncError(null)
-      await connectGoogleDrive()
-
-      // Poll for connection status as fallback (in case postMessage doesn't work)
-      let attempts = 0
-      const maxAttempts = 30 // 30 seconds max
-      const pollInterval = setInterval(async () => {
-        attempts++
-        try {
-          const status = await getGoogleDriveStatus()
-          if (status.connected) {
-            clearInterval(pollInterval)
-            setSyncSuccess('Google Drive connected successfully!')
-            setDriveExpanded(true)
-            setDriveStatus(status)
-            loadDocuments()
-          }
-        } catch {
-          // Ignore errors during polling
-        }
-        if (attempts >= maxAttempts) {
-          clearInterval(pollInterval)
-        }
-      }, 1000)
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Failed to connect Google Drive')
-    }
-  }
-
-  async function handleSync() {
-    // Check if folder ID is empty - require it
-    if (!selectedFolderId || selectedFolderId.trim() === '') {
-      setSyncError('Please enter a Google Drive folder ID')
-      return
-    }
-
-    // Proceed with sync
-    await performSync()
-  }
-
-  async function performSync() {
-    try {
-      setSyncing(true)
-      setSyncError(null)
-      setSyncSuccess(null)
-
-      // Pass folder ID and name (required)
-      const result = await syncGoogleDrive(
-        selectedFolderId,
-        _selectedFolderName || null
-      )
-
-      // Sync now returns immediately with status "started"
-      setSyncSuccess(
-        'Sync started! Documents are being downloaded and will appear below with a "Processing" tag. The tag will disappear when each document is ready.'
-      )
-
-      // Immediately refresh document list to show any quick syncs
-      loadDocuments()
-
-      // Auto-hide success message after 10 seconds
-      setTimeout(() => setSyncSuccess(null), 10000)
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Sync failed')
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  async function loadDriveFiles() {
-    if (!selectedFolderId) return
-
-    try {
-      setDriveFilesLoading(true)
-      setSyncError(null)
-      const files = await listFolderFiles(selectedFolderId)
-      setDriveFiles(files)
-    } catch (err) {
-      logger.error('Failed to load Google Drive files:', err)
-      setSyncError(err instanceof Error ? err.message : 'Failed to load files')
-      setDriveFiles([])
-    } finally {
-      setDriveFilesLoading(false)
-    }
-  }
-
-  async function handleDriveFilesSync() {
-    if (selectedDriveFileIds.size === 0) {
-      setSyncError('Please select at least one file to sync')
-      return
-    }
-
-    try {
-      setSyncing(true)
-      setSyncError(null)
-      setSyncSuccess(null)
-
-      const fileIdArray = Array.from(selectedDriveFileIds)
-
-      await syncGoogleDriveFiles(fileIdArray)
-
-      setSyncSuccess('File/folder sync started - Check the Documents section below for details')
-
-      // Immediately refresh document list to show placeholder documents
-      await loadDocuments(false)
-
-      // Clear selection
-      setSelectedDriveFileIds(new Set())
-
-      setTimeout(() => setSyncSuccess(null), 10000)
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Sync failed')
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  async function handleSyncSingleFile(fileId: string) {
-    try {
-      setSyncing(true)
-      setSyncError(null)
-      setSyncSuccess(null)
-
-      await syncGoogleDriveFiles([fileId])
-
-      setSyncSuccess('File/folder sync started - Check the Documents section below for details')
-
-      // Immediately refresh document list to show placeholder document
-      await loadDocuments(false)
-
-      // Clear the input field and reset file flag
-      setSelectedFolderId('')
-      setIsFileUrl(false)
-
-      setTimeout(() => setSyncSuccess(null), 10000)
-    } catch (err) {
-      logger.error('Error syncing file:', err)
-      setSyncError(err instanceof Error ? err.message : 'Sync failed')
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  function toggleDriveFileSelection(fileId: string) {
-    setSelectedDriveFileIds(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(fileId)) {
-        newSet.delete(fileId)
-      } else {
-        newSet.add(fileId)
-      }
-      return newSet
-    })
-  }
-
-  function selectAllDriveFiles() {
-    setSelectedDriveFileIds(new Set(driveFiles.map(f => f.id)))
-  }
-
-  function deselectAllDriveFiles() {
-    setSelectedDriveFileIds(new Set())
-  }
-
-  function handleDisconnectClick() {
-    setShowDisconnectModal(true)
-  }
-
-  async function handleDisconnectConfirm() {
-    setShowDisconnectModal(false)
-
-    try {
-      setSyncError(null)
-      await disconnectGoogleDrive()
-      setSyncSuccess('Google Drive disconnected')
-      await checkDriveStatus()
-
-      setTimeout(() => setSyncSuccess(null), 3000)
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Failed to disconnect')
-    }
-  }
-
   // Document action handlers
   function handleDocumentInfo(doc: Document) {
     setSelectedDoc(doc)
-    // Load actual sync cadence from document, default to 'manual'
-    const currentCadence = doc.sync_cadence || 'manual'
-    setDocSyncCadence(currentCadence)
-    setTempSyncCadence(currentCadence)
     setShowInfoModal(true)
-  }
-
-  async function handleSaveDocumentInfo() {
-    if (!selectedDoc) return
-
-    try {
-      // Only save if cadence changed
-      if (tempSyncCadence !== docSyncCadence) {
-        // Save to backend
-        await apiPatch(`/api/documents/${selectedDoc.id}/sync-cadence`, {
-          sync_cadence: tempSyncCadence
-        })
-
-        // Update local state
-        setDocSyncCadence(tempSyncCadence)
-
-        // Update the document in the documents list
-        setDocuments(prevDocs =>
-          prevDocs.map(doc =>
-            doc.id === selectedDoc.id
-              ? { ...doc, sync_cadence: tempSyncCadence }
-              : doc
-          )
-        )
-
-        setGeneralSuccess(`Sync cadence updated to ${tempSyncCadence}`)
-        setTimeout(() => setGeneralSuccess(null), 3000)
-      }
-
-      // Close modal
-      setShowInfoModal(false)
-    } catch (err) {
-      setGeneralError(err instanceof Error ? err.message : 'Failed to update sync cadence')
-      setTimeout(() => setGeneralError(null), 3000)
-    }
   }
 
   function handleDeleteClick(doc: Document) {
@@ -526,30 +151,6 @@ function DocumentsContent() {
     }
   }
 
-  async function handleDocumentSync(doc: Document) {
-    if (!doc.google_drive_file_id) {
-      setSyncError('Only Google Drive documents can be synced')
-      setTimeout(() => setSyncError(null), 3000)
-      return
-    }
-
-    setSyncingDocId(doc.id)
-
-    try {
-      // Trigger re-sync of the specific document
-      await apiPost(`/api/google-drive/sync-document/${doc.google_drive_file_id}`)
-      setSyncSuccess(`Syncing ${doc.filename}...`)
-      setTimeout(() => {
-        setSyncSuccess(null)
-        handleDocumentsChange()
-      }, 2000)
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Failed to sync document')
-    } finally {
-      setSyncingDocId(null)
-    }
-  }
-
   return (
     <div className="min-h-screen bg-page">
       <PageHeader />
@@ -567,216 +168,6 @@ function DocumentsContent() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 pt-3 pb-8">
-        {/* Google Drive Integration Section */}
-        <div className={`card mb-3 ${driveExpanded && driveStatus?.connected ? 'p-6' : 'p-2'}`}>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 flex-1">
-              <button
-                onClick={() => setDriveExpanded(!driveExpanded)}
-                className="text-secondary hover:text-primary transition-colors"
-              >
-                {driveExpanded ? (
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </button>
-              <h3 className="heading-3">Google Drive</h3>
-            </div>
-            {driveStatus && !driveStatus.connected && driveExpanded && (
-              <button
-                onClick={handleConnectDrive}
-                className="btn-primary"
-              >
-                Connect Google Drive
-              </button>
-            )}
-          </div>
-
-          {driveExpanded && driveStatus?.connected && (
-            <>
-              <div className="mt-4 space-y-3">
-                {/* Status and Actions */}
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm">
-                    <div className="text-green-600 font-medium">Connected</div>
-                    <div className="text-xs text-muted">
-                      {driveStatus.document_count} documents • Last sync: {formatLastSync(driveStatus.last_sync)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleDisconnectClick}
-                      className="btn-secondary text-red-600 hover:bg-red-50"
-                    >
-                      Disconnect
-                    </button>
-                  </div>
-                </div>
-
-                {/* File Selection */}
-                <div className="bg-gray-50 border border-default rounded-lg p-3">
-                  <label className="block text-sm font-medium text-secondary mb-2">
-                    Select files from Google Drive
-                  </label>
-
-                  {/* Google Drive Picker Button */}
-                  <div className="flex gap-2 mb-3">
-                    <GoogleDrivePicker
-                      disabled={syncing}
-                      buttonText="Browse Google Drive"
-                      buttonClassName="btn-primary flex-1"
-                      onFilesPicked={(files) => {
-                        // Convert picker files to our format and add to selection
-                        const newFiles: GoogleDriveFile[] = files.map(f => ({
-                          id: f.id,
-                          name: f.name,
-                          mimeType: f.mimeType,
-                          iconLink: f.iconUrl
-                        }))
-                        setDriveFiles(newFiles)
-                        setSelectedDriveFileIds(new Set(files.map(f => f.id)))
-                        setSelectedFolderId('') // Clear any manual URL input
-                        setIsFileUrl(false)
-                      }}
-                    />
-                  </div>
-
-                  {/* File Picker */}
-                  {driveFilesLoading ? (
-                    <div className="text-sm text-muted py-4 text-center">
-                      Loading files...
-                    </div>
-                  ) : driveFiles.length > 0 ? (
-                    <>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm font-medium text-secondary">
-                          Select Files to Sync
-                        </label>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={selectAllDriveFiles}
-                            className="text-xs text-blue-600 hover:text-blue-800"
-                          >
-                            Select All
-                          </button>
-                          <button
-                            onClick={deselectAllDriveFiles}
-                            className="text-xs text-gray-600 hover:text-gray-800"
-                          >
-                            Deselect All
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="max-h-64 overflow-y-auto space-y-2 bg-white rounded p-2">
-                        {driveFiles.map(file => (
-                          <label
-                            key={file.id}
-                            className="flex items-start gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedDriveFileIds.has(file.id)}
-                              onChange={() => toggleDriveFileSelection(file.id)}
-                              className="mt-0.5"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-primary truncate">
-                                {file.name}
-                              </div>
-                              <div className="text-xs text-muted">
-                                {file.mimeType?.split('/').pop() || 'Unknown type'}
-                                {file.size && ` • ${Math.round(parseInt(file.size) / 1024)} KB`}
-                              </div>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-
-                      {selectedDriveFileIds.size > 0 && (
-                        <div className="mt-3 flex items-center justify-between">
-                          <div className="text-xs text-muted">
-                            {selectedDriveFileIds.size} file{selectedDriveFileIds.size === 1 ? '' : 's'} selected
-                          </div>
-                          <button
-                            onClick={handleDriveFilesSync}
-                            disabled={syncing}
-                            className="btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {syncing ? 'Syncing...' : 'Sync Selected'}
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  ) : selectedFolderId && !isFileUrl && !driveFilesLoading ? (
-                    <div className="text-sm text-muted py-4 text-center">
-                      Click &quot;Load Files&quot; to see files in this folder
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-          {/* Sync Frequency Settings */}
-          <div className="mt-4 border-t border-default pt-4">
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-secondary">
-                  Automatic Sync:
-                </label>
-                <select
-                  value={syncFrequency}
-                  onChange={(e) => handleSyncFrequencyChange(e.target.value)}
-                  className="px-3 py-1.5 border border-default rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="manual">Manual Only</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
-                {nextSyncScheduled && syncFrequency !== 'manual' && (
-                  <span className="text-xs text-muted">
-                    Next sync: {new Date(nextSyncScheduled).toLocaleString()}
-                  </span>
-                )}
-              </div>
-            </div>
-
-          {/* Success Message */}
-          {syncSuccess && (
-            <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-green-800">{syncSuccess}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Error Message */}
-          {syncError && (
-            <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <span className="text-red-600 font-bold">Error:</span>
-                <span className="text-sm text-red-800">{syncError}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Syncing Progress */}
-          {syncing && (
-            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <LoadingSpinner size="sm" />
-                <span className="text-sm text-blue-800">Syncing documents from Google Drive...</span>
-              </div>
-            </div>
-          )}
-          </>
-          )}
-        </div>
-
         {/* Upload Section */}
         <div className={`card mb-3 ${uploadExpanded ? 'p-6' : 'p-2'}`}>
           <div className="flex items-center justify-between gap-3">
@@ -873,32 +264,6 @@ function DocumentsContent() {
               </div>
             ) : (
               <div className="space-y-3">
-                {/* Show sync progress indicators */}
-                {syncing && (
-                  <div className="border border-blue-200 bg-blue-50 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <LoadingSpinner size="sm" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-blue-900 mb-2">Syncing from Google Drive:</p>
-                        <div className="space-y-1">
-                          {documents.filter(doc => !doc.processed && doc.source_platform === 'google_drive').map(doc => (
-                            <div key={doc.id} className="flex items-center gap-2 text-sm text-blue-800">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Processing
-                              </span>
-                              <span className="truncate">{doc.filename}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {documents.filter(doc => !doc.is_core_document).map((doc) => (
                   <div
                     key={doc.id}
@@ -933,30 +298,11 @@ function DocumentsContent() {
                               Failed
                             </span>
                           )}
-                          {doc.source_platform === 'google_drive' && (
-                            <span className="inline-flex items-center gap-1 flex-shrink-0" title="Google Drive">
-                              <Image src="/logos/google-drive.svg" alt="Google Drive" width={20} height={20} className="w-5 h-5" />
-                            </span>
-                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {/* Action Buttons */}
                         <div className="flex items-center gap-1">
-                          {/* Sync Button - only for Google Drive docs */}
-                          {doc.source_platform === 'google_drive' && (
-                            <button
-                              onClick={() => handleDocumentSync(doc)}
-                              disabled={syncingDocId === doc.id}
-                              className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Sync this document from Google Drive"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                            </button>
-                          )}
-
                           {/* Info Button */}
                           <button
                             onClick={() => handleDocumentInfo(doc)}
@@ -1059,18 +405,6 @@ function DocumentsContent() {
 
       </div>
 
-      {/* Disconnect Confirmation Modal */}
-      <ConfirmModal
-        open={showDisconnectModal}
-        title="Disconnect Google Drive"
-        message="Are you sure you want to disconnect Google Drive? Synced documents will remain in your knowledge base."
-        confirmText="Disconnect"
-        cancelText="Cancel"
-        confirmVariant="danger"
-        onConfirm={handleDisconnectConfirm}
-        onCancel={() => setShowDisconnectModal(false)}
-      />
-
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         open={showDeleteModal}
@@ -1116,7 +450,7 @@ function DocumentsContent() {
               <div>
                 <label className="text-sm font-medium text-secondary">Source</label>
                 <p className="text-sm text-primary mt-1">
-                  {selectedDoc.source_platform === 'google_drive' ? 'Google Drive' : 'Direct Upload'}
+                  {selectedDoc.source_platform === 'obsidian' ? 'Obsidian' : 'Direct Upload'}
                 </p>
               </div>
 
@@ -1139,58 +473,19 @@ function DocumentsContent() {
                     rel="noopener noreferrer"
                     className="text-sm text-blue-600 hover:underline mt-1 inline-block"
                   >
-                    View in Google Drive →
+                    View source →
                   </a>
-                </div>
-              )}
-
-              {/* Sync Cadence Setting - for Google Drive documents */}
-              {selectedDoc.source_platform === 'google_drive' && (
-                <div className="border-t border-gray-200 pt-3 mt-3">
-                  <label className="text-sm font-medium text-secondary block mb-2">
-                    Automatic Sync Cadence
-                  </label>
-                  <select
-                    value={tempSyncCadence}
-                    onChange={(e) => setTempSyncCadence(e.target.value)}
-                    className="w-full px-3 py-2 border border-default rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="manual">Manual Only</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                  </select>
-                  <p className="text-xs text-muted mt-1">
-                    Set how often this document should automatically sync from Google Drive
-                  </p>
                 </div>
               )}
             </div>
 
             <div className="mt-6 flex justify-end gap-2">
-              {selectedDoc.source_platform === 'google_drive' ? (
-                <>
-                  <button
-                    onClick={() => setShowInfoModal(false)}
-                    className="btn-secondary"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={handleSaveDocumentInfo}
-                    className="btn-primary"
-                  >
-                    Save
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setShowInfoModal(false)}
-                  className="btn-secondary"
-                >
-                  Close
-                </button>
-              )}
+              <button
+                onClick={() => setShowInfoModal(false)}
+                className="btn-secondary"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

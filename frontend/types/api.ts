@@ -43,10 +43,8 @@ export interface Document {
   chunk_count: number;
   access_count: number;
   storage_url?: string;
-  source_platform?: 'upload' | 'google_drive';
+  source_platform?: 'upload' | 'obsidian';
   external_url?: string;
-  google_drive_file_id?: string;
-  sync_cadence?: 'manual' | 'daily' | 'weekly' | 'monthly';
 }
 
 export interface DocumentWithRelations extends Document {
@@ -133,27 +131,6 @@ export interface QuickPrompt {
 export interface QuickPromptsResponse {
   success: boolean;
   prompts: QuickPrompt[];
-}
-
-// ============================================================================
-// Integration Types (Google Drive)
-// ============================================================================
-
-export interface GoogleDriveStatus {
-  connected: boolean;
-  email?: string;
-  folder_id?: string;
-  folder_name?: string;
-  document_count: number;
-  last_sync?: string;
-}
-
-export interface GoogleDriveFile {
-  id: string;
-  name: string;
-  mimeType: string;
-  size?: string;
-  modifiedTime?: string;
 }
 
 // ============================================================================

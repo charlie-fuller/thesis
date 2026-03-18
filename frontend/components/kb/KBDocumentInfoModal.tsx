@@ -20,8 +20,6 @@ export interface Document {
   processing_error?: string
   storage_url: string
   external_url?: string
-  google_drive_file_id?: string
-  sync_cadence?: string
   file_size?: number
   source_platform?: string
   obsidian_vault_path?: string
@@ -76,10 +74,6 @@ export default function KBDocumentInfoModal({
   const [loadingAgentAssignments, setLoadingAgentAssignments] = useState(false)
   const [savingAgentAssignments, setSavingAgentAssignments] = useState(false)
 
-  // Sync cadence state
-  const [docSyncCadence, setDocSyncCadence] = useState<string>('manual')
-  const [tempSyncCadence, setTempSyncCadence] = useState<string>('manual')
-
   // Original date state
   const [tempOriginalDate, setTempOriginalDate] = useState<string>('')
 
@@ -100,9 +94,6 @@ export default function KBDocumentInfoModal({
   // Load data when modal opens
   useEffect(() => {
     if (isOpen && doc) {
-      const currentCadence = doc.sync_cadence || 'manual'
-      setDocSyncCadence(currentCadence)
-      setTempSyncCadence(currentCadence)
       setTempOriginalDate(doc.original_date || '')
       setLocalTags(doc.tags || [])
       setNewTagInput('')
@@ -239,14 +230,6 @@ export default function KBDocumentInfoModal({
     if (!doc) return
 
     try {
-      // Save sync cadence if changed
-      if (tempSyncCadence !== docSyncCadence) {
-        await apiPatch(`/api/documents/${doc.id}/sync-cadence`, {
-          sync_cadence: tempSyncCadence
-        })
-        setDocSyncCadence(tempSyncCadence)
-      }
-
       // Save original date if changed
       const currentOriginalDate = doc.original_date || ''
       if (tempOriginalDate !== currentOriginalDate) {
@@ -266,7 +249,6 @@ export default function KBDocumentInfoModal({
       if (onDocumentUpdate) {
         onDocumentUpdate({
           ...doc,
-          sync_cadence: tempSyncCadence,
           original_date: tempOriginalDate || undefined,
           tags: localTags
         })
@@ -319,7 +301,7 @@ export default function KBDocumentInfoModal({
           <div>
             <label className="text-sm font-medium text-secondary">Source</label>
             <p className="text-sm text-primary mt-1">
-              {doc.source_platform === 'google_drive' ? 'Google Drive' : doc.source_platform === 'obsidian' ? 'Local Vault' : 'Direct Upload'}
+              {doc.source_platform === 'obsidian' ? 'Local Vault' : 'Direct Upload'}
             </p>
           </div>
 
@@ -362,7 +344,7 @@ export default function KBDocumentInfoModal({
                 rel="noopener noreferrer"
                 className="text-sm text-blue-600 dark:text-blue-400 hover:underline mt-1 inline-block"
               >
-                View in {doc.source_platform === 'google_drive' ? 'Google Drive' : 'Source'}
+                View source
               </a>
             </div>
           )}
@@ -503,28 +485,6 @@ export default function KBDocumentInfoModal({
               Amber tags are from folder path. Purple tags are from frontmatter. Blue tags are manually added.
             </p>
           </div>
-
-          {/* Sync Cadence Setting */}
-          {doc.source_platform === 'google_drive' && (
-            <div className="border-t border-default pt-3 mt-3">
-              <label className="text-sm font-medium text-secondary block mb-2">
-                Automatic Sync Cadence
-              </label>
-              <select
-                value={tempSyncCadence}
-                onChange={(e) => setTempSyncCadence(e.target.value)}
-                className="w-full px-3 py-2 border border-default rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-card text-primary"
-              >
-                <option value="manual">Manual Only</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-              <p className="text-xs text-muted mt-1">
-                Set how often this document should automatically sync from Google Drive
-              </p>
-            </div>
-          )}
 
           {/* Agent Assignment Section */}
           <div className="border-t border-default pt-3 mt-3">

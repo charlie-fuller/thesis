@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { apiGet, apiPost, apiDelete } from '@/lib/api'
+import { apiGet, apiDelete } from '@/lib/api'
 import { logger } from '@/lib/logger'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import DeleteDocumentModal from '@/components/kb/DeleteDocumentModal'
@@ -67,7 +67,6 @@ export default function KBFinderContent({
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   // Sync doc state
-  const [syncingDocId, setSyncingDocId] = useState<string | null>(null)
 
   const LIMIT = 50
 
@@ -180,30 +179,7 @@ export default function KBFinderContent({
     setShowDeleteModal(true)
   }
 
-  async function handleDocumentSync(doc: Document, e: React.MouseEvent) {
-    e.stopPropagation()
-    if (!doc.google_drive_file_id) return
-
-    setSyncingDocId(doc.id)
-    try {
-      await apiPost(`/api/google-drive/sync-document/${doc.google_drive_file_id}`)
-      setSuccessMsg(`Syncing ${doc.filename}...`)
-      setTimeout(() => {
-        setSuccessMsg(null)
-        onDocumentsChange()
-      }, 2000)
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to sync document')
-      setTimeout(() => setErrorMsg(null), 3000)
-    } finally {
-      setSyncingDocId(null)
-    }
-  }
-
   function getSourceBadge(doc: Document) {
-    if (doc.source_platform === 'google_drive') {
-      return <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">Drive</span>
-    }
     if (doc.source_platform === 'obsidian') {
       return <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">Vault</span>
     }
@@ -364,20 +340,6 @@ export default function KBFinderContent({
 
                 {/* Action buttons (visible on hover) */}
                 <div className="w-16 flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  {/* Sync button for Drive docs */}
-                  {doc.source_platform === 'google_drive' && (
-                    <button
-                      onClick={(e) => handleDocumentSync(doc, e)}
-                      disabled={syncingDocId === doc.id}
-                      className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors disabled:opacity-50"
-                      title="Sync from Drive"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                    </button>
-                  )}
-
                   {/* View button */}
                   {(doc.storage_url || doc.external_url) && (
                     <button

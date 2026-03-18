@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
 import ClassificationReviewBanner from '@/components/kb/ClassificationReviewBanner'
 import KBDocumentBrowserTab from '@/components/kb/KBDocumentBrowserTab'
 import KBFinderSidebar from '@/components/kb/KBFinderSidebar'
@@ -11,7 +10,7 @@ import KBSyncSettingsModal from '@/components/kb/KBSyncSettingsModal'
 import TagSelector from '@/components/TagSelector'
 import { apiGet } from '@/lib/api'
 import { logger } from '@/lib/logger'
-import { formatLastSync } from '@/lib/googleDrive'
+import { formatLastSync } from '@/lib/formatters'
 import type { Document } from '@/components/kb/KBDocumentInfoModal'
 
 interface ObsidianStatus {
@@ -24,7 +23,6 @@ interface ObsidianStatus {
 }
 
 export default function KBDocumentsContent() {
-  const searchParams = useSearchParams()
 
   // Core UI state
   const [activeTab, setActiveTab] = useState<'documents' | 'tags'>('documents')
@@ -80,50 +78,6 @@ export default function KBDocumentsContent() {
     setRefreshTrigger(prev => prev + 1)
     checkObsidianStatus()
   }, [checkObsidianStatus])
-
-  // Handle OAuth callbacks from search params
-  /* eslint-disable react-hooks/set-state-in-effect -- one-time OAuth callback on mount */
-  useEffect(() => {
-    const driveParam = searchParams?.get('google_drive')
-
-    if (driveParam === 'connected' || driveParam === 'error') {
-      // Handle popup window case
-      if (window.opener) {
-        try {
-          if (driveParam === 'connected') {
-            window.opener.postMessage({ type: 'google_drive_connected' }, window.location.origin)
-          } else if (driveParam === 'error') {
-            window.opener.postMessage({ type: 'google_drive_error', message: searchParams?.get('message') || 'Failed' }, window.location.origin)
-          }
-          setTimeout(() => window.close(), 100)
-        } catch (e) {
-          logger.error('Failed to close popup:', e)
-          window.close()
-        }
-      } else {
-        // Main window - clear URL and refresh
-        window.history.replaceState({}, '', '/kb')
-        handleDocumentsChange()
-      }
-    }
-  }, [])
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  // Listen for OAuth messages from popups
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || ''
-      const allowedOrigins = [window.location.origin, backendUrl, 'null']
-      if (!allowedOrigins.some(origin => event.origin === origin || event.origin.startsWith(origin))) return
-
-      if (event.data.type === 'google_drive_connected') {
-        handleDocumentsChange()
-      }
-    }
-
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [])
 
   function handleDocumentClick(doc: Document) {
     setSelectedDoc(doc)
@@ -236,7 +190,6 @@ export default function KBDocumentsContent() {
             >
               <option value="all">All Sources</option>
               <option value="obsidian">Vault</option>
-              <option value="google_drive">Google Drive</option>
               <option value="upload">Uploaded</option>
             </select>
 

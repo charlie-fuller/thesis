@@ -46,9 +46,6 @@ async def lifespan(app: FastAPI):
         await asyncio.sleep(30)
         logger.info("Starting deferred schedulers (30s post-startup)")
 
-        # Google Drive sync disabled (packages removed)
-        # sync_scheduler intentionally not started
-
         # Start Atlas research scheduler
         try:
             from services.research_scheduler import start_research_scheduler
@@ -115,8 +112,6 @@ async def lifespan(app: FastAPI):
     yield  # Application is running
 
     # Shutdown
-    # sync_scheduler removed (Google Drive disabled)
-
     try:
         from services.research_scheduler import stop_research_scheduler
 
@@ -476,8 +471,6 @@ app.include_router(chat.router)
 app.include_router(conversations.router)
 app.include_router(documents.router)
 app.include_router(users.router)
-# Google Drive integration disabled (packages removed)
-# app.include_router(google_drive.router)
 app.include_router(admin.router)
 app.include_router(document_mappings.router)
 app.include_router(clients.router)

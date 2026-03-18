@@ -38,18 +38,6 @@ const dataNodes: DataNode[] = [
     ]
   },
   {
-    id: 'gdrive',
-    title: 'Google Drive',
-    description: 'Cloud document sync',
-    category: 'source',
-    details: [
-      'OAuth integration',
-      'Selective folder sync',
-      'Supports Docs, Sheets, PDFs',
-      'Automatic change detection'
-    ]
-  },
-  {
     id: 'chat',
     title: 'Chat Conversations',
     description: 'Agent interactions',
@@ -69,7 +57,7 @@ const dataNodes: DataNode[] = [
     category: 'storage',
     details: [
       'Stores document metadata',
-      'Links to source (vault, drive, upload)',
+      'Links to source (vault, upload)',
       'Tracks processing status',
       'Classification and tags'
     ]
@@ -331,7 +319,7 @@ export default function KBDataMap() {
             </text>
           </g>
 
-          {/* Google Drive */}
+          {/* Chat Conversations */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedNode(dataNodes[2])}
@@ -339,40 +327,24 @@ export default function KBDataMap() {
             <rect x="40" y="220" width="160" height="60" rx="8"
               fill={categoryColors.source.fill} stroke={categoryColors.source.stroke} strokeWidth="2" />
             <text x="120" y="245" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
-              Google Drive
-            </text>
-            <text x="120" y="262" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Cloud sync
-            </text>
-          </g>
-
-          {/* Chat Conversations */}
-          <g
-            className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[3])}
-          >
-            <rect x="40" y="300" width="160" height="60" rx="8"
-              fill={categoryColors.source.fill} stroke={categoryColors.source.stroke} strokeWidth="2" />
-            <text x="120" y="325" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               Chat Conversations
             </text>
-            <text x="120" y="342" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x="120" y="262" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
               Agent interactions
             </text>
           </g>
 
           {/* ===== ARROWS: Sources -> Documents ===== */}
           <path d="M 200 90 L 280 180" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowBlue)" />
-          <path d="M 200 170 L 280 180" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowBlue)" />
+          <path d="M 200 170 L 280 190" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowBlue)" />
           <path d="M 200 250 L 280 210" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowBlue)" />
-          <path d="M 200 330 L 280 220" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowBlue)" />
 
           {/* ===== STORAGE (middle-left) ===== */}
 
           {/* Documents Table (central hub) */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[4])}
+            onClick={() => setSelectedNode(dataNodes[3])}
           >
             <rect x="290" y="150" width="180" height="100" rx="10"
               fill={categoryColors.storage.fill} stroke={categoryColors.storage.stroke} strokeWidth="3" />
@@ -390,7 +362,7 @@ export default function KBDataMap() {
           {/* Document Chunks */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[5])}
+            onClick={() => setSelectedNode(dataNodes[4])}
           >
             <rect x="290" y="280" width="180" height="70" rx="8"
               fill={categoryColors.storage.fill} stroke={categoryColors.storage.stroke} strokeWidth="2" />
@@ -405,7 +377,7 @@ export default function KBDataMap() {
           {/* Vector Embeddings */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[6])}
+            onClick={() => setSelectedNode(dataNodes[5])}
           >
             <rect x="290" y="380" width="180" height="70" rx="8"
               fill={categoryColors.storage.fill} stroke={categoryColors.storage.stroke} strokeWidth="2" />
@@ -426,7 +398,7 @@ export default function KBDataMap() {
           {/* Document Classifier */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[7])}
+            onClick={() => setSelectedNode(dataNodes[6])}
           >
             <rect x="550" y="150" width="180" height="70" rx="8"
               fill={categoryColors.processing.fill} stroke={categoryColors.processing.stroke} strokeWidth="2" />
@@ -441,7 +413,7 @@ export default function KBDataMap() {
           {/* Entity Extractor */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[8])}
+            onClick={() => setSelectedNode(dataNodes[7])}
           >
             <rect x="550" y="250" width="180" height="70" rx="8"
               fill={categoryColors.processing.fill} stroke={categoryColors.processing.stroke} strokeWidth="2" />
@@ -462,7 +434,7 @@ export default function KBDataMap() {
           {/* Semantic Search */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[13])}
+            onClick={() => setSelectedNode(dataNodes[12])}
           >
             <rect x="550" y="380" width="180" height="70" rx="8"
               fill={categoryColors.output.fill} stroke={categoryColors.output.stroke} strokeWidth="2" />
@@ -482,7 +454,7 @@ export default function KBDataMap() {
           {/* Agents */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[9])}
+            onClick={() => setSelectedNode(dataNodes[8])}
           >
             <rect x="820" y="100" width="180" height="80" rx="8"
               fill={categoryColors.entity.fill} stroke={categoryColors.entity.stroke} strokeWidth="2" />
@@ -500,7 +472,7 @@ export default function KBDataMap() {
           {/* Tasks */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[10])}
+            onClick={() => setSelectedNode(dataNodes[9])}
           >
             <rect x="820" y="200" width="180" height="70" rx="8"
               fill={categoryColors.entity.fill} stroke={categoryColors.entity.stroke} strokeWidth="2" />
@@ -515,7 +487,7 @@ export default function KBDataMap() {
           {/* Projects */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[11])}
+            onClick={() => setSelectedNode(dataNodes[10])}
           >
             <rect x="820" y="290" width="180" height="70" rx="8"
               fill={categoryColors.entity.fill} stroke={categoryColors.entity.stroke} strokeWidth="2" />
@@ -530,7 +502,7 @@ export default function KBDataMap() {
           {/* Stakeholders */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[12])}
+            onClick={() => setSelectedNode(dataNodes[11])}
           >
             <rect x="820" y="380" width="180" height="70" rx="8"
               fill={categoryColors.entity.fill} stroke={categoryColors.entity.stroke} strokeWidth="2" />

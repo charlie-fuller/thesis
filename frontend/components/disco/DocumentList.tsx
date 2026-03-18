@@ -65,8 +65,6 @@ function DocumentItem({
     switch (doc.source_platform) {
       case 'obsidian':
         return <span className="text-purple-500 text-xs">Vault</span>
-      case 'google_drive':
-        return <span className="text-blue-500 text-xs">Drive</span>
       default:
         return <span className="text-slate-400 text-xs">Uploaded</span>
     }
