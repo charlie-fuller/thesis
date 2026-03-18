@@ -809,7 +809,18 @@ async def upload_remote_file(
 
         await asyncio.to_thread(lambda: _get_db().table("documents").upsert(doc_data, on_conflict="id").execute())
 
-        # Update sync state
+        # Update sync state - serialize frontmatter values (dates etc.)
+        safe_frontmatter = None
+        if frontmatter:
+            safe_frontmatter = {}
+            for k, v in frontmatter.items():
+                if isinstance(v, datetime):
+                    safe_frontmatter[k] = v.isoformat()
+                elif isinstance(v, list):
+                    safe_frontmatter[k] = [item.isoformat() if isinstance(item, datetime) else item for item in v]
+                else:
+                    safe_frontmatter[k] = v
+
         sync_state = {
             "config_id": config["id"],
             "file_path": file_path,
@@ -817,7 +828,7 @@ async def upload_remote_file(
             "file_hash": content_hash,
             "sync_status": "synced",
             "last_synced_at": now,
-            "frontmatter": frontmatter,
+            "frontmatter": safe_frontmatter,
         }
 
         await asyncio.to_thread(
