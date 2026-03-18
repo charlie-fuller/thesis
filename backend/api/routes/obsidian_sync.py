@@ -770,7 +770,24 @@ async def upload_remote_file(
         # Create or update document
         import uuid
 
-        doc_id = existing.data[0].get("document_id") if existing.data else str(uuid.uuid4())
+        doc_id = None
+        if existing.data:
+            doc_id = existing.data[0].get("document_id")
+        else:
+            # Check if document exists by obsidian_file_path (sync state may be missing)
+            existing_doc = await asyncio.to_thread(
+                lambda: _get_db()
+                .table("documents")
+                .select("id")
+                .eq("user_id", current_user["id"])
+                .eq("obsidian_file_path", file_path)
+                .limit(1)
+                .execute()
+            )
+            if existing_doc.data:
+                doc_id = existing_doc.data[0]["id"]
+        if not doc_id:
+            doc_id = str(uuid.uuid4())
 
         # Upload content to storage
         storage_path = f"vault/{current_user['id']}/{file_path}"
