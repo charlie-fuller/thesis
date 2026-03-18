@@ -52,6 +52,7 @@ import {
   Download,
   Network,
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import TaskDependencyGraph, { TaskGraphNode } from '@/components/tasks/TaskDependencyGraph'
@@ -1237,10 +1238,29 @@ export default function ProjectDetailModal({
                   {/* Questions to Raise Confidence */}
                   {project.confidence_questions && project.confidence_questions.length > 0 && (
                     <section>
-                      <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4 flex items-center gap-2">
-                        <HelpCircle className="w-4 h-4" />
-                        Questions to Raise Confidence
-                      </h3>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
+                          <HelpCircle className="w-4 h-4" />
+                          Questions to Raise Confidence
+                        </h3>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await apiPost(`/api/projects/${project.id}/evaluate-confidence`, {})
+                              const updated = await apiGet<Project>(`/api/projects/${project.id}`)
+                              setProject(updated)
+                              toast.success('Confidence questions regenerated')
+                            } catch (error) {
+                              console.error('Failed to regenerate confidence:', error)
+                              toast.error('Failed to regenerate confidence questions')
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-secondary hover:text-primary bg-card hover:bg-hover border border-default rounded-lg transition-colors"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          Regenerate
+                        </button>
+                      </div>
                       <div className="space-y-3">
                         {project.confidence_questions.map((question, i) => (
                           <div
@@ -1264,10 +1284,26 @@ export default function ProjectDetailModal({
                 <div className="text-center py-12 border border-dashed border-default rounded-lg">
                   <Gauge className="w-12 h-12 mx-auto text-muted mb-3" />
                   <h3 className="text-lg font-medium text-primary mb-2">No Confidence Data</h3>
-                  <p className="text-sm text-muted max-w-md mx-auto">
+                  <p className="text-sm text-muted max-w-md mx-auto mb-4">
                     Confidence scoring has not been generated for this project yet.
-                    Generate AI analysis on the Scores tab to evaluate confidence levels.
                   </p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await apiPost(`/api/projects/${project.id}/evaluate-confidence`, {})
+                        const updated = await apiGet<Project>(`/api/projects/${project.id}`)
+                        setProject(updated)
+                        toast.success('Confidence evaluation complete')
+                      } catch (error) {
+                        console.error('Failed to evaluate confidence:', error)
+                        toast.error('Failed to evaluate confidence')
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  >
+                    <Gauge className="w-4 h-4" />
+                    Evaluate Confidence
+                  </button>
                 </div>
               )}
             </div>
