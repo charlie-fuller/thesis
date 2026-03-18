@@ -25,9 +25,14 @@ Confidence Levels:
 """
 
 import logging
-from typing import List, Tuple
+import os
+from typing import List, Optional, Tuple
+
+import anthropic
 
 logger = logging.getLogger(__name__)
+
+MODEL = "claude-haiku-4-5-20251001"
 
 
 # ============================================================================
@@ -90,64 +95,150 @@ MAX_CONFIDENCE = sum(item["points"] for item in RUBRIC.values())
 # ============================================================================
 
 
-def _make_specific_question(template: str, project: dict) -> str:
-    """Make a question specific to the project by including context.
+def _make_fallback_question(template: str, project: dict) -> str:
+    """Make a basic question with project context. Used as fallback when LLM is unavailable.
 
     Args:
-        template: Generic question template
+        template: Generic question template from rubric
         project: Project dict with title and other fields
 
     Returns:
-        Context-specific question string
+        Question string with project title/department prepended
     """
     title = project.get("title", "this project")
     department = project.get("department")
-
-    # Add project context to questions
     context_prefix = f'For "{title}"'
     if department:
         context_prefix += f" ({department})"
     context_prefix += ": "
-
-    # Make questions specific based on their type
-    if "scores would you assign" in template:
-        return f"{context_prefix}What specific evidence supports the current scores for ROI potential ({project.get('roi_potential', 'unset')}), effort ({project.get('implementation_effort', 'unset')}), alignment ({project.get('strategic_alignment', 'unset')}), and readiness ({project.get('stakeholder_readiness', 'unset')})?"
-    elif "problem or project" in template:
-        return f"{context_prefix}What specific business problem does this solve, and how does it impact day-to-day operations?"
-    elif "current process" in template or "baseline state" in template:
-        return f"{context_prefix}How are things done today without this solution? What workarounds exist?"
-    elif "success look like" in template or "target end state" in template:
-        return f"{context_prefix}What measurable outcomes would indicate this was successful (e.g., 30% time reduction, $50K savings)?"
-    elif "business owner" in template or "champion" in template:
-        return f"{context_prefix}Who has budget authority and will drive adoption of this initiative?"
-    elif "department or business unit" in template:
-        return f'Which team or department would be the primary beneficiary and owner of "{title}"?'
-    elif "quantifiable benefits" in template:
-        return f"{context_prefix}What are the estimated hours saved per week, cost reduction, or revenue impact?"
-    elif "rationale" in template:
-        return f"{context_prefix}What specific factors led to scoring ROI as {project.get('roi_potential', 'N/A')} and effort as {project.get('implementation_effort', 'N/A')}?"
-    elif "source of this project" in template:
-        return f'Where did "{title}" originate? (e.g., specific meeting, stakeholder request, pain point observation)'
-    elif "immediate next action" in template:
-        return f"{context_prefix}What is the single most important next step to validate or advance this?"
-    elif "constraints" in template:
-        return f"{context_prefix}Are there any known blockers like budget limits, technical dependencies, or competing priorities?"
-
-    # Default: just prepend context
     return f"{context_prefix}{template}"
 
 
-def evaluate_project_confidence(project: dict) -> Tuple[int, List[str]]:
-    """Evaluate confidence in a project's scores.
+async def _generate_context_aware_questions(
+    missing_fields: List[str],
+    project: dict,
+    tasks: Optional[List[dict]] = None,
+) -> List[str]:
+    """Generate context-aware confidence questions using an LLM.
+
+    Instead of generic templates, this uses the project's full context
+    (description, current/desired state, tasks) to produce specific,
+    actionable questions that reference what's already known.
+
+    Args:
+        missing_fields: List of rubric field keys that are missing
+        project: Full project dict
+        tasks: Optional list of task dicts linked to this project
+
+    Returns:
+        List of context-specific question strings
+    """
+    if not missing_fields:
+        return []
+
+    # Build context block from project fields
+    context_parts = []
+    title = project.get("title", "Unknown Project")
+    context_parts.append(f"Project: {title}")
+    if project.get("department"):
+        context_parts.append(f"Department: {project['department']}")
+    if project.get("description"):
+        context_parts.append(f"Description: {project['description']}")
+    if project.get("current_state"):
+        context_parts.append(f"Current state: {project['current_state']}")
+    if project.get("desired_state"):
+        context_parts.append(f"Desired state: {project['desired_state']}")
+    if project.get("next_step"):
+        context_parts.append(f"Next step: {project['next_step']}")
+    if project.get("project_summary"):
+        context_parts.append(f"Summary: {project['project_summary']}")
+
+    # Include scores if set
+    scores = {}
+    for field in ["roi_potential", "implementation_effort", "strategic_alignment", "stakeholder_readiness"]:
+        val = project.get(field)
+        if val is not None:
+            scores[field] = val
+    if scores:
+        context_parts.append(f"Current scores: {scores}")
+
+    # Include task context
+    if tasks:
+        task_lines = []
+        for t in tasks[:10]:  # Cap at 10 to control token usage
+            status = t.get("status", "unknown")
+            task_title = t.get("title", "Untitled")
+            notes = t.get("notes", "")
+            line = f"- [{status}] {task_title}"
+            if notes:
+                line += f" -- {notes[:150]}"
+            task_lines.append(line)
+        context_parts.append(f"Related tasks:\n" + "\n".join(task_lines))
+
+    project_context = "\n".join(context_parts)
+
+    # Map missing fields to what info is needed
+    field_descriptions = {
+        "scores_complete": "dimension scores (ROI potential, implementation effort, strategic alignment, stakeholder readiness) with supporting evidence",
+        "description": "a clear description of what this project does and what problem it solves",
+        "current_state": "what the current process or situation looks like today",
+        "desired_state": "what success looks like and what the target end state is",
+        "owner_stakeholder_id": "a named business owner or champion who will drive this forward",
+        "department": "which department or team owns this",
+        "roi_indicators": "quantifiable expected benefits (hours saved, cost reduction, revenue impact)",
+        "has_justifications": "rationale explaining why each dimension was scored the way it was",
+        "source_type": "where this project originated (which meeting, stakeholder request, or discovery)",
+        "next_step": "the immediate next action to move this forward",
+        "blockers_documented": "any known blockers, risks, or dependencies",
+    }
+
+    missing_descriptions = [field_descriptions.get(f, f) for f in missing_fields]
+
+    prompt = f"""You are a project analyst reviewing an AI project portfolio. Given the project context below, generate specific questions that would help fill in the missing information.
+
+PROJECT CONTEXT:
+{project_context}
+
+MISSING INFORMATION NEEDED:
+{chr(10).join(f"- {d}" for d in missing_descriptions)}
+
+RULES:
+- Generate exactly one question per missing item (max {len(missing_fields)} questions)
+- Each question MUST reference specific details from the project context -- names, processes, metrics, or facts already known
+- Questions should be actionable -- answerable by someone familiar with the project
+- Do not ask about information that is already provided in the context
+- Keep each question to 1-2 sentences
+- Do not number the questions or add prefixes
+
+Return ONLY the questions, one per line, no other text."""
+
+    try:
+        client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=512,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = response.content[0].text.strip()
+        questions = [q.strip() for q in raw.split("\n") if q.strip()]
+        # Ensure we don't return more questions than missing fields
+        return questions[: len(missing_fields)]
+    except Exception as e:
+        logger.warning(f"LLM question generation failed for '{title}', falling back to templates: {e}")
+        return [_make_fallback_question(RUBRIC[f]["question"], project) for f in missing_fields]
+
+
+def _evaluate_rubric(project: dict) -> Tuple[int, int, List[str]]:
+    """Evaluate the rubric and return points, confidence, and missing field keys.
 
     Args:
         project: Dict with project fields
 
     Returns:
-        Tuple of (confidence_score: int 0-100, questions: List[str])
+        Tuple of (confidence_score: int 0-100, points: int, missing_fields: List[str])
     """
     points = 0
-    questions = []
+    missing_fields = []
 
     # Check all 4 dimension scores are present
     scores = [
@@ -159,44 +250,44 @@ def evaluate_project_confidence(project: dict) -> Tuple[int, List[str]]:
     if all(s is not None for s in scores):
         points += RUBRIC["scores_complete"]["points"]
     else:
-        questions.append(_make_specific_question(RUBRIC["scores_complete"]["question"], project))
+        missing_fields.append("scores_complete")
 
     # Check description
     if project.get("description"):
         points += RUBRIC["description"]["points"]
     else:
-        questions.append(_make_specific_question(RUBRIC["description"]["question"], project))
+        missing_fields.append("description")
 
     # Check current_state
     if project.get("current_state"):
         points += RUBRIC["current_state"]["points"]
     else:
-        questions.append(_make_specific_question(RUBRIC["current_state"]["question"], project))
+        missing_fields.append("current_state")
 
     # Check desired_state
     if project.get("desired_state"):
         points += RUBRIC["desired_state"]["points"]
     else:
-        questions.append(_make_specific_question(RUBRIC["desired_state"]["question"], project))
+        missing_fields.append("desired_state")
 
     # Check owner
     if project.get("owner_stakeholder_id"):
         points += RUBRIC["owner_stakeholder_id"]["points"]
     else:
-        questions.append(_make_specific_question(RUBRIC["owner_stakeholder_id"]["question"], project))
+        missing_fields.append("owner_stakeholder_id")
 
     # Check department
     if project.get("department"):
         points += RUBRIC["department"]["points"]
     else:
-        questions.append(_make_specific_question(RUBRIC["department"]["question"], project))
+        missing_fields.append("department")
 
     # Check ROI indicators (must have at least one)
     roi_indicators = project.get("roi_indicators") or {}
     if roi_indicators and len(roi_indicators) > 0:
         points += RUBRIC["roi_indicators"]["points"]
     else:
-        questions.append(_make_specific_question(RUBRIC["roi_indicators"]["question"], project))
+        missing_fields.append("roi_indicators")
 
     # Check justifications generated
     has_justifications = any(
@@ -211,35 +302,74 @@ def evaluate_project_confidence(project: dict) -> Tuple[int, List[str]]:
     if has_justifications:
         points += RUBRIC["has_justifications"]["points"]
     else:
-        questions.append(_make_specific_question(RUBRIC["has_justifications"]["question"], project))
+        missing_fields.append("has_justifications")
 
     # Check source documentation
     if project.get("source_type") or project.get("source_notes"):
         points += RUBRIC["source_type"]["points"]
     else:
-        questions.append(_make_specific_question(RUBRIC["source_type"]["question"], project))
+        missing_fields.append("source_type")
 
     # Check next_step
     if project.get("next_step"):
         points += RUBRIC["next_step"]["points"]
     else:
-        questions.append(_make_specific_question(RUBRIC["next_step"]["question"], project))
+        missing_fields.append("next_step")
 
     # Check blockers documented (get points if blockers array exists, even if empty)
     blockers = project.get("blockers")
     if blockers is not None:  # Array exists (could be empty, meaning "reviewed, none found")
         points += RUBRIC["blockers_documented"]["points"]
     else:
-        questions.append(_make_specific_question(RUBRIC["blockers_documented"]["question"], project))
+        missing_fields.append("blockers_documented")
 
-    # Calculate percentage (0-100)
     confidence = round((points / MAX_CONFIDENCE) * 100)
+    # Limit to top 5 most impactful (ordered by rubric weight since we check high-weight fields first)
+    missing_fields = missing_fields[:5]
 
-    # Limit questions to top 5 most impactful (they're already ordered by rubric weight)
-    questions = questions[:5]
+    logger.debug(f"Project confidence: {confidence}% ({points}/{MAX_CONFIDENCE} points), {len(missing_fields)} missing fields")
 
-    logger.debug(f"Project confidence: {confidence}% ({points}/{MAX_CONFIDENCE} points), {len(questions)} questions")
+    return confidence, points, missing_fields
 
+
+def evaluate_project_confidence(project: dict) -> Tuple[int, List[str]]:
+    """Evaluate confidence in a project's scores (sync, uses fallback template questions).
+
+    Used for batch operations and contexts where async/LLM calls are not practical.
+
+    Args:
+        project: Dict with project fields
+
+    Returns:
+        Tuple of (confidence_score: int 0-100, questions: List[str])
+    """
+    confidence, _, missing_fields = _evaluate_rubric(project)
+    questions = [_make_fallback_question(RUBRIC[f]["question"], project) for f in missing_fields]
+    return confidence, questions
+
+
+async def evaluate_project_confidence_smart(
+    project: dict,
+    tasks: Optional[List[dict]] = None,
+) -> Tuple[int, List[str]]:
+    """Evaluate confidence with context-aware LLM-generated questions.
+
+    Uses the project's full context (description, state, tasks) to generate
+    specific, actionable questions instead of generic templates.
+
+    Args:
+        project: Dict with project fields
+        tasks: Optional list of task dicts linked to this project
+
+    Returns:
+        Tuple of (confidence_score: int 0-100, questions: List[str])
+    """
+    confidence, _, missing_fields = _evaluate_rubric(project)
+
+    if not missing_fields:
+        return confidence, []
+
+    questions = await _generate_context_aware_questions(missing_fields, project, tasks)
     return confidence, questions
 
 

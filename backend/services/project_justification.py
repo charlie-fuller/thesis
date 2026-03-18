@@ -15,7 +15,7 @@ from typing import Optional
 import anthropic
 
 from database import get_supabase
-from services.project_confidence import evaluate_project_confidence
+from services.project_confidence import evaluate_project_confidence_smart
 
 logger = logging.getLogger(__name__)
 
@@ -159,8 +159,15 @@ async def generate_project_justifications(
         updated_result = supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
         updated_project = updated_result.data
 
-        # Calculate and save confidence score
-        confidence, questions = evaluate_project_confidence(updated_project)
+        # Calculate and save confidence score with context-aware questions
+        # Fetch tasks for richer context
+        tasks = []
+        try:
+            tasks_result = supabase.table("project_tasks").select("title,status,notes,category").eq("source_project_id", project_id).limit(10).execute()
+            tasks = tasks_result.data or []
+        except Exception:
+            pass
+        confidence, questions = await evaluate_project_confidence_smart(updated_project, tasks)
         supabase.table("ai_projects").update(
             {
                 "scoring_confidence": confidence,

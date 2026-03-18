@@ -2082,8 +2082,14 @@ async def evaluate_all_confidence(
 async def evaluate_single_confidence(
     project_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
-    """Evaluate and update confidence score for a single project."""
-    from services.project_confidence import evaluate_project_confidence
+    """Evaluate and update confidence score for a single project.
+
+    Uses context-aware LLM-generated questions that reference the project's
+    description, tasks, and other known details instead of generic templates.
+    """
+    import asyncio
+
+    from services.project_confidence import evaluate_project_confidence_smart
 
     # Fetch project
     result = (
@@ -2100,8 +2106,23 @@ async def evaluate_single_confidence(
 
     project = result.data
 
-    # Evaluate confidence
-    confidence, questions = evaluate_project_confidence(project)
+    # Fetch linked tasks for additional context
+    tasks = []
+    try:
+        tasks_result = await asyncio.to_thread(
+            lambda: supabase.table("project_tasks")
+            .select("title,status,notes,category")
+            .eq("source_project_id", project_id)
+            .eq("client_id", current_user["client_id"])
+            .limit(10)
+            .execute()
+        )
+        tasks = tasks_result.data or []
+    except Exception as e:
+        logger.warning(f"Failed to fetch tasks for confidence context: {e}")
+
+    # Evaluate confidence with context-aware questions
+    confidence, questions = await evaluate_project_confidence_smart(project, tasks)
 
     # Update in database
     supabase.table("ai_projects").update(
