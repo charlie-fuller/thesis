@@ -4,7 +4,7 @@
  * Strategy Content Component
  *
  * Displays company objectives/goals and department KPIs.
- * KPIs are fetched from the database and support inline editing.
+ * Goals and KPIs are fetched from the database and support inline editing.
  * Used as a tab within the Intelligence page.
  */
 
@@ -29,23 +29,28 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
+import StrategyFormModal from './StrategyFormModal'
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-interface CompanyObjective {
+interface StrategicGoal {
   id: string
+  level: string
   title: string
-  description: string
-  icon: string
-  target_metric: string
+  description: string | null
+  department: string | null
+  owner: string | null
+  target_metric: string | null
   current_value: number | null
-  target_value: number
-  unit: string
-  progress_percentage: number
+  target_value: number | null
+  unit: string | null
   status: 'on_track' | 'at_risk' | 'behind' | 'achieved'
   priority: number
+  parent_goal_id: string | null
+  fiscal_year: string
+  created_at: string
   updated_at: string
 }
 
@@ -61,6 +66,7 @@ interface DepartmentKPI {
   trend_percentage: number
   status: 'green' | 'yellow' | 'red'
   linked_objective_id: string | null
+  linked_goal_id: string | null
   fiscal_year: string
   sort_order: number
   created_at: string
@@ -68,148 +74,17 @@ interface DepartmentKPI {
 }
 
 // ============================================================================
-// COMPANY DATA - FY26 Company Goals (Completed)
-// ============================================================================
-
-const FY26_OBJECTIVES: CompanyObjective[] = [
-  {
-    id: '1',
-    title: 'Market Positioning',
-    description: 'Re-establish Contentful as a thought leader and disruptor in the broader DXP category, with a compelling near-term value proposition, and an expansive vision around content operations that co-opts the GenAI value proposition.',
-    icon: 'Target',
-    target_metric: 'DXP category leadership',
-    current_value: null,
-    target_value: 100,
-    unit: '%',
-    progress_percentage: 65,
-    status: 'on_track',
-    priority: 1,
-    updated_at: '2026-01-22T10:00:00Z',
-  },
-  {
-    id: '2',
-    title: 'Sales Productivity',
-    description: 'Accelerate sales productivity to approach industry benchmarks, exceed pipeline and bookings targets, and support increased S&M investment in H2 to re-accelerate revenue growth in FY27 and FY28.',
-    icon: 'TrendingUp',
-    target_metric: 'Pipeline vs target',
-    current_value: 113,
-    target_value: 100,
-    unit: '%',
-    progress_percentage: 100,
-    status: 'achieved',
-    priority: 2,
-    updated_at: '2026-01-22T10:00:00Z',
-  },
-  {
-    id: '3',
-    title: 'Product Innovation',
-    description: 'Accelerate velocity of new product and feature introductions that reinforce platform/ecosystem leadership, provide differentiated expansion into DXP category, and capture net new spend categories through GenAI capabilities.',
-    icon: 'Sparkles',
-    target_metric: 'EXO/GenAI milestones',
-    current_value: 5,
-    target_value: 8,
-    unit: 'milestones',
-    progress_percentage: 63,
-    status: 'on_track',
-    priority: 3,
-    updated_at: '2026-01-22T10:00:00Z',
-  },
-  {
-    id: '4',
-    title: 'Culture',
-    description: 'Create a winning culture based on transparency, empowerment, risk taking and performance. Values: Relentless Customer Focus, Own It, Be Bold, Win Together.',
-    icon: 'Users',
-    target_metric: 'Employee retention',
-    current_value: 92,
-    target_value: 98,
-    unit: '%',
-    progress_percentage: 67,
-    status: 'on_track',
-    priority: 4,
-    updated_at: '2026-01-22T10:00:00Z',
-  },
-]
-
-// ============================================================================
-// COMPANY DATA - FY27 Company Goals (Current)
-// ============================================================================
-
-const FY27_OBJECTIVES: CompanyObjective[] = [
-  {
-    id: '1',
-    title: 'Market Leadership',
-    description: 'Transform perceptions of Contentful from a technical CMS tool for developers into a strategic solution partner for CMOs and CTOs. Create a differentiated narrative around our product vision that capitalizes on emerging AI disruptions and creates an aura of industry leadership.',
-    icon: 'Target',
-    target_metric: 'CMO/CTO perception shift',
-    current_value: null,
-    target_value: 100,
-    unit: '%',
-    progress_percentage: 0,
-    status: 'on_track',
-    priority: 1,
-    updated_at: '2026-01-22T10:00:00Z',
-  },
-  {
-    id: '2',
-    title: 'Cost-Efficient GTM Growth',
-    description: 'Build upon FY26 productivity improvements to exceed all FY top line targets, achieve a cost-to-book ratio under 2.0, and improve FY26 gross retention metrics.',
-    icon: 'TrendingUp',
-    target_metric: 'Cost-to-book ratio',
-    current_value: null,
-    target_value: 2.0,
-    unit: 'ratio',
-    progress_percentage: 0,
-    status: 'on_track',
-    priority: 2,
-    updated_at: '2026-01-22T10:00:00Z',
-  },
-  {
-    id: '3',
-    title: 'Product Innovation',
-    description: 'Introduce new platform and AI-powered experience orchestration capabilities that leapfrog the market. Democratize the value of experimentation, p13n, and content analytics. Develop a clear product strategy behind the agentic web.',
-    icon: 'Sparkles',
-    target_metric: 'EXO/Agentic Web milestones',
-    current_value: null,
-    target_value: 8,
-    unit: 'milestones',
-    progress_percentage: 0,
-    status: 'on_track',
-    priority: 3,
-    updated_at: '2026-01-22T10:00:00Z',
-  },
-  {
-    id: '4',
-    title: 'Culture',
-    description: 'Create a winning culture based on transparency, empowerment, risk taking and performance. Target: 98% employee retention.',
-    icon: 'Users',
-    target_metric: 'Employee retention',
-    current_value: null,
-    target_value: 98,
-    unit: '%',
-    progress_percentage: 0,
-    status: 'on_track',
-    priority: 4,
-    updated_at: '2026-01-22T10:00:00Z',
-  },
-]
-
-// ============================================================================
 // HELPER COMPONENTS
 // ============================================================================
 
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  Sparkles,
-  Users,
-  Target,
-  TrendingUp,
-}
+const GOAL_ICONS = [Target, TrendingUp, Sparkles, Users, BarChart3, Building2]
 
-function ObjectiveIcon({ name, className }: { name: string; className?: string }) {
-  const Icon = ICON_MAP[name] || Target
+function GoalIcon({ priority, className }: { priority: number; className?: string }) {
+  const Icon = GOAL_ICONS[priority % GOAL_ICONS.length] || Target
   return <Icon className={className} />
 }
 
-function StatusBadge({ status }: { status: CompanyObjective['status'] }) {
+function StatusBadge({ status }: { status: StrategicGoal['status'] }) {
   const config = {
     on_track: { label: 'On Track', color: 'var(--color-success)' },
     at_risk: { label: 'At Risk', color: 'var(--color-warning)' },
@@ -261,7 +136,7 @@ function TrendIndicator({ trend, percentage }: { trend: DepartmentKPI['trend']; 
   )
 }
 
-function ProgressBar({ percentage, status }: { percentage: number; status: CompanyObjective['status'] }) {
+function ProgressBar({ percentage, status }: { percentage: number; status: StrategicGoal['status'] }) {
   const colors = {
     on_track: 'var(--color-success)',
     at_risk: 'var(--color-warning)',
@@ -626,9 +501,13 @@ export default function StrategyContent() {
   const [addingToDepartment, setAddingToDepartment] = useState<string | null>(null)
   const [showAddDepartment, setShowAddDepartment] = useState(false)
   const [deletingKpiId, setDeletingKpiId] = useState<string | null>(null)
-
-  // Select objectives based on fiscal year tab
-  const objectives = fiscalYearTab === 'fy26' ? FY26_OBJECTIVES : FY27_OBJECTIVES
+  const [goals, setGoals] = useState<StrategicGoal[]>([])
+  const [goalsLoading, setGoalsLoading] = useState(true)
+  const [showFormModal, setShowFormModal] = useState(false)
+  const [editItem, setEditItem] = useState<{
+    type: 'company_goal' | 'team_goal' | 'kpi'
+    data: StrategicGoal | DepartmentKPI
+  } | null>(null)
 
   // Fetch KPIs from API
   const fetchKpis = useCallback(async () => {
@@ -644,9 +523,38 @@ export default function StrategyContent() {
     }
   }, [])
 
+  // Fetch goals from API
+  const fetchGoals = useCallback(async () => {
+    try {
+      const data = await apiGet<StrategicGoal[]>('/api/strategy/goals')
+      setGoals(data)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load goals'
+      setError(msg)
+    } finally {
+      setGoalsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchKpis()
-  }, [fetchKpis])
+    fetchGoals()
+  }, [fetchKpis, fetchGoals])
+
+  // Derive objectives from fetched goals
+  const companyGoals = goals.filter((g) => g.level === 'company')
+  const teamGoals = goals.filter((g) => g.level === 'team')
+  const objectives = companyGoals.filter(
+    (g) => g.fiscal_year === (fiscalYearTab === 'fy26' ? 'FY26' : 'FY27')
+  )
+
+  const handleFormSaved = () => {
+    fetchGoals()
+    fetchKpis()
+    setEditItem(null)
+  }
+
+  const defaultFormType = mainTab === 'company' ? 'company_goal' as const : 'kpi' as const
 
   // Group KPIs by department
   const kpisByDepartment = kpis.reduce((acc, kpi) => {
@@ -719,7 +627,16 @@ export default function StrategyContent() {
     atRisk: objectives.filter(o => o.status === 'at_risk').length,
     behind: objectives.filter(o => o.status === 'behind').length,
     achieved: objectives.filter(o => o.status === 'achieved').length,
-    avgProgress: Math.round(objectives.reduce((sum, o) => sum + o.progress_percentage, 0) / objectives.length),
+    avgProgress: objectives.length > 0
+      ? Math.round(
+          objectives.reduce((sum, o) => {
+            if (o.current_value != null && o.target_value != null && o.target_value > 0) {
+              return sum + Math.round((o.current_value / o.target_value) * 100)
+            }
+            return sum
+          }, 0) / objectives.length
+        )
+      : 0,
   }
 
   const kpiSummary = {
@@ -732,11 +649,21 @@ export default function StrategyContent() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <p className="text-muted">
-          Company objectives and G&A department KPIs. Use these to align AI opportunities with
+          Company objectives and G&amp;A department KPIs. Use these to align AI opportunities with
           strategic priorities and demonstrate impact in career reviews with Compass.
         </p>
+        <button
+          onClick={() => {
+            setEditItem(null)
+            setShowFormModal(true)
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-white rounded hover:opacity-90 flex-shrink-0 ml-4"
+        >
+          <Plus className="w-4 h-4" />
+          Add
+        </button>
       </div>
 
       {/* Main Tabs */}
@@ -768,163 +695,175 @@ export default function StrategyContent() {
       {/* Company Objectives Tab */}
       {mainTab === 'company' && (
         <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-card border border-default rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">
-                  {fiscalYearTab === 'fy26' ? 'FY26 Final' : 'FY27 Progress'}
-                </span>
-                <Target className="w-5 h-5 text-blue-500" />
-              </div>
-              <div className="mt-2">
-                {fiscalYearTab === 'fy26' ? (
-                  <>
-                    <span className="text-2xl font-bold text-primary">{objectiveSummary.avgProgress}%</span>
-                    <span className="text-sm text-muted ml-2">avg completion</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-2xl font-bold text-primary">{objectives.length}</span>
-                    <span className="text-sm text-muted ml-2">strategic goals</span>
-                  </>
-                )}
-              </div>
-              <div className="mt-2 flex gap-2 text-xs">
-                {fiscalYearTab === 'fy26' ? (
-                  <>
-                    <span style={{ color: 'var(--color-success)' }}>{objectiveSummary.onTrack} on track</span>
-                    <span style={{ color: 'var(--color-warning)' }}>{objectiveSummary.atRisk} at risk</span>
-                    <span style={{ color: 'var(--color-error)' }}>{objectiveSummary.behind} behind</span>
-                  </>
-                ) : (
-                  <span className="text-secondary">Planning targets for next fiscal year</span>
-                )}
-              </div>
+          {/* Loading state for goals */}
+          {goalsLoading && (
+            <div className="flex items-center justify-center py-12 text-muted">
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              Loading goals...
             </div>
+          )}
 
-            <div className="bg-card border border-default rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Strategic Goals</span>
-                <Sparkles className="w-5 h-5 text-amber-500" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-bold text-primary">{objectives.length}</span>
-                <span className="text-sm text-muted ml-2">objectives</span>
-              </div>
-              <div className="mt-2 text-xs text-muted">
-                {fiscalYearTab === 'fy26' ? 'Current fiscal year' : 'Next fiscal year planning'}
-              </div>
-            </div>
-
-            <div className="bg-card border border-default rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Achieved</span>
-                <TrendingUp className="w-5 h-5 text-green-500" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-bold text-primary">{objectiveSummary.achieved}</span>
-                <span className="text-sm text-muted ml-2">/ {objectives.length}</span>
-              </div>
-              <div className="mt-2 text-xs text-muted">
-                Goals completed
-              </div>
-            </div>
-          </div>
-
-          {/* Fiscal Year Tabs */}
-          <div className="flex items-center gap-2 mb-4">
-            <button
-              onClick={() => setFiscalYearTab('fy26')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                fiscalYearTab === 'fy26'
-                  ? 'bg-primary text-white'
-                  : 'bg-card border border-default text-secondary hover:bg-hover'
-              }`}
-            >
-              FY26 Goals
-              <span className="ml-1.5 text-xs opacity-75">(Completed)</span>
-            </button>
-            <button
-              onClick={() => setFiscalYearTab('fy27')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                fiscalYearTab === 'fy27'
-                  ? 'bg-primary text-white'
-                  : 'bg-card border border-default text-secondary hover:bg-hover'
-              }`}
-            >
-              FY27 Goals
-              <span className="ml-1.5 text-xs opacity-75">(Current)</span>
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {objectives
-              .sort((a, b) => a.priority - b.priority)
-              .map((objective) => (
-                <div
-                  key={objective.id}
-                  className="bg-card border border-default rounded-lg p-5 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Icon */}
-                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-hover flex items-center justify-center">
-                      <ObjectiveIcon name={objective.icon} className="w-6 h-6 icon-primary" />
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <h3 className="text-base font-semibold text-primary">
-                            {objective.priority}. {objective.title}
-                          </h3>
-                          <p className="text-sm text-muted mt-1">{objective.description}</p>
-                        </div>
-                        {fiscalYearTab === 'fy26' ? (
-                          <StatusBadge status={objective.status} />
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-hover text-secondary">
-                            Planning
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Progress */}
-                      <div className="mt-4">
-                        <div className="flex items-center justify-between text-sm mb-1">
-                          <span className="text-muted">{objective.target_metric}</span>
-                          <span className="font-medium text-primary">
-                            {fiscalYearTab === 'fy26' ? (
-                              <>
-                                {objective.current_value !== null ? objective.current_value : '--'}{objective.unit} / {objective.target_value}{objective.unit}
-                              </>
-                            ) : (
-                              <>Target: {objective.target_value}{objective.unit}</>
-                            )}
-                          </span>
-                        </div>
-                        {fiscalYearTab === 'fy26' ? (
-                          <>
-                            <ProgressBar percentage={objective.progress_percentage} status={objective.status} />
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-xs text-muted">{objective.progress_percentage}% complete</span>
-                              <span className="text-xs text-muted">
-                                Updated {new Date(objective.updated_at).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="h-2 bg-hover rounded-full overflow-hidden">
-                            <div className="h-full w-0 rounded-full border-default" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
+          {!goalsLoading && (
+            <>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-card border border-default rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted">
+                      {fiscalYearTab === 'fy26' ? 'FY26 Final' : 'FY27 Progress'}
+                    </span>
+                    <Target className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div className="mt-2">
+                    {fiscalYearTab === 'fy26' ? (
+                      <>
+                        <span className="text-2xl font-bold text-primary">{objectiveSummary.avgProgress}%</span>
+                        <span className="text-sm text-muted ml-2">avg completion</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-2xl font-bold text-primary">{objectives.length}</span>
+                        <span className="text-sm text-muted ml-2">strategic goals</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="mt-2 flex gap-2 text-xs">
+                    {fiscalYearTab === 'fy26' ? (
+                      <>
+                        <span style={{ color: 'var(--color-success)' }}>{objectiveSummary.onTrack} on track</span>
+                        <span style={{ color: 'var(--color-warning)' }}>{objectiveSummary.atRisk} at risk</span>
+                        <span style={{ color: 'var(--color-error)' }}>{objectiveSummary.behind} behind</span>
+                      </>
+                    ) : (
+                      <span className="text-secondary">Planning targets for next fiscal year</span>
+                    )}
                   </div>
                 </div>
-              ))}
-          </div>
+
+                <div className="bg-card border border-default rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted">Strategic Goals</span>
+                    <Sparkles className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div className="mt-2">
+                    <span className="text-2xl font-bold text-primary">{objectives.length}</span>
+                    <span className="text-sm text-muted ml-2">objectives</span>
+                  </div>
+                  <div className="mt-2 text-xs text-muted">
+                    {fiscalYearTab === 'fy26' ? 'Current fiscal year' : 'Next fiscal year planning'}
+                  </div>
+                </div>
+
+                <div className="bg-card border border-default rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted">Achieved</span>
+                    <TrendingUp className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div className="mt-2">
+                    <span className="text-2xl font-bold text-primary">{objectiveSummary.achieved}</span>
+                    <span className="text-sm text-muted ml-2">/ {objectives.length}</span>
+                  </div>
+                  <div className="mt-2 text-xs text-muted">
+                    Goals completed
+                  </div>
+                </div>
+              </div>
+
+              {/* Fiscal Year Tabs */}
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  onClick={() => setFiscalYearTab('fy26')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    fiscalYearTab === 'fy26'
+                      ? 'bg-primary text-white'
+                      : 'bg-card border border-default text-secondary hover:bg-hover'
+                  }`}
+                >
+                  FY26 Goals
+                  <span className="ml-1.5 text-xs opacity-75">(Completed)</span>
+                </button>
+                <button
+                  onClick={() => setFiscalYearTab('fy27')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    fiscalYearTab === 'fy27'
+                      ? 'bg-primary text-white'
+                      : 'bg-card border border-default text-secondary hover:bg-hover'
+                  }`}
+                >
+                  FY27 Goals
+                  <span className="ml-1.5 text-xs opacity-75">(Current)</span>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {objectives
+                  .sort((a, b) => a.priority - b.priority)
+                  .map((objective) => {
+                    const progressPct =
+                      objective.current_value != null && objective.target_value != null && objective.target_value > 0
+                        ? Math.round((objective.current_value / objective.target_value) * 100)
+                        : 0
+                    return (
+                      <div
+                        key={objective.id}
+                        className="group bg-card border border-default rounded-lg p-5 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Icon */}
+                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-hover flex items-center justify-center">
+                            <GoalIcon priority={objective.priority - 1} className="w-6 h-6 icon-primary" />
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <h3 className="text-base font-semibold text-primary">
+                                  {objective.priority}. {objective.title}
+                                </h3>
+                                <p className="text-sm text-muted mt-1">{objective.description}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <StatusBadge status={objective.status} />
+                                <button
+                                  onClick={() => {
+                                    setEditItem({
+                                      type: objective.level === 'company' ? 'company_goal' : 'team_goal',
+                                      data: objective,
+                                    })
+                                    setShowFormModal(true)
+                                  }}
+                                  className="p-1 text-muted hover:text-primary hover:bg-hover rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Progress */}
+                            <div className="mt-4">
+                              <div className="flex items-center justify-between text-sm mb-1">
+                                <span className="text-muted">{objective.target_metric || ''}</span>
+                                <span className="font-medium text-primary">
+                                  {objective.current_value !== null ? objective.current_value : '--'}{objective.unit || ''} / {objective.target_value ?? '--'}{objective.unit || ''}
+                                </span>
+                              </div>
+                              <ProgressBar percentage={progressPct} status={objective.status} />
+                              <div className="flex items-center justify-between mt-1">
+                                <span className="text-xs text-muted">{progressPct}% complete</span>
+                                <span className="text-xs text-muted">
+                                  Updated {new Date(objective.updated_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -1005,6 +944,65 @@ export default function StrategyContent() {
                   </div>
                 </div>
               </div>
+
+              {/* Team Goals by Department */}
+              {teamGoals.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-3">Team Goals</h3>
+                  <div className="space-y-3">
+                    {Object.entries(
+                      teamGoals.reduce((acc, g) => {
+                        const dept = g.department || 'General'
+                        if (!acc[dept]) acc[dept] = []
+                        acc[dept].push(g)
+                        return acc
+                      }, {} as Record<string, StrategicGoal[]>)
+                    )
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([dept, deptGoals]) => (
+                        <div key={dept} className="bg-card border border-default rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Building2 className="w-4 h-4 text-purple-500" />
+                            <span className="text-sm font-medium text-primary">{dept}</span>
+                          </div>
+                          <div className="space-y-2">
+                            {deptGoals.sort((a, b) => a.priority - b.priority).map((goal) => {
+                              const pct =
+                                goal.current_value != null && goal.target_value != null && goal.target_value > 0
+                                  ? Math.round((goal.current_value / goal.target_value) * 100)
+                                  : 0
+                              return (
+                                <div key={goal.id} className="flex items-center justify-between group">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <GoalIcon priority={goal.priority} className="w-4 h-4 icon-primary flex-shrink-0" />
+                                    <span className="text-sm text-primary truncate">{goal.title}</span>
+                                    <StatusBadge status={goal.status} />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {goal.target_value != null && (
+                                      <span className="text-xs text-muted">
+                                        {goal.current_value ?? '--'} / {goal.target_value} {goal.unit || ''}
+                                      </span>
+                                    )}
+                                    <button
+                                      onClick={() => {
+                                        setEditItem({ type: 'team_goal', data: goal })
+                                        setShowFormModal(true)
+                                      }}
+                                      className="p-1 text-muted hover:text-primary rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
 
               {/* Department List */}
               <div className="space-y-3">
@@ -1203,6 +1201,17 @@ export default function StrategyContent() {
           </div>
         </div>
       </div>
+
+      <StrategyFormModal
+        open={showFormModal}
+        onClose={() => {
+          setShowFormModal(false)
+          setEditItem(null)
+        }}
+        onSaved={handleFormSaved}
+        editItem={editItem}
+        defaultType={defaultFormType}
+      />
     </div>
   )
 }
