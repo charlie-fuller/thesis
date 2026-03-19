@@ -438,6 +438,7 @@ from api.routes import (
     clients,
     command,
     compass,
+    strategy,
     conversations,
     digest,
     disco,
@@ -497,6 +498,7 @@ app.include_router(disco.router)
 app.include_router(entity_registry.router)
 app.include_router(entity_corrections.router)
 app.include_router(command.router)
+app.include_router(strategy.router)
 
 logger.info(
     "All route modules registered (including Thesis multi-agent, graph, meeting room, "
