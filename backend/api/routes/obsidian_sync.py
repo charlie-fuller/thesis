@@ -733,7 +733,9 @@ async def upload_remote_file(
 
         file_path = request.file_path
         # Sanitize problematic characters in file path
-        for old, new in [(" <> ", " - "), ("<>", "-"), ("<", "-"), (">", "-"), ("#", ""), ("%", "percent"), ("[NA]", "NA")]:
+        import unicodedata
+        file_path = unicodedata.normalize("NFKD", file_path).encode("ascii", "ignore").decode("ascii")
+        for old, new in [(" <> ", " - "), ("<>", "-"), ("<", "-"), (">", "-"), ("#", ""), ("%", "percent"), ("[NA]", "NA"), ("\u2014", "-"), ("\u2013", "-")]:
             file_path = file_path.replace(old, new)
         content = request.content
 

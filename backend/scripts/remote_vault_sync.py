@@ -166,6 +166,9 @@ class RemoteVaultSyncer:
     @staticmethod
     def _sanitize_path(path: str) -> str:
         """Sanitize file path for API/storage compatibility."""
+        import unicodedata
+        # Normalize unicode (e.g., ö -> o)
+        path = unicodedata.normalize("NFKD", path).encode("ascii", "ignore").decode("ascii")
         path = path.replace(" <> ", " - ")
         path = path.replace("<>", "-")
         path = path.replace("<", "-")
@@ -173,6 +176,9 @@ class RemoteVaultSyncer:
         path = path.replace("#", "")
         path = path.replace("%", "percent")
         path = path.replace("[NA]", "NA")
+        # Clean up em dash and other special dashes
+        path = path.replace("\u2014", "-")
+        path = path.replace("\u2013", "-")
         return path
 
     def upload_file(self, file_path: Path, sync_current: int = None, sync_total: int = None) -> dict:
