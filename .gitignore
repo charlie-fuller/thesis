@@ -92,3 +92,4 @@ DEPLOYMENT_STATUS.md
 
 # Database backups (contain credentials)
 database/backups/
+.worktrees/
