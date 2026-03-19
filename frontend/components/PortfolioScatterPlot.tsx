@@ -97,6 +97,29 @@ function getNumericValue(field: AxisField, rawValue: string | null): number | nu
   }
 }
 
+// Map investment to bubble radius
+const INVESTMENT_RADIUS: Record<string, number> = {
+  '0-1k': 5,
+  '1k-5k': 7,
+  '5k-15k': 9,
+  '15k-25k': 12,
+  '25k+': 15,
+}
+
+function getBubbleRadius(investment: string | null): number {
+  if (!investment) return 7
+  return INVESTMENT_RADIUS[investment.toLowerCase()] ?? 7
+}
+
+// Deterministic jitter based on project name to spread overlapping dots
+function hashJitter(name: string, index: number): number {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0
+  }
+  return ((hash + index * 7919) % 100) / 100 * 0.4 - 0.2 // range: -0.2 to +0.2
+}
+
 interface ScatterDataPoint {
   x: number
   y: number
@@ -171,14 +194,19 @@ export default function PortfolioScatterPlot({ projects }: PortfolioScatterPlotP
     return map
   }, [projects])
 
-  // Transform data for scatter plot
+  // Transform data for scatter plot with jitter to spread overlapping dots
   const scatterData = useMemo(() => {
     const points: ScatterDataPoint[] = []
-    for (const project of projects) {
+    for (let i = 0; i < projects.length; i++) {
+      const project = projects[i]
       const xVal = getNumericValue(xAxis, project[xAxis])
       const yVal = getNumericValue(yAxis, project[yAxis])
       if (xVal !== null && yVal !== null) {
-        points.push({ x: xVal, y: yVal, project })
+        points.push({
+          x: xVal + hashJitter(project.name, 0),
+          y: yVal + hashJitter(project.name, 1),
+          project,
+        })
       }
     }
     return points
@@ -272,6 +300,20 @@ export default function PortfolioScatterPlot({ projects }: PortfolioScatterPlotP
         ))}
       </div>
 
+      {/* Investment size legend */}
+      <div className="flex flex-wrap items-center gap-4 mb-6">
+        <span className="text-xs text-muted font-medium uppercase tracking-wider">Bubble Size = Investment:</span>
+        {Object.entries(INVESTMENT_RADIUS).map(([label, radius]) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <div
+              className="rounded-full bg-gray-400 dark:bg-gray-500"
+              style={{ width: radius * 2, height: radius * 2 }}
+            />
+            <span className="text-xs text-muted">{label}</span>
+          </div>
+        ))}
+      </div>
+
       {/* Chart */}
       <ResponsiveContainer width="100%" height={400}>
         <ScatterChart margin={{ top: 20, right: 30, bottom: 40, left: 40 }}>
@@ -317,10 +359,10 @@ export default function PortfolioScatterPlot({ projects }: PortfolioScatterPlotP
               <Cell
                 key={`cell-${index}`}
                 fill={departmentColorMap[entry.project.department] || '#64748b'}
-                fillOpacity={0.8}
+                fillOpacity={0.7}
                 stroke={departmentColorMap[entry.project.department] || '#64748b'}
                 strokeWidth={2}
-                r={8}
+                r={getBubbleRadius(entry.project.investment)}
               />
             ))}
           </Scatter>
