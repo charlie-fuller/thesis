@@ -163,9 +163,21 @@ class RemoteVaultSyncer:
         except Exception as e:
             return {"connected": False, "error": str(e)}
 
+    @staticmethod
+    def _sanitize_path(path: str) -> str:
+        """Sanitize file path for API/storage compatibility."""
+        path = path.replace(" <> ", " - ")
+        path = path.replace("<>", "-")
+        path = path.replace("<", "")
+        path = path.replace(">", "")
+        path = path.replace("#", "")
+        path = path.replace("%", "pct")
+        path = path.replace("[NA]", "NA")
+        return path
+
     def upload_file(self, file_path: Path, sync_current: int = None, sync_total: int = None) -> dict:
         """Upload a single file to remote API."""
-        relative_path = str(file_path.relative_to(self.vault_path))
+        relative_path = self._sanitize_path(str(file_path.relative_to(self.vault_path)))
 
         # Read file content
         content = self._read_file(file_path)
