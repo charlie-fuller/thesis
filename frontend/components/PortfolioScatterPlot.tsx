@@ -6,6 +6,7 @@ import {
   Scatter,
   XAxis,
   YAxis,
+  ZAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
@@ -123,6 +124,7 @@ function hashJitter(name: string, index: number): number {
 interface ScatterDataPoint {
   x: number
   y: number
+  z: number
   project: PortfolioProject
 }
 
@@ -202,9 +204,11 @@ export default function PortfolioScatterPlot({ projects }: PortfolioScatterPlotP
       const xVal = getNumericValue(xAxis, project[xAxis])
       const yVal = getNumericValue(yAxis, project[yAxis])
       if (xVal !== null && yVal !== null) {
+        const investmentSize = INVESTMENT_MAP[project.investment?.toLowerCase() ?? ''] ?? 1
         points.push({
           x: xVal + hashJitter(project.name, 0),
           y: yVal + hashJitter(project.name, 1),
+          z: investmentSize,
           project,
         })
       }
@@ -350,6 +354,12 @@ export default function PortfolioScatterPlot({ projects }: PortfolioScatterPlotP
               style: { fill: 'currentColor', fontSize: 12 },
             }}
           />
+          <ZAxis
+            type="number"
+            dataKey="z"
+            domain={[1, 5]}
+            range={[40, 400]}
+          />
           <Tooltip
             content={<CustomTooltip />}
             cursor={{ strokeDasharray: '3 3' }}
@@ -362,7 +372,6 @@ export default function PortfolioScatterPlot({ projects }: PortfolioScatterPlotP
                 fillOpacity={0.7}
                 stroke={departmentColorMap[entry.project.department] || '#64748b'}
                 strokeWidth={2}
-                r={getBubbleRadius(entry.project.investment)}
               />
             ))}
           </Scatter>
