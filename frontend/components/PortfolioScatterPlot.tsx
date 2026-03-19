@@ -358,7 +358,7 @@ export default function PortfolioScatterPlot({ projects }: PortfolioScatterPlotP
             type="number"
             dataKey="z"
             domain={[1, 5]}
-            range={[40, 400]}
+            range={[20, 800]}
           />
           <Tooltip
             content={<CustomTooltip />}
