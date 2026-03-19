@@ -168,10 +168,10 @@ class RemoteVaultSyncer:
         """Sanitize file path for API/storage compatibility."""
         path = path.replace(" <> ", " - ")
         path = path.replace("<>", "-")
-        path = path.replace("<", "")
-        path = path.replace(">", "")
+        path = path.replace("<", "-")
+        path = path.replace(">", "-")
         path = path.replace("#", "")
-        path = path.replace("%", "pct")
+        path = path.replace("%", "percent")
         path = path.replace("[NA]", "NA")
         return path
 
