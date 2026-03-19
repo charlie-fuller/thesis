@@ -13,7 +13,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   }
 }
 
+// Use placeholder values during build-time prerendering when env vars are unavailable.
+// The client will never be used server-side -- all pages using it are 'use client'.
 export const supabase = createBrowserClient(
-  supabaseUrl || '',
-  supabaseAnonKey || ''
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key'
 );
