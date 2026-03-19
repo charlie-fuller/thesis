@@ -455,6 +455,7 @@ from api.routes import (
     meeting_rooms,
     obsidian_sync,
     pipeline,
+    portfolio,
     projects,
     research,
     stakeholder_metrics,
@@ -499,6 +500,7 @@ app.include_router(entity_registry.router)
 app.include_router(entity_corrections.router)
 app.include_router(command.router)
 app.include_router(strategy.router)
+app.include_router(portfolio.router)
 
 logger.info(
     "All route modules registered (including Thesis multi-agent, graph, meeting room, "

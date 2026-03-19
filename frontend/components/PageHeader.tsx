@@ -61,6 +61,7 @@ export default function PageHeader({
     { href: '/chat', label: 'Chat' },
     { href: '/tasks', label: 'Tasks' },
     { href: '/projects', label: 'Projects' },
+    { href: '/portfolio', label: 'Portfolio' },
     // Conditionally add Initiatives link for users with access
     ...(hasDiscoAccess ? [{ href: '/disco', label: 'Initiatives' }] : []),
     { href: '/intelligence', label: 'Intelligence' },
