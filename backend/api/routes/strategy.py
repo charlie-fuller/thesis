@@ -36,6 +36,7 @@ class KPICreate(BaseModel):
     trend_percentage: float = 0
     status: str = Field(default="yellow", pattern="^(green|yellow|red)$")
     linked_objective_id: Optional[str] = None
+    linked_goal_id: Optional[str] = None
     fiscal_year: str = Field(default="FY27", max_length=10)
     sort_order: int = 0
 
@@ -53,6 +54,7 @@ class KPIUpdate(BaseModel):
     trend_percentage: Optional[float] = None
     status: Optional[str] = Field(None, pattern="^(green|yellow|red)$")
     linked_objective_id: Optional[str] = None
+    linked_goal_id: Optional[str] = None
     fiscal_year: Optional[str] = Field(None, max_length=10)
     sort_order: Optional[int] = None
 
@@ -71,8 +73,71 @@ class KPIResponse(BaseModel):
     trend_percentage: float
     status: str
     linked_objective_id: Optional[str]
+    linked_goal_id: Optional[str]
     fiscal_year: str
     sort_order: int
+    created_at: str
+    updated_at: str
+
+
+# ============================================================================
+# GOAL MODELS
+# ============================================================================
+
+
+class GoalCreate(BaseModel):
+    """Create a new strategic goal."""
+
+    level: str = Field(..., pattern="^(company|team)$")
+    title: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    department: Optional[str] = Field(None, max_length=100)
+    owner: Optional[str] = Field(None, max_length=255)
+    target_metric: Optional[str] = Field(None, max_length=255)
+    current_value: Optional[float] = None
+    target_value: Optional[float] = None
+    unit: Optional[str] = Field(None, max_length=50)
+    status: str = Field(default="on_track", pattern="^(on_track|at_risk|behind|achieved)$")
+    priority: int = 0
+    parent_goal_id: Optional[str] = None
+    fiscal_year: str = Field(default="FY27", max_length=10)
+
+
+class GoalUpdate(BaseModel):
+    """Update a strategic goal. All fields optional."""
+
+    level: Optional[str] = Field(None, pattern="^(company|team)$")
+    title: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    department: Optional[str] = Field(None, max_length=100)
+    owner: Optional[str] = Field(None, max_length=255)
+    target_metric: Optional[str] = Field(None, max_length=255)
+    current_value: Optional[float] = None
+    target_value: Optional[float] = None
+    unit: Optional[str] = Field(None, max_length=50)
+    status: Optional[str] = Field(None, pattern="^(on_track|at_risk|behind|achieved)$")
+    priority: Optional[int] = None
+    parent_goal_id: Optional[str] = None
+    fiscal_year: Optional[str] = Field(None, max_length=10)
+
+
+class GoalResponse(BaseModel):
+    """Goal response model."""
+
+    id: str
+    level: str
+    title: str
+    description: Optional[str]
+    department: Optional[str]
+    owner: Optional[str]
+    target_metric: Optional[str]
+    current_value: Optional[float]
+    target_value: Optional[float]
+    unit: Optional[str]
+    status: str
+    priority: int
+    parent_goal_id: Optional[str]
+    fiscal_year: str
     created_at: str
     updated_at: str
 
@@ -147,7 +212,7 @@ async def update_kpi(
     if not existing.data:
         raise HTTPException(status_code=404, detail="KPI not found")
 
-    update_data = {k: v for k, v in update.model_dump().items() if v is not None}
+    update_data = update.model_dump(exclude_unset=True)
 
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -219,3 +284,111 @@ async def kpi_summary(
         "by_status": status_counts,
         "by_department": dept_counts,
     }
+
+
+# ============================================================================
+# GOALS ENDPOINTS
+# ============================================================================
+
+
+@router.get("/goals", response_model=List[GoalResponse])
+async def list_goals(
+    level: Optional[str] = Query(None, pattern="^(company|team)$"),
+    department: Optional[str] = None,
+    fiscal_year: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """List strategic goals, filterable by level, department, and fiscal_year."""
+    query = (
+        supabase.table("strategic_goals")
+        .select("*")
+        .eq("client_id", current_user["client_id"])
+    )
+
+    if level:
+        query = query.eq("level", level)
+    if department:
+        query = query.eq("department", department)
+    if fiscal_year:
+        query = query.eq("fiscal_year", fiscal_year)
+
+    result = query.order("priority").execute()
+
+    return result.data or []
+
+
+@router.post("/goals", response_model=GoalResponse)
+async def create_goal(
+    goal: GoalCreate,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Create a new strategic goal."""
+    data = {
+        "client_id": current_user["client_id"],
+        **goal.model_dump(),
+    }
+
+    result = supabase.table("strategic_goals").insert(data).execute()
+
+    return result.data[0]
+
+
+@router.patch("/goals/{goal_id}", response_model=GoalResponse)
+async def update_goal(
+    goal_id: str,
+    update: GoalUpdate,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Update a strategic goal."""
+    existing = (
+        supabase.table("strategic_goals")
+        .select("id")
+        .eq("id", goal_id)
+        .eq("client_id", current_user["client_id"])
+        .single()
+        .execute()
+    )
+
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    update_data = update.model_dump(exclude_unset=True)
+
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    result = (
+        supabase.table("strategic_goals")
+        .update(update_data)
+        .eq("id", goal_id)
+        .execute()
+    )
+
+    return result.data[0]
+
+
+@router.delete("/goals/{goal_id}")
+async def delete_goal(
+    goal_id: str,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Delete a strategic goal. Linked KPIs get linked_goal_id set to null (DB cascade)."""
+    existing = (
+        supabase.table("strategic_goals")
+        .select("id")
+        .eq("id", goal_id)
+        .eq("client_id", current_user["client_id"])
+        .single()
+        .execute()
+    )
+
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    supabase.table("strategic_goals").delete().eq("id", goal_id).execute()
+
+    return {"message": "Goal deleted"}
