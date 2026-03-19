@@ -123,12 +123,12 @@ export default function PageHeader({
             </Link>
 
             {/* Navigation Links */}
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden md:flex items-center gap-1 min-w-0 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
               {userLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-hover"
+                  className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-hover whitespace-nowrap flex-shrink-0"
                   style={{
                     color: isActive(link.href)
                       ? theme.header_nav_active_color || 'var(--header-nav-active-color)'
