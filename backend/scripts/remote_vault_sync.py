@@ -51,6 +51,9 @@ INCLUDE_EXTENSIONS = {
     ".csv",  # CSV data (text-based)
     ".rtf",  # Rich text (text-based)
 }
+# Only sync files under these top-level folders (relative to vault root)
+INCLUDE_FOLDERS = {"contentful", "Granola"}
+
 EXCLUDE_PATTERNS = {
     ".obsidian",
     ".trash",
@@ -58,22 +61,7 @@ EXCLUDE_PATTERNS = {
     "node_modules",
     "__pycache__",
     ".claude",
-    "_attachments",
-    "_assets",
-    "_backup",
-    "_templates",
     "preserved-context",
-    ".hypothesis",
-    ".pytest_cache",
-    "_excalidraw",
-    "_resources",
-    "_scratch",
-    "Attachments",
-    "Backups",
-    "Daily Notes",
-    "GitHub/thesis",
-    "logseq",
-    "Templates",
 }
 
 # Debounce settings
@@ -118,11 +106,17 @@ class RemoteVaultSyncer:
         if file_path.suffix.lower() not in INCLUDE_EXTENSIONS:
             return False
 
-        # Check excluded patterns
-        path_str = str(file_path)
-        for pattern in EXCLUDE_PATTERNS:
-            if f"/{pattern}/" in path_str or path_str.endswith(f"/{pattern}"):
+        # Only sync files inside allowed top-level folders
+        try:
+            relative = file_path.relative_to(self.vault_path)
+            top_folder = relative.parts[0] if relative.parts else ""
+            if top_folder not in INCLUDE_FOLDERS:
                 return False
+        except ValueError:
+            return False
+
+        # Check excluded patterns
+        for pattern in EXCLUDE_PATTERNS:
             if pattern in file_path.parts:
                 return False
 
