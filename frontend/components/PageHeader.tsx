@@ -148,8 +148,18 @@ export default function PageHeader({
             )}
           </div>
 
-          {/* Right: Panel toggles (or empty spacer to balance centering) */}
+          {/* Right: Decision Tree link + Panel toggles */}
           <div className="flex items-center gap-1">
+            <Link
+              href="/platform-decision-tree.html"
+              target="_blank"
+              className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-hover whitespace-nowrap"
+              style={{
+                color: theme.header_nav_color || 'var(--header-nav-color)'
+              }}
+            >
+              Decision Tree
+            </Link>
             {showPanelToggles && onToggleLeftPanel && (
               <button
                 onClick={onToggleLeftPanel}
