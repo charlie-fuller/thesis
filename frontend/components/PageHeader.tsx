@@ -67,7 +67,7 @@ export default function PageHeader({
     { href: '/intelligence', label: 'Intelligence' },
     { href: '/command', label: 'Command' },
     { href: '/manifesto', label: 'Manifesto' },
-    { href: '/platform-decision-tree.html', label: 'Decision Tree' },
+    { href: '/decision-tree', label: 'Decision Tree' },
   ]
 
   const isActive = (href: string) => {
@@ -125,20 +125,27 @@ export default function PageHeader({
 
             {/* Navigation Links */}
             <div className="hidden md:flex items-center gap-1 min-w-0 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-              {userLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-hover whitespace-nowrap flex-shrink-0"
-                  style={{
-                    color: isActive(link.href)
-                      ? theme.header_nav_active_color || 'var(--header-nav-active-color)'
-                      : theme.header_nav_color || 'var(--header-nav-color)'
-                  }}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {userLinks.map((link) => {
+                const linkClass = "px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-hover whitespace-nowrap flex-shrink-0"
+                const linkStyle = {
+                  color: isActive(link.href)
+                    ? theme.header_nav_active_color || 'var(--header-nav-active-color)'
+                    : theme.header_nav_color || 'var(--header-nav-color)'
+                }
+                // Static HTML files in public/ must use <a> to avoid Next.js RSC prefetch 404s
+                if (link.href.endsWith('.html')) {
+                  return (
+                    <a key={link.href} href={link.href} className={linkClass} style={linkStyle}>
+                      {link.label}
+                    </a>
+                  )
+                }
+                return (
+                  <Link key={link.href} href={link.href} className={linkClass} style={linkStyle}>
+                    {link.label}
+                  </Link>
+                )
+              })}
             </div>
 
             {/* Tab Switcher (when provided) */}
