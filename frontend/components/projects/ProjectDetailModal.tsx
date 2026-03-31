@@ -599,7 +599,7 @@ export default function ProjectDetailModal({
 
     setGenerating(true)
     try {
-      await apiPost(`/api/projects/${project.id}/generate-justifications`, {})
+      await apiPost(`/api/projects/${project.id}/generate-justifications`, {}, { timeout: 60000 })
 
       // Refetch project to get updated justifications
       const updated = await apiGet<Project>(`/api/projects/${project.id}`)
@@ -614,7 +614,7 @@ export default function ProjectDetailModal({
 
   const handleAnalyzeGoalAlignment = async () => {
     try {
-      await apiPost(`/api/projects/${project.id}/analyze-goal-alignment`, {})
+      await apiPost(`/api/projects/${project.id}/analyze-goal-alignment`, {}, { timeout: 60000 })
 
       // Refetch project to get updated goal alignment data
       const updated = await apiGet<Project>(`/api/projects/${project.id}`)
