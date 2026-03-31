@@ -44,6 +44,37 @@ def _build_generation_prompt(project: dict) -> str:
     if roi_indicators:
         roi_details = "\nROI Indicators: " + ", ".join(f"{k}: {v}" for k, v in roi_indicators.items())
 
+    has_all_scores = all(s is not None for s in [roi, effort, alignment, readiness])
+
+    if has_all_scores:
+        scores_block = f"""SCORES (1-5 scale, where 5 is best):
+- ROI Potential: {roi}/5 (revenue, cost savings, time impact)
+- Implementation Ease: {effort}/5 (5=plug-and-play, 1=very complex)
+- Strategic Alignment: {alignment}/5 (fit with business priorities)
+- Stakeholder Readiness: {readiness}/5 (champion, data, team eagerness)
+
+Write brief justifications (2-4 sentences each) for:
+1. What this project is and its business impact
+2. Why ROI potential is scored as shown
+3. Why implementation ease is scored as shown
+4. Why strategic alignment is scored as shown
+5. Why stakeholder readiness is scored as shown"""
+    else:
+        scores_block = f"""CURRENT SCORES (1-5 scale, where 5 is best):
+- ROI Potential: {f"{roi}/5" if roi else "Not yet scored"} (revenue, cost savings, time impact)
+- Implementation Ease: {f"{effort}/5" if effort else "Not yet scored"} (5=plug-and-play, 1=very complex)
+- Strategic Alignment: {f"{alignment}/5" if alignment else "Not yet scored"} (fit with business priorities)
+- Stakeholder Readiness: {f"{readiness}/5" if readiness else "Not yet scored"} (champion, data, team eagerness)
+
+For any dimension marked "Not yet scored", suggest an appropriate score (1-5) based on the project details.
+
+Write brief justifications (2-4 sentences each) for:
+1. What this project is and its business impact
+2. Why ROI potential deserves its score
+3. Why implementation ease deserves its score
+4. Why strategic alignment deserves its score
+5. Why stakeholder readiness deserves its score"""
+
     return f"""Analyze this AI project and explain the scores.
 
 PROJECT:
@@ -53,29 +84,26 @@ PROJECT:
 - Current State: {current_state}
 - Desired State: {desired_state}{roi_details}
 
-SCORES (1-5 scale, where 5 is best):
-- ROI Potential: {roi if roi else "Not scored"}/5 (revenue, cost savings, time impact)
-- Implementation Ease: {effort if effort else "Not scored"}/5 (5=plug-and-play, 1=very complex)
-- Strategic Alignment: {alignment if alignment else "Not scored"}/5 (fit with business priorities)
-- Stakeholder Readiness: {readiness if readiness else "Not scored"}/5 (champion, data, team eagerness)
-
-Write brief justifications (2-4 sentences each) for:
-1. What this project is and its business impact
-2. Why ROI potential is scored as shown
-3. Why implementation ease is scored as shown
-4. Why strategic alignment is scored as shown
-5. Why stakeholder readiness is scored as shown
+{scores_block}
 
 Use these section labels (parser expects this format):
+ROI_SCORE: [integer 1-5]
+EFFORT_SCORE: [integer 1-5]
+ALIGNMENT_SCORE: [integer 1-5]
+READINESS_SCORE: [integer 1-5]
 PROJECT_SUMMARY: [text]
 ROI_JUSTIFICATION: [text]
 EFFORT_JUSTIFICATION: [text]
 ALIGNMENT_JUSTIFICATION: [text]
-READINESS_JUSTIFICATION: [text]"""
+READINESS_JUSTIFICATION: [text]
+
+Always include all score lines, even if confirming existing scores."""
 
 
 def _parse_generation_response(response_text: str) -> dict:
     """Parse the Claude response into structured fields."""
+    import re
+
     result = {
         "project_summary": None,
         "roi_justification": None,
@@ -84,7 +112,41 @@ def _parse_generation_response(response_text: str) -> dict:
         "readiness_justification": None,
     }
 
-    # Parse each section
+    # Parse numeric scores
+    score_map = {
+        "ROI_SCORE:": "roi_potential",
+        "EFFORT_SCORE:": "effort_score",
+        "ALIGNMENT_SCORE:": "alignment_score",
+        "READINESS_SCORE:": "readiness_score",
+    }
+
+    scores = {}
+    for marker, field in score_map.items():
+        if marker in response_text:
+            start = response_text.find(marker) + len(marker)
+            # Grab the rest of the line
+            end = response_text.find("\n", start)
+            if end == -1:
+                end = len(response_text)
+            value_str = response_text[start:end].strip()
+            match = re.search(r"(\d)", value_str)
+            if match:
+                score = int(match.group(1))
+                if 1 <= score <= 5:
+                    scores[field] = score
+
+    # Map parsed score fields to DB column names
+    db_score_map = {
+        "roi_potential": "roi_potential",
+        "effort_score": "implementation_effort",
+        "alignment_score": "strategic_alignment",
+        "readiness_score": "stakeholder_readiness",
+    }
+    for parsed_field, db_field in db_score_map.items():
+        if parsed_field in scores:
+            result[db_field] = scores[parsed_field]
+
+    # Parse text sections
     sections = {
         "PROJECT_SUMMARY:": "project_summary",
         "ROI_JUSTIFICATION:": "roi_justification",
@@ -93,12 +155,15 @@ def _parse_generation_response(response_text: str) -> dict:
         "READINESS_JUSTIFICATION:": "readiness_justification",
     }
 
+    # Build list of all markers for boundary detection
+    all_markers = list(score_map.keys()) + list(sections.keys())
+
     for marker, field in sections.items():
         if marker in response_text:
             start = response_text.find(marker) + len(marker)
             # Find the next section or end of text
             end = len(response_text)
-            for other_marker in sections:
+            for other_marker in all_markers:
                 if other_marker != marker and other_marker in response_text[start:]:
                     potential_end = response_text.find(other_marker, start)
                     if potential_end < end:
@@ -152,8 +217,24 @@ async def generate_project_justifications(
         response_text = response.content[0].text
         justifications = _parse_generation_response(response_text)
 
-        # Update the project in database with justifications
-        supabase.table("ai_projects").update(justifications).eq("id", project_id).execute()
+        # Separate score fields from justification text fields
+        score_fields = {"roi_potential", "implementation_effort", "strategic_alignment", "stakeholder_readiness"}
+        update_data = {}
+
+        for key, value in justifications.items():
+            if value is None:
+                continue
+            if key in score_fields:
+                # Only write AI-suggested scores if the project doesn't already have one
+                existing_val = project.get(key)
+                if existing_val is None:
+                    update_data[key] = value
+            else:
+                update_data[key] = value
+
+        # Update the project in database
+        if update_data:
+            supabase.table("ai_projects").update(update_data).eq("id", project_id).execute()
 
         # Re-fetch the project to get updated data for confidence calculation
         updated_result = supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
