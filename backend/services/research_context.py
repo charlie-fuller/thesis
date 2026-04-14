@@ -11,7 +11,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from database import get_supabase
+import pb_client as pb
+from repositories import research as research_repo
+from repositories import misc as misc_repo
 from logger_config import get_logger
 from services.agent_observer import (
     get_anticipatory_research_topics,
@@ -20,8 +22,6 @@ from services.agent_observer import (
 )
 
 logger = get_logger(__name__)
-
-supabase = get_supabase()
 
 
 # ============================================================================
@@ -310,17 +310,13 @@ async def get_scheduled_topics_for_today() -> list[dict]:
         # Convert Python weekday (0=Monday) to SQL weekday (0=Sunday)
         sql_dow = (today_dow + 1) % 7
 
-        result = (
-            supabase.table("research_schedule")
-            .select("*")
-            .is_("client_id", "null")
-            .eq("day_of_week", sql_dow)
-            .eq("is_active", True)
-            .order("priority", desc=True)
-            .execute()
+        result = pb.get_all(
+            "research_schedule",
+            filter=f"client_id='' && day_of_week={sql_dow} && is_active=true",
+            sort="-priority",
         )
 
-        return result.data or []
+        return result
 
     except Exception as e:
         logger.error(f"Failed to get scheduled topics: {e}")
@@ -339,23 +335,23 @@ async def has_recent_research(topic: str, focus_area: str, days: int = 7, client
     """
     try:
         since = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)
-        since = since.isoformat()
+        since_str = since.isoformat()
 
-        query = (
-            supabase.table("research_tasks")
-            .select("id")
-            .eq("focus_area", focus_area)
-            .eq("status", "completed")
-            .gte("completed_at", since)
-            .limit(1)
-        )
+        esc_focus = pb.escape_filter(focus_area)
+        esc_since = pb.escape_filter(since_str)
+        filter_str = f"focus_area='{esc_focus}' && status='completed' && completed_at>='{esc_since}'"
 
         if client_id:
-            query = query.eq("client_id", client_id)
+            esc_cid = pb.escape_filter(client_id)
+            filter_str += f" && client_id='{esc_cid}'"
 
-        result = query.execute()
+        result = pb.list_records(
+            "research_tasks",
+            filter=filter_str,
+            per_page=1,
+        )
 
-        return len(result.data or []) > 0
+        return len(result.get("items", [])) > 0
 
     except Exception as e:
         logger.error(f"Failed to check recent research: {e}")
@@ -407,28 +403,23 @@ async def get_research_summary() -> dict:
     """
     try:
         # Count pending tasks
-        pending = supabase.table("research_tasks").select("id", count="exact").eq("status", "pending").execute()
+        pending_count = pb.count("research_tasks", filter="status='pending'")
 
         # Count completed today
         today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
-        completed = (
-            supabase.table("research_tasks")
-            .select("id", count="exact")
-            .eq("status", "completed")
-            .gte("completed_at", today)
-            .execute()
-        )
+        esc_today = pb.escape_filter(today)
+        completed_count = pb.count("research_tasks", filter=f"status='completed' && completed_at>='{esc_today}'")
 
         # Count open gaps
-        gaps = supabase.table("knowledge_gaps").select("id", count="exact").eq("status", "open").execute()
+        gaps_count = pb.count("knowledge_gaps", filter="status='open'")
 
         # Get today's schedule
         scheduled = await get_scheduled_topics_for_today()
 
         return {
-            "pending_tasks": pending.count if hasattr(pending, "count") else 0,
-            "completed_today": completed.count if hasattr(completed, "count") else 0,
-            "open_gaps": gaps.count if hasattr(gaps, "count") else 0,
+            "pending_tasks": pending_count,
+            "completed_today": completed_count,
+            "open_gaps": gaps_count,
             "scheduled_today": len(scheduled),
             "scheduled_topics": [s.get("focus_area") for s in scheduled],
             "generated_at": datetime.now(timezone.utc).isoformat(),

@@ -11,12 +11,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from database import get_supabase
+import pb_client as pb
+from repositories import conversations as conversations_repo, stakeholders as stakeholders_repo
+from repositories import misc as misc_repo
 from logger_config import get_logger
 
 logger = get_logger(__name__)
-
-supabase = get_supabase()
 
 
 # ============================================================================
@@ -134,21 +134,15 @@ async def get_recent_agent_conversations(days: int = 7, client_id: Optional[str]
     """Get recent conversations where agents participated."""
     try:
         since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        esc_since = pb.escape_filter(since)
 
-        query = (
-            supabase.table("conversations")
-            .select("id, title, agent_name, updated_at, client_id")
-            .gte("updated_at", since)
-            .not_.is_("agent_name", "null")
-            .order("updated_at", desc=True)
-        )
+        filter_str = f"updated>='{esc_since}' && agent_name!=''"
 
         if client_id:
-            query = query.eq("client_id", client_id)
+            esc_cid = pb.escape_filter(client_id)
+            filter_str += f" && client_id='{esc_cid}'"
 
-        result = query.execute()
-
-        return result.data or []
+        return pb.get_all("conversations", filter=filter_str, sort="-updated")
 
     except Exception as e:
         logger.error(f"Failed to get recent conversations: {e}")
@@ -161,28 +155,16 @@ async def analyze_conversation_for_gaps(conversation_id: str) -> list[KnowledgeG
 
     try:
         # Get conversation messages
-        result = (
-            supabase.table("messages")
-            .select("role, content, created_at")
-            .eq("conversation_id", conversation_id)
-            .order("created_at")
-            .execute()
+        esc_conv = pb.escape_filter(conversation_id)
+        messages = pb.get_all(
+            "messages",
+            filter=f"conversation_id='{esc_conv}'",
+            sort="created",
         )
-
-        messages = result.data or []
 
         # Get conversation metadata
-        conv_result = (
-            supabase.table("conversations")
-            .select("agent_name, title, client_id")
-            .eq("id", conversation_id)
-            .single()
-            .execute()
-        )
-
-        conv = conv_result.data
+        conv = conversations_repo.get_conversation(conversation_id)
         agent_name = conv.get("agent_name") if conv else "unknown"
-        conv.get("client_id") if conv else None
 
         # Analyze message pairs (user question -> agent response)
         for i, msg in enumerate(messages):
@@ -306,47 +288,38 @@ async def save_knowledge_gap(gap: KnowledgeGap, client_id: Optional[str] = None)
     """
     try:
         # Check for existing similar gap
-        existing = (
-            supabase.table("knowledge_gaps")
-            .select("id, occurrence_count")
-            .eq("topic", gap.topic[:255])
-            .eq("source_agent", gap.source_agent)
-            .eq("status", "open")
-            .limit(1)
-            .execute()
+        esc_topic = pb.escape_filter(gap.topic[:255])
+        esc_agent = pb.escape_filter(gap.source_agent)
+        existing = pb.get_all(
+            "knowledge_gaps",
+            filter=f"topic='{esc_topic}' && source_agent='{esc_agent}' && status='open'",
         )
 
-        if existing.data:
+        if existing:
             # Increment occurrence count
-            gap_id = existing.data[0]["id"]
-            new_count = existing.data[0]["occurrence_count"] + 1
+            gap_id = existing[0]["id"]
+            new_count = (existing[0].get("occurrence_count") or 0) + 1
 
-            supabase.table("knowledge_gaps").update(
-                {
-                    "occurrence_count": new_count,
-                    "priority": min(10, gap.priority + 1),  # Increase priority
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                }
-            ).eq("id", gap_id).execute()
+            misc_repo.update_knowledge_gap(gap_id, {
+                "occurrence_count": new_count,
+                "priority": min(10, gap.priority + 1),
+            })
 
             logger.info(f"Updated gap occurrence: {gap.topic[:50]}... (count: {new_count})")
 
         else:
             # Create new gap
-            supabase.table("knowledge_gaps").insert(
-                {
-                    "client_id": client_id,
-                    "topic": gap.topic[:255],
-                    "question": gap.question,
-                    "source_agent": gap.source_agent,
-                    "source_conversation_id": gap.source_conversation_id,
-                    "uncertainty_signals": gap.uncertainty_signals,
-                    "gap_type": gap.gap_type,
-                    "priority": gap.priority,
-                    "occurrence_count": 1,
-                    "status": "open",
-                }
-            ).execute()
+            misc_repo.create_knowledge_gap({
+                "topic": gap.topic[:255],
+                "question": gap.question,
+                "source_agent": gap.source_agent,
+                "source_conversation_id": gap.source_conversation_id,
+                "uncertainty_signals": gap.uncertainty_signals,
+                "gap_type": gap.gap_type,
+                "priority": gap.priority,
+                "occurrence_count": 1,
+                "status": "open",
+            })
 
             logger.info(f"Created new gap: {gap.topic[:50]}...")
 
@@ -357,21 +330,19 @@ async def save_knowledge_gap(gap: KnowledgeGap, client_id: Optional[str] = None)
 async def get_open_knowledge_gaps(client_id: Optional[str] = None, limit: int = 10) -> list[dict]:
     """Get prioritized list of open knowledge gaps."""
     try:
-        query = (
-            supabase.table("knowledge_gaps")
-            .select("*")
-            .eq("status", "open")
-            .order("priority", desc=True)
-            .order("occurrence_count", desc=True)
-            .limit(limit)
+        filter_str = "status='open'"
+        if client_id:
+            esc_cid = pb.escape_filter(client_id)
+            filter_str += f" && client_id='{esc_cid}'"
+
+        result = pb.list_records(
+            "knowledge_gaps",
+            filter=filter_str,
+            sort="-priority,-occurrence_count",
+            per_page=limit,
         )
 
-        if client_id:
-            query = query.eq("client_id", client_id)
-
-        result = query.execute()
-
-        return result.data or []
+        return result.get("items", [])
 
     except Exception as e:
         logger.error(f"Failed to get knowledge gaps: {e}")
@@ -386,19 +357,13 @@ async def get_open_knowledge_gaps(client_id: Optional[str] = None, limit: int = 
 async def get_active_stakeholders(client_id: str, days: int = 30) -> list[dict]:
     """Get stakeholders with recent activity (insights, meetings, etc.)."""
     try:
-        (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-
-        # Get stakeholders with recent insights
-        result = (
-            supabase.table("stakeholders")
-            .select("id, name, title, department, sentiment, engagement_score")
-            .eq("client_id", client_id)
-            .order("engagement_score", desc=True)
-            .limit(20)
-            .execute()
+        result = pb.list_records(
+            "stakeholders",
+            sort="-engagement_score",
+            per_page=20,
         )
 
-        return result.data or []
+        return result.get("items", [])
 
     except Exception as e:
         logger.error(f"Failed to get active stakeholders: {e}")
@@ -408,18 +373,18 @@ async def get_active_stakeholders(client_id: str, days: int = 30) -> list[dict]:
 async def get_stakeholder_concerns(client_id: str, unresolved_only: bool = True) -> list[dict]:
     """Get stakeholder concerns that might need research."""
     try:
-        query = (
-            supabase.table("stakeholder_insights")
-            .select("id, content, insight_type, stakeholder_id, created_at")
-            .eq("insight_type", "concern")
+        filter_str = "insight_type='concern'"
+        if unresolved_only:
+            filter_str += " && is_resolved=false"
+
+        result = pb.list_records(
+            "stakeholder_insights",
+            filter=filter_str,
+            sort="-created",
+            per_page=20,
         )
 
-        if unresolved_only:
-            query = query.eq("is_resolved", False)
-
-        result = query.order("created_at", desc=True).limit(20).execute()
-
-        return result.data or []
+        return result.get("items", [])
 
     except Exception as e:
         logger.error(f"Failed to get stakeholder concerns: {e}")
@@ -444,16 +409,14 @@ async def get_anticipatory_research_topics(client_id: str) -> list[dict]:
     try:
         # Check for new stakeholders (last 7 days)
         week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        esc_week = pb.escape_filter(week_ago)
 
-        new_stakeholders = (
-            supabase.table("stakeholders")
-            .select("id, name, department, title")
-            .eq("client_id", client_id)
-            .gte("created_at", week_ago)
-            .execute()
+        new_stakeholders = pb.get_all(
+            "stakeholders",
+            filter=f"created>='{esc_week}'",
         )
 
-        for stakeholder in new_stakeholders.data or []:
+        for stakeholder in new_stakeholders:
             dept = stakeholder.get("department", "General")
             topics.append(
                 {
@@ -465,14 +428,12 @@ async def get_anticipatory_research_topics(client_id: str) -> list[dict]:
             )
 
         # Check for ROI opportunities being evaluated
-        opportunities = (
-            supabase.table("roi_opportunities")
-            .select("id, title, department, estimated_value")
-            .eq("status", "evaluating")
-            .execute()
+        opportunities = pb.get_all(
+            "roi_opportunities",
+            filter="status='evaluating'",
         )
 
-        for opp in opportunities.data or []:
+        for opp in opportunities:
             topics.append(
                 {
                     "topic": f"ROI benchmarks for {opp.get('title', 'AI initiative')}",
@@ -524,8 +485,10 @@ async def get_platform_context(client_id: Optional[str] = None) -> PlatformConte
         active_stakeholders = await get_active_stakeholders(client_id, days=30)
 
         try:
-            opps = supabase.table("roi_opportunities").select("*").in_("status", ["identified", "evaluating"]).execute()
-            pending_opportunities = opps.data or []
+            pending_opportunities = pb.get_all(
+                "roi_opportunities",
+                filter="(status='identified' || status='evaluating')",
+            )
         except Exception as e:
             logger.error(f"Failed to get opportunities: {e}")
 

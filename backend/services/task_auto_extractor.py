@@ -9,7 +9,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from supabase import Client
+import pb_client as pb
+from repositories import documents as documents_repo, tasks as tasks_repo
 
 from .task_extractor import TaskExtractor
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 async def extract_tasks_from_document(
     document_id: str,
-    supabase: Client,
+    supabase=None,
     user_name: Optional[str] = None,
     auto_store: bool = True,
     use_fast_model: bool = False,
@@ -38,49 +39,38 @@ async def extract_tasks_from_document(
     """
     try:
         # Get document info including original_date
-        doc_result = (
-            supabase.table("documents")
-            .select("id, filename, title, client_id, user_id, original_date")
-            .eq("id", document_id)
-            .single()
-            .execute()
-        )
+        document = documents_repo.get_document(document_id)
 
-        if not doc_result.data:
+        if not document:
             logger.warning(f"Document {document_id} not found for task extraction")
             return {"status": "skipped", "reason": "document_not_found"}
 
-        document = doc_result.data
         source_name = document.get("title") or document.get("filename", "Unknown")
         doc_date = document.get("original_date")  # e.g., "2025-01-15"
 
         # Get document chunks for content (increased from 10 to 30 for better coverage)
-        chunks_result = (
-            supabase.table("document_chunks")
-            .select("content")
-            .eq("document_id", document_id)
-            .order("chunk_index")
-            .limit(30)
-            .execute()
-        )
+        chunks = documents_repo.list_document_chunks(document_id)
+        # Sort by chunk_index and limit to 30
+        chunks.sort(key=lambda c: c.get("chunk_index", 0))
+        chunks = chunks[:30]
 
-        if not chunks_result.data:
+        if not chunks:
             logger.info(f"No chunks found for document {document_id}, skipping task extraction")
             return {"status": "skipped", "reason": "no_content"}
 
         # Combine chunks for extraction (limit to ~8000 chars for LLM context)
-        content = "\n\n".join([c["content"] for c in chunks_result.data])
+        content = "\n\n".join([c["content"] for c in chunks])
         if len(content) > 8000:
             content = content[:8000]
 
         # Get user name if not provided
         if not user_name and document.get("user_id"):
-            user_result = (
-                supabase.table("users").select("full_name, email").eq("id", document["user_id"]).single().execute()
-            )
-
-            if user_result.data:
-                user_name = user_result.data.get("full_name") or user_result.data.get("email", "").split("@")[0]
+            try:
+                user_record = pb.get_record("users", document["user_id"])
+                if user_record:
+                    user_name = user_record.get("full_name") or user_record.get("email", "").split("@")[0]
+            except Exception:
+                pass
 
         # Extract tasks using LLM (Claude Haiku) with regex fallback
         import os
@@ -116,9 +106,9 @@ async def extract_tasks_from_document(
 
         # Mark document as scanned (regardless of whether tasks found)
         try:
-            supabase.table("documents").update({"tasks_scanned_at": datetime.now(timezone.utc).isoformat()}).eq(
-                "id", document_id
-            ).execute()
+            documents_repo.update_document(document_id, {
+                "tasks_scanned_at": datetime.now(timezone.utc).isoformat(),
+            })
         except Exception as e:
             logger.warning(f"Failed to mark document as scanned: {e}")
 
@@ -135,9 +125,6 @@ async def extract_tasks_from_document(
                 try:
                     candidate_id = str(uuid.uuid4())
                     candidate_data = {
-                        "id": candidate_id,
-                        "client_id": document["client_id"],
-                        "user_id": document.get("user_id"),
                         "source_document_id": document_id,
                         "source_document_name": source_name,
                         "title": task.title,
@@ -158,7 +145,7 @@ async def extract_tasks_from_document(
                         "document_date": doc_date,
                         "topics": task.topics,
                     }
-                    supabase.table("task_candidates").insert(candidate_data).execute()
+                    pb.create_record("task_candidates", candidate_data)
                     stored_count += 1
                 except Exception as e:
                     logger.warning(f"Failed to store task candidate: {e}")
@@ -183,33 +170,23 @@ async def extract_tasks_from_document(
         return {"status": "error", "error": str(e)}
 
 
-async def get_pending_task_candidates(user_id: str, client_id: str, supabase: Client, limit: int = 20) -> list[dict]:
+async def get_pending_task_candidates(user_id: str, client_id: str, supabase=None, limit: int = 20) -> list[dict]:
     """Get pending task candidates for a user to review.
 
     Args:
         user_id: User's ID
         client_id: Client ID
-        supabase: Supabase client
+        supabase: Deprecated, not used
         limit: Max candidates to return
 
     Returns:
         List of pending task candidates
     """
-    result = (
-        supabase.table("task_candidates")
-        .select("*")
-        .eq("client_id", client_id)
-        .eq("status", "pending")
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
-    )
-
-    return result.data or []
+    return tasks_repo.list_task_candidates(status="pending", limit=limit)
 
 
 async def accept_task_candidate(
-    candidate_id: str, user_id: str, supabase: Client, overrides: Optional[dict] = None
+    candidate_id: str, user_id: str, supabase=None, overrides: Optional[dict] = None
 ) -> dict:
     """Accept a task candidate and create an actual task.
 
@@ -223,12 +200,10 @@ async def accept_task_candidate(
         dict with created task info
     """
     # Get candidate
-    candidate_result = supabase.table("task_candidates").select("*").eq("id", candidate_id).single().execute()
+    candidate = tasks_repo.get_task_candidate(candidate_id)
 
-    if not candidate_result.data:
+    if not candidate:
         return {"status": "error", "message": "Candidate not found"}
-
-    candidate = candidate_result.data
 
     # Build rich metadata from candidate context
     metadata = {
@@ -282,8 +257,6 @@ async def accept_task_candidate(
 
     # Build task data with all available fields
     task_data = {
-        "id": str(uuid.uuid4()),
-        "client_id": candidate["client_id"],
         "title": overrides.get("title", candidate["title"]) if overrides else candidate["title"],
         "description": description,
         "priority": overrides.get("priority", candidate["suggested_priority"])
@@ -309,19 +282,17 @@ async def accept_task_candidate(
 
     # Create task
     try:
-        supabase.table("project_tasks").insert(task_data).execute()
+        created_task = tasks_repo.create_task(task_data)
 
         # Mark candidate as accepted
-        supabase.table("task_candidates").update(
-            {
-                "status": "accepted",
-                "accepted_at": datetime.utcnow().isoformat(),
-                "accepted_by": user_id,
-                "created_task_id": task_data["id"],
-            }
-        ).eq("id", candidate_id).execute()
+        tasks_repo.update_task_candidate(candidate_id, {
+            "status": "accepted",
+            "accepted_at": datetime.utcnow().isoformat(),
+            "accepted_by": user_id,
+            "created_task_id": created_task["id"],
+        })
 
-        return {"status": "success", "task_id": task_data["id"], "title": task_data["title"]}
+        return {"status": "success", "task_id": created_task["id"], "title": task_data["title"]}
 
     except Exception as e:
         logger.error(f"Failed to create task from candidate: {e}")
@@ -329,28 +300,26 @@ async def accept_task_candidate(
 
 
 async def reject_task_candidate(
-    candidate_id: str, user_id: str, supabase: Client, reason: Optional[str] = None
+    candidate_id: str, user_id: str, supabase=None, reason: Optional[str] = None
 ) -> dict:
     """Reject a task candidate.
 
     Args:
         candidate_id: The candidate to reject
         user_id: User rejecting
-        supabase: Supabase client
+        supabase: Deprecated, not used
         reason: Optional rejection reason
 
     Returns:
         dict with status
     """
     try:
-        supabase.table("task_candidates").update(
-            {
-                "status": "rejected",
-                "rejected_at": datetime.utcnow().isoformat(),
-                "rejected_by": user_id,
-                "rejection_reason": reason,
-            }
-        ).eq("id", candidate_id).execute()
+        tasks_repo.update_task_candidate(candidate_id, {
+            "status": "rejected",
+            "rejected_at": datetime.utcnow().isoformat(),
+            "rejected_by": user_id,
+            "rejection_reason": reason,
+        })
 
         return {"status": "success"}
 
@@ -363,7 +332,7 @@ async def bulk_action_candidates(
     candidate_ids: list[str],
     action: str,  # 'accept' or 'reject'
     user_id: str,
-    supabase: Client,
+    supabase=None,
 ) -> dict:
     """Accept or reject multiple candidates at once.
 

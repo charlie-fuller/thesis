@@ -10,10 +10,7 @@ Sends email notifications to admins when key events occur (e.g., interview compl
 import os
 from typing import Any, Dict, List
 
-from database import get_supabase
-
-# Get centralized Supabase client
-supabase = get_supabase()
+import pb_client as pb
 
 # Optional: Resend API key for email notifications
 # If not set, notifications will be logged only
@@ -42,11 +39,8 @@ async def get_admin_emails() -> List[str]:
         List of admin email addresses
     """
     try:
-        result = supabase.table("users").select("email").eq("role", "admin").execute()
-
-        if result.data:
-            return [user["email"] for user in result.data if user.get("email")]
-        return []
+        users = pb.get_all("users", filter="role='admin'")
+        return [user["email"] for user in users if user.get("email")]
     except Exception as e:
         logger.info(f"[Admin Notifications] Failed to get admin emails: {str(e)}")
         return []
@@ -71,16 +65,12 @@ async def send_interview_complete_notification(
     """
     try:
         # Get user info from interview session
-        extraction_result = (
-            supabase.table("interview_extractions").select("metadata").eq("id", extraction_id).single().execute()
-        )
+        extraction = pb.get_record("interview_extractions", extraction_id)
 
-        if not extraction_result.data:
+        if not extraction:
             raise ValueError(f"Extraction not found: {extraction_id}")
 
-        import pb_client as pb
-
-        metadata = pb.parse_json_field(extraction_result.data.get("metadata"), default={})
+        metadata = pb.parse_json_field(extraction.get("metadata"), default={})
         session_id = metadata.get("session_id")
 
         # Get user details from interview session
@@ -88,17 +78,18 @@ async def send_interview_complete_notification(
         user_email = ""
 
         if session_id:
-            session_result = (
-                supabase.table("interview_sessions").select("user_id").eq("session_id", session_id).single().execute()
-            )
+            esc_sid = pb.escape_filter(session_id)
+            session = pb.get_first("interview_sessions", filter=f"session_id='{esc_sid}'")
 
-            if session_result.data:
-                user_id = session_result.data["user_id"]
-                user_result = supabase.table("users").select("name, email").eq("id", user_id).single().execute()
-
-                if user_result.data:
-                    user_name = user_result.data.get("name", "Unknown User")
-                    user_email = user_result.data.get("email", "")
+            if session:
+                user_id = session["user_id"]
+                try:
+                    user_record = pb.get_record("users", user_id)
+                    if user_record:
+                        user_name = user_record.get("name", "Unknown User")
+                        user_email = user_record.get("email", "")
+                except Exception:
+                    pass
 
         # Get frontend URL for review dashboard link
         frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")

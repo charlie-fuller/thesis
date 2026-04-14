@@ -9,7 +9,13 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from supabase import Client
+import pb_client as pb
+from repositories import (
+    agents as agents_repo,
+    conversations as conversations_repo,
+    documents as documents_repo,
+    stakeholders as stakeholders_repo,
+)
 
 from .connection import Neo4jConnection
 from .schema import CYPHER_TEMPLATES
@@ -24,14 +30,13 @@ class GraphSyncService:
     Tracks sync state to enable efficient incremental updates.
     """
 
-    def __init__(self, supabase: Client, neo4j: Neo4jConnection):
+    def __init__(self, supabase=None, neo4j: Neo4jConnection = None):
         """Initialize the sync service.
 
         Args:
-            supabase: Supabase client for reading source data
+            supabase: Deprecated, ignored. Kept for call-site compatibility.
             neo4j: Neo4j connection for writing graph data
         """
-        self.supabase = supabase
         self.neo4j = neo4j
 
     async def full_sync(self, client_id: str) -> dict:
@@ -171,10 +176,9 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0}
 
         try:
-            response = self.supabase.table("clients").select("*").eq("id", client_id).single().execute()
+            client = pb.get_record("clients", client_id)
 
-            if response.data:
-                client = response.data
+            if client:
                 await self.neo4j.execute_write(
                     CYPHER_TEMPLATES["upsert_client"],
                     {
@@ -204,9 +208,7 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0}
 
         try:
-            response = self.supabase.table("users").select("*").eq("client_id", client_id).execute()
-
-            users = response.data or []
+            users = pb.get_all("users")
             logger.info(f"Syncing {len(users)} users for client {client_id}")
 
             for user in users:
@@ -247,30 +249,16 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0}
 
         try:
-            # Get documents for this client
-            doc_response = (
-                self.supabase.table("documents")
-                .select("id")
-                .eq("client_id", client_id)
-                .eq("processing_status", "completed")
-                .execute()
-            )
-
-            doc_ids = [d["id"] for d in (doc_response.data or [])]
+            # Get documents
+            all_docs = pb.get_all("documents", filter="processing_status='completed'")
+            doc_ids = [d["id"] for d in all_docs]
             logger.info(f"Syncing chunks for {len(doc_ids)} documents")
 
             for doc_id in doc_ids:
                 try:
-                    chunk_response = (
-                        self.supabase.table("document_chunks")
-                        .select("id, document_id, chunk_index, content")
-                        .eq("document_id", doc_id)
-                        .order("chunk_index")
-                        .limit(max_chunks_per_doc)
-                        .execute()
-                    )
+                    all_chunks = documents_repo.list_document_chunks(doc_id)
 
-                    for chunk in chunk_response.data or []:
+                    for chunk in all_chunks[:max_chunks_per_doc]:
                         # Truncate content for graph storage
                         content_preview = (chunk.get("content", "") or "")[:500]
 
@@ -307,10 +295,8 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0}
 
         try:
-            response = self.supabase.table("conversations").select("*").eq("client_id", client_id).execute()
-
-            conversations = response.data or []
-            logger.info(f"Syncing {len(conversations)} conversations for client {client_id}")
+            conversations = conversations_repo.list_conversations()
+            logger.info(f"Syncing {len(conversations)} conversations")
 
             for conv in conversations:
                 try:
@@ -351,23 +337,22 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0, "agent_links": 0}
 
         try:
-            # Get conversations for this client
-            conv_response = self.supabase.table("conversations").select("id").eq("client_id", client_id).execute()
-
-            conv_ids = [c["id"] for c in (conv_response.data or [])]
+            # Get conversations
+            all_convs = conversations_repo.list_conversations()
+            conv_ids = [c["id"] for c in all_convs]
 
             for conv_id in conv_ids:
                 try:
-                    msg_response = (
-                        self.supabase.table("messages")
-                        .select("*")
-                        .eq("conversation_id", conv_id)
-                        .order("created_at")
-                        .limit(max_messages_per_conv)
-                        .execute()
+                    esc_cid = pb.escape_filter(conv_id)
+                    msg_result = pb.list_records(
+                        "messages",
+                        filter=f"conversation_id='{esc_cid}'",
+                        sort="created",
+                        per_page=max_messages_per_conv,
                     )
+                    all_msgs = msg_result.get("items", [])
 
-                    for msg in msg_response.data or []:
+                    for msg in all_msgs:
                         content_preview = (msg.get("content", "") or "")[:300]
                         agent_id = msg.get("agent_id")
 
@@ -416,10 +401,8 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0, "participants": 0}
 
         try:
-            response = self.supabase.table("meeting_rooms").select("*").eq("client_id", client_id).execute()
-
-            rooms = response.data or []
-            logger.info(f"Syncing {len(rooms)} meeting rooms for client {client_id}")
+            rooms = pb.get_all("meeting_rooms")
+            logger.info(f"Syncing {len(rooms)} meeting rooms")
 
             for room in rooms:
                 try:
@@ -436,14 +419,13 @@ class GraphSyncService:
                     result["synced"] += 1
 
                     # Sync participants
-                    participant_response = (
-                        self.supabase.table("meeting_room_participants")
-                        .select("agent_id")
-                        .eq("meeting_room_id", room["id"])
-                        .execute()
+                    esc_rid = pb.escape_filter(room["id"])
+                    participants = pb.get_all(
+                        "meeting_room_participants",
+                        filter=f"meeting_room_id='{esc_rid}'",
                     )
 
-                    for participant in participant_response.data or []:
+                    for participant in participants:
                         try:
                             await self.neo4j.execute_write(
                                 CYPHER_TEMPLATES["add_meeting_room_participant"],
@@ -479,23 +461,20 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0, "response_links": 0}
 
         try:
-            # Get meeting rooms for this client
-            room_response = self.supabase.table("meeting_rooms").select("id").eq("client_id", client_id).execute()
-
-            room_ids = [r["id"] for r in (room_response.data or [])]
+            # Get meeting rooms
+            all_rooms = pb.get_all("meeting_rooms")
+            room_ids = [r["id"] for r in all_rooms]
 
             for room_id in room_ids:
                 try:
-                    msg_response = (
-                        self.supabase.table("meeting_room_messages")
-                        .select("*")
-                        .eq("meeting_room_id", room_id)
-                        .order("created_at")
-                        .limit(max_per_room)
-                        .execute()
+                    esc_rid = pb.escape_filter(room_id)
+                    msg_result = pb.list_records(
+                        "meeting_room_messages",
+                        filter=f"meeting_room_id='{esc_rid}'",
+                        sort="created",
+                        per_page=max_per_room,
                     )
-
-                    messages = msg_response.data or []
+                    messages = msg_result.get("items", [])
 
                     for msg in messages:
                         content_preview = (msg.get("content", "") or "")[:300]
@@ -519,9 +498,11 @@ class GraphSyncService:
 
                         # Update graph_synced_at timestamp
                         try:
-                            self.supabase.table("meeting_room_messages").update(
-                                {"graph_synced_at": datetime.now(timezone.utc).isoformat()}
-                            ).eq("id", msg["id"]).execute()
+                            pb.update_record(
+                                "meeting_room_messages",
+                                msg["id"],
+                                {"graph_synced_at": datetime.now(timezone.utc).isoformat()},
+                            )
                         except Exception:
                             pass  # Non-critical
 
@@ -598,9 +579,7 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0}
 
         try:
-            response = self.supabase.table("agent_knowledge_base").select("*").execute()
-
-            kb_links = response.data or []
+            kb_links = pb.get_all("agent_knowledge_base")
             logger.info(f"Syncing {len(kb_links)} agent knowledge base links")
 
             for link in kb_links:
@@ -641,11 +620,9 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0, "relationships": 0}
 
         try:
-            # Fetch stakeholders from Supabase
-            response = self.supabase.table("stakeholders").select("*").eq("client_id", client_id).execute()
-
-            stakeholders = response.data or []
-            logger.info(f"Syncing {len(stakeholders)} stakeholders for client {client_id}")
+            # Fetch stakeholders
+            stakeholders = stakeholders_repo.list_stakeholders()
+            logger.info(f"Syncing {len(stakeholders)} stakeholders")
 
             for stakeholder in stakeholders:
                 try:
@@ -726,11 +703,9 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0, "relationships": 0}
 
         try:
-            # Fetch meetings from Supabase
-            response = self.supabase.table("meeting_transcripts").select("*").eq("client_id", client_id).execute()
-
-            meetings = response.data or []
-            logger.info(f"Syncing {len(meetings)} meetings for client {client_id}")
+            # Fetch meetings
+            meetings = pb.get_all("meeting_transcripts")
+            logger.info(f"Syncing {len(meetings)} meetings")
 
             for meeting in meetings:
                 try:
@@ -773,17 +748,14 @@ class GraphSyncService:
                             continue
 
                         # Find stakeholder by name
-                        stakeholder_response = (
-                            self.supabase.table("stakeholders")
-                            .select("id")
-                            .eq("client_id", client_id)
-                            .ilike("name", f"%{attendee_name}%")
-                            .limit(1)
-                            .execute()
+                        esc_name = pb.escape_filter(attendee_name)
+                        stakeholder_match = pb.get_first(
+                            "stakeholders",
+                            filter=f"name~'{esc_name}'",
                         )
 
-                        if stakeholder_response.data:
-                            stakeholder_id = stakeholder_response.data[0]["id"]
+                        if stakeholder_match:
+                            stakeholder_id = stakeholder_match["id"]
                             sentiment = sentiment_map.get(attendee_name.lower(), 0.5)
                             speaking_time = (
                                 attendee.get("speaking_time_estimate", "medium")
@@ -824,16 +796,9 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0, "relationships": 0}
 
         try:
-            # Fetch insights with stakeholder info
-            response = (
-                self.supabase.table("stakeholder_insights")
-                .select("*, stakeholders!inner(client_id)")
-                .eq("stakeholders.client_id", client_id)
-                .execute()
-            )
-
-            insights = response.data or []
-            logger.info(f"Syncing {len(insights)} insights for client {client_id}")
+            # Fetch all insights
+            insights = pb.get_all("stakeholder_insights")
+            logger.info(f"Syncing {len(insights)} insights")
 
             for insight in insights:
                 try:
@@ -908,10 +873,8 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0, "uploader_links": 0}
 
         try:
-            response = self.supabase.table("documents").select("*").eq("client_id", client_id).execute()
-
-            documents = response.data or []
-            logger.info(f"Syncing {len(documents)} documents for client {client_id}")
+            documents = pb.get_all("documents")
+            logger.info(f"Syncing {len(documents)} documents")
 
             for doc in documents:
                 try:
@@ -963,10 +926,8 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0, "relationships": 0}
 
         try:
-            response = self.supabase.table("roi_opportunities").select("*").eq("client_id", client_id).execute()
-
-            opportunities = response.data or []
-            logger.info(f"Syncing {len(opportunities)} ROI opportunities for client {client_id}")
+            opportunities = pb.get_all("roi_opportunities")
+            logger.info(f"Syncing {len(opportunities)} ROI opportunities")
 
             for opp in opportunities:
                 try:
@@ -1051,28 +1012,22 @@ class GraphSyncService:
         for entity_type in entity_types:
             try:
                 if entity_type == "stakeholders":
-                    response = (
-                        self.supabase.table("stakeholders")
-                        .select("id")
-                        .eq("client_id", client_id)
-                        .gte("updated_at", since_iso)
-                        .execute()
+                    updated = pb.get_all(
+                        "stakeholders",
+                        filter=f"updated>='{since_iso}'",
                     )
-                    if response.data:
-                        results["entities_checked"] += len(response.data)
+                    if updated:
+                        results["entities_checked"] += len(updated)
                         sync_result = await self.sync_stakeholders(client_id)
                         results["entities_synced"] += sync_result["synced"]
 
                 elif entity_type == "meetings":
-                    response = (
-                        self.supabase.table("meeting_transcripts")
-                        .select("id")
-                        .eq("client_id", client_id)
-                        .gte("created_at", since_iso)
-                        .execute()
+                    updated = pb.get_all(
+                        "meeting_transcripts",
+                        filter=f"created>='{since_iso}'",
                     )
-                    if response.data:
-                        results["entities_checked"] += len(response.data)
+                    if updated:
+                        results["entities_checked"] += len(updated)
                         sync_result = await self.sync_meetings(client_id)
                         results["entities_synced"] += sync_result["synced"]
 
@@ -1093,9 +1048,7 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0, "expertise_links": 0}
 
         try:
-            response = self.supabase.table("agents").select("*").eq("is_active", True).execute()
-
-            agents = response.data or []
+            agents = agents_repo.list_agents()
             logger.info(f"Syncing {len(agents)} agents to Neo4j")
 
             # Comprehensive agent expertise mapping for all 21 agents
@@ -1308,16 +1261,9 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0}
 
         try:
-            # Get recent handoffs for this client's conversations
-            response = (
-                self.supabase.table("agent_handoffs")
-                .select("*, conversations!inner(client_id)")
-                .eq("conversations.client_id", client_id)
-                .execute()
-            )
-
-            handoffs = response.data or []
-            logger.info(f"Syncing {len(handoffs)} agent handoffs for client {client_id}")
+            # Get all agent handoffs
+            handoffs = pb.get_all("agent_handoffs")
+            logger.info(f"Syncing {len(handoffs)} agent handoffs")
 
             for handoff in handoffs:
                 try:
@@ -1372,27 +1318,12 @@ class GraphSyncService:
         result = {"name_matches": 0, "department_matches": 0, "errors": 0}
 
         try:
-            # Get all stakeholders for this client
-            stakeholder_response = (
-                self.supabase.table("stakeholders")
-                .select("id, name, role, department, organization")
-                .eq("client_id", client_id)
-                .execute()
-            )
-
-            stakeholders = stakeholder_response.data or []
+            # Get all stakeholders
+            stakeholders = stakeholders_repo.list_stakeholders()
             logger.info(f"Checking {len(stakeholders)} stakeholders for document relationships")
 
-            # Get all documents for this client
-            doc_response = (
-                self.supabase.table("documents")
-                .select("id, filename, file_type")
-                .eq("client_id", client_id)
-                .eq("processing_status", "completed")
-                .execute()
-            )
-
-            documents = doc_response.data or []
+            # Get all completed documents
+            documents = pb.get_all("documents", filter="processing_status='completed'")
 
             # Method 1: Match stakeholder names in document filenames
             for stakeholder in stakeholders:
@@ -1503,34 +1434,16 @@ class GraphSyncService:
 
         try:
             # Get stakeholders
-            stakeholder_response = (
-                self.supabase.table("stakeholders").select("id, name").eq("client_id", client_id).execute()
-            )
-
-            stakeholders = stakeholder_response.data or []
+            stakeholders = stakeholders_repo.list_stakeholders()
 
             # Get documents
-            doc_response = (
-                self.supabase.table("documents")
-                .select("id")
-                .eq("client_id", client_id)
-                .eq("processing_status", "completed")
-                .execute()
-            )
-
-            doc_ids = [d["id"] for d in (doc_response.data or [])]
+            all_docs = pb.get_all("documents", filter="processing_status='completed'")
+            doc_ids = [d["id"] for d in all_docs]
 
             for doc_id in doc_ids:
                 # Get chunks for this document
-                chunk_response = (
-                    self.supabase.table("document_chunks")
-                    .select("id, content")
-                    .eq("document_id", doc_id)
-                    .limit(50)
-                    .execute()
-                )
-
-                chunks = chunk_response.data or []
+                all_chunks = documents_repo.list_document_chunks(doc_id)
+                chunks = all_chunks[:50]
 
                 # Combine chunk content for searching
                 combined_content = " ".join((c.get("content") or "").lower() for c in chunks)
@@ -1643,18 +1556,15 @@ class GraphSyncService:
             return False
 
     async def _log_sync(self, client_id: str, sync_type: str, results: dict) -> None:
-        """Log sync operation to Supabase."""
+        """Log sync operation."""
         try:
-            self.supabase.table("graph_sync_log").insert(
-                {
-                    "id": str(uuid4()),
-                    "client_id": client_id,
-                    "sync_type": sync_type,
-                    "entity_type": "full",
-                    "synced_at": datetime.now(timezone.utc).isoformat(),
-                    "sync_status": "completed" if not results.get("error") else "failed",
-                    "details": results,
-                }
-            ).execute()
+            pb.create_record("graph_sync_log", {
+                "client_id": client_id,
+                "sync_type": sync_type,
+                "entity_type": "full",
+                "synced_at": datetime.now(timezone.utc).isoformat(),
+                "sync_status": "completed" if not results.get("error") else "failed",
+                "details": results,
+            })
         except Exception as e:
             logger.error(f"Failed to log sync: {e}")

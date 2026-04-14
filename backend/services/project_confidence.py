@@ -30,6 +30,9 @@ from typing import List, Optional, Tuple
 
 import anthropic
 
+import pb_client as pb
+from repositories import projects as projects_repo, tasks as tasks_repo
+
 logger = logging.getLogger(__name__)
 
 MODEL = "claude-haiku-4-5-20251001"
@@ -399,14 +402,8 @@ async def evaluate_all_projects(client_id: str) -> dict:
     Returns:
         Dict with counts and summary statistics
     """
-    from database import get_supabase
-
-    supabase = get_supabase()
-
     # Get all projects for client
-    result = supabase.table("ai_projects").select("*").eq("client_id", client_id).execute()
-
-    projects = result.data
+    projects = projects_repo.list_projects()
     updated_count = 0
     errors = []
 
@@ -415,12 +412,10 @@ async def evaluate_all_projects(client_id: str) -> dict:
             confidence, questions = evaluate_project_confidence(project)
 
             # Update the project
-            supabase.table("ai_projects").update(
-                {
-                    "scoring_confidence": confidence,
-                    "confidence_questions": questions,
-                }
-            ).eq("id", project["id"]).execute()
+            projects_repo.update_project(project["id"], {
+                "scoring_confidence": confidence,
+                "confidence_questions": questions,
+            })
 
             updated_count += 1
             logger.info(f"Updated confidence for '{project['title']}': {confidence}% ({len(questions)} questions)")

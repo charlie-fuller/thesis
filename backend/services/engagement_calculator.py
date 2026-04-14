@@ -21,7 +21,9 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from database import get_supabase
+import pb_client as pb
+from repositories import stakeholders as stakeholders_repo
+from repositories import misc as misc_repo
 from logger_config import get_logger
 
 logger = get_logger(__name__)
@@ -143,7 +145,7 @@ class EngagementCalculator:
     """
 
     def __init__(self, supabase=None):
-        self.supabase = supabase or get_supabase()
+        pass  # No longer needs supabase client
 
     async def collect_signals(self, stakeholder_id: str) -> EngagementSignals:
         """Collect all signals for engagement calculation.
@@ -153,18 +155,10 @@ class EngagementCalculator:
         - stakeholder_insights table for insight type counts
         """
         # Get stakeholder data
-        stakeholder_result = (
-            self.supabase.table("stakeholders")
-            .select("engagement_level, total_interactions, last_interaction")
-            .eq("id", stakeholder_id)
-            .single()
-            .execute()
-        )
+        stakeholder = stakeholders_repo.get_stakeholder(stakeholder_id)
 
-        if not stakeholder_result.data:
+        if not stakeholder:
             raise ValueError(f"Stakeholder {stakeholder_id} not found")
-
-        stakeholder = stakeholder_result.data
         current_level = stakeholder.get("engagement_level", "neutral") or "neutral"
         total_interactions = stakeholder.get("total_interactions", 0) or 0
 
@@ -180,14 +174,11 @@ class EngagementCalculator:
                 pass
 
         # Count insights by type
-        insights_result = (
-            self.supabase.table("stakeholder_insights")
-            .select("insight_type, is_resolved")
-            .eq("stakeholder_id", stakeholder_id)
-            .execute()
+        esc_sid = pb.escape_filter(stakeholder_id)
+        insights = pb.get_all(
+            "stakeholder_insights",
+            filter=f"stakeholder_id='{esc_sid}'",
         )
-
-        insights = insights_result.data or []
 
         # Initialize counters
         enthusiasm_count = 0
@@ -341,35 +332,26 @@ class EngagementCalculator:
 
         # Update stakeholder if changed
         if changed:
-            self.supabase.table("stakeholders").update(
-                {
-                    "engagement_level": new_level,
-                    "last_engagement_calculated": datetime.now(timezone.utc).isoformat(),
-                }
-            ).eq("id", stakeholder_id).execute()
-
+            stakeholders_repo.update_stakeholder(stakeholder_id, {
+                "engagement_level": new_level,
+                "last_engagement_calculated": datetime.now(timezone.utc).isoformat(),
+            })
             logger.info(f"Engagement changed: {stakeholder_id} {previous_level} -> {new_level} ({reason})")
         else:
             # Update timestamp even if no change
-            self.supabase.table("stakeholders").update(
-                {
-                    "last_engagement_calculated": datetime.now(timezone.utc).isoformat(),
-                }
-            ).eq("id", stakeholder_id).execute()
+            stakeholders_repo.update_stakeholder(stakeholder_id, {
+                "last_engagement_calculated": datetime.now(timezone.utc).isoformat(),
+            })
 
         # Record in history (always, for trend tracking)
-        self.supabase.table("engagement_level_history").insert(
-            {
-                "id": str(uuid4()),
-                "stakeholder_id": stakeholder_id,
-                "client_id": client_id,
-                "engagement_level": new_level,
-                "previous_level": previous_level if changed else None,
-                "calculation_reason": reason,
-                "signals": signals.to_dict(),
-                "calculation_type": calculation_type,
-            }
-        ).execute()
+        misc_repo.create_engagement_level_history_item({
+            "stakeholder_id": stakeholder_id,
+            "engagement_level": new_level,
+            "previous_level": previous_level if changed else None,
+            "calculation_reason": reason,
+            "signals": signals.to_dict(),
+            "calculation_type": calculation_type,
+        })
 
         return EngagementResult(
             stakeholder_id=stakeholder_id,
@@ -386,10 +368,8 @@ class EngagementCalculator:
         Returns:
             dict with summary: {total, changed, promotions, demotions, errors}
         """
-        # Get all stakeholders for client
-        result = self.supabase.table("stakeholders").select("id").eq("client_id", client_id).execute()
-
-        stakeholders = result.data or []
+        # Get all stakeholders
+        stakeholders = stakeholders_repo.list_stakeholders()
 
         summary = {
             "client_id": client_id,
@@ -440,10 +420,8 @@ class EngagementCalculator:
         Returns:
             dict with overall summary and per-client results
         """
-        # Get all clients with stakeholders
-        result = self.supabase.table("stakeholders").select("client_id").execute()
-
-        client_ids = list({row["client_id"] for row in result.data if row.get("client_id")})
+        # Run for the single tenant (no multi-client in PocketBase)
+        client_ids = ["default"]
 
         overall = {
             "clients_processed": 0,

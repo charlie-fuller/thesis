@@ -11,7 +11,8 @@ from typing import Optional
 
 from anthropic import Anthropic
 
-from supabase import Client
+import pb_client as pb
+from repositories import stakeholders as stakeholders_repo
 
 from .connection import Neo4jConnection
 
@@ -27,15 +28,14 @@ class RelationshipExtractor:
     - Stakeholder clustering based on shared concerns and meetings
     """
 
-    def __init__(self, supabase: Client, neo4j: Neo4jConnection, anthropic_client: Optional[Anthropic] = None):
+    def __init__(self, supabase=None, neo4j: Neo4jConnection = None, anthropic_client: Optional[Anthropic] = None):
         """Initialize the relationship extractor.
 
         Args:
-            supabase: Supabase client for reading source data
+            supabase: Deprecated, ignored. Kept for call-site compatibility.
             neo4j: Neo4j connection for writing relationships
             anthropic_client: Optional Anthropic client for LLM-based extraction
         """
-        self.supabase = supabase
         self.neo4j = neo4j
         self.anthropic = anthropic_client or Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
@@ -128,19 +128,11 @@ class RelationshipExtractor:
 
         try:
             # Get meeting with transcript content
-            response = (
-                self.supabase.table("meeting_transcripts")
-                .select("id, title, content, summary")
-                .eq("id", meeting_id)
-                .single()
-                .execute()
-            )
+            meeting = pb.get_record("meeting_transcripts", meeting_id)
 
-            if not response.data:
+            if not meeting:
                 logger.warning(f"Meeting {meeting_id} not found")
                 return result
-
-            meeting = response.data
             content = meeting.get("content") or meeting.get("summary") or ""
 
             if not content:
@@ -278,9 +270,7 @@ class RelationshipExtractor:
         result = {"meetings_processed": 0, "total_concepts": 0, "errors": 0}
 
         try:
-            response = self.supabase.table("meeting_transcripts").select("id").eq("client_id", client_id).execute()
-
-            meetings = response.data or []
+            meetings = pb.get_all("meeting_transcripts")
             logger.info(f"Extracting concepts from {len(meetings)} meetings")
 
             for meeting in meetings:
@@ -304,14 +294,9 @@ class RelationshipExtractor:
         stakeholders = {}
 
         # Get stakeholders
-        response = (
-            self.supabase.table("stakeholders")
-            .select("id, name, role, organization")
-            .eq("client_id", client_id)
-            .execute()
-        )
+        all_stakeholders = stakeholders_repo.list_stakeholders()
 
-        for s in response.data or []:
+        for s in all_stakeholders:
             stakeholders[s["id"]] = {**s, "meetings": []}
 
         # Get meeting attendance from Neo4j

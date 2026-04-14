@@ -11,7 +11,8 @@ from uuid import uuid4
 
 import anthropic
 
-from database import get_supabase
+import pb_client as pb
+from repositories import projects as projects_repo
 from logger_config import get_logger
 from services.project_context import build_project_context, get_scoring_related_documents
 
@@ -19,7 +20,6 @@ logger = get_logger(__name__)
 
 # Initialize clients
 anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-supabase = get_supabase()
 
 PROJECT_CHAT_SYSTEM_PROMPT = """You are an AI assistant helping users understand and evaluate AI implementation projects.
 
@@ -57,23 +57,16 @@ async def ask_about_project(project_id: str, question: str, client_id: str, user
     logger.info(f"Processing question about project {project_id}: {question[:50]}...")
 
     # 1. Fetch the project
-    project_result = (
-        supabase.table("ai_projects")
-        .select("*, stakeholders(name)")
-        .eq("id", project_id)
-        .eq("client_id", client_id)
-        .single()
-        .execute()
-    )
-
-    if not project_result.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise ValueError(f"Project not found: {project_id}")
 
-    project = project_result.data
-
-    # Add owner name from joined data
-    if project.get("stakeholders"):
-        project["owner_name"] = project["stakeholders"].get("name")
+    # Look up owner name if owner_stakeholder_id is set
+    if project.get("owner_stakeholder_id"):
+        from repositories import stakeholders as stakeholders_repo
+        owner = stakeholders_repo.get_stakeholder(project["owner_stakeholder_id"])
+        if owner:
+            project["owner_name"] = owner.get("name")
 
     # 2. Get scoring-relevant documents
     related_docs = get_scoring_related_documents(project=project, client_id=client_id, limit=5, min_similarity=0.25)
@@ -121,17 +114,12 @@ Please answer the question based on the project details and any relevant informa
             for doc in related_docs
         ]
 
-        supabase.table("project_conversations").insert(
-            {
-                "id": str(uuid4()),
-                "project_id": project_id,
-                "client_id": client_id,
-                "user_id": user_id,
-                "question": question,
-                "response": answer,
-                "source_documents": source_docs_json,
-            }
-        ).execute()
+        pb.create_record("project_conversations", {
+            "project_id": project_id,
+            "question": question,
+            "response": answer,
+            "source_documents": source_docs_json,
+        })
 
         logger.info(f"Stored conversation for project {project_id}")
 
@@ -158,17 +146,16 @@ async def get_project_conversations(project_id: str, client_id: str, limit: int 
     logger.info(f"Fetching conversations for project {project_id}")
 
     try:
-        result = (
-            supabase.table("project_conversations")
-            .select("id, question, response, source_documents, created_at")
-            .eq("project_id", project_id)
-            .eq("client_id", client_id)
-            .order("created_at", desc=True)
-            .range(offset, offset + limit - 1)
-            .execute()
+        esc_pid = pb.escape_filter(project_id)
+        page = (offset // limit) + 1 if limit else 1
+        result = pb.list_records(
+            "project_conversations",
+            filter=f"project_id='{esc_pid}'",
+            sort="-created",
+            page=page,
+            per_page=limit,
         )
-
-        conversations = result.data or []
+        conversations = result.get("items", [])
         logger.info(f"Found {len(conversations)} conversations")
         return conversations
 

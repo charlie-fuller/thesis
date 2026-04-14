@@ -19,32 +19,18 @@ import hashlib
 import os
 import re
 import time as time_module
-import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 import yaml
 
-from database import get_supabase
+import pb_client as pb
 from document_processor import process_document
 from logger_config import get_logger
+from repositories import documents as documents_repo
 
 logger = get_logger(__name__)
-
-# Get Supabase configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-
-# Lazy initialization - don't call get_supabase() at import time
-_supabase = None
-
-
-def _get_db():
-    """Get Supabase client lazily to avoid import-time initialization."""
-    global _supabase
-    if _supabase is None:
-        _supabase = get_supabase()
-    return _supabase
 
 
 def get_effective_sync_options(config_options: Optional[Dict] = None) -> Dict:
@@ -673,12 +659,11 @@ def get_vault_config(user_id: str) -> Optional[Dict]:
         Vault config record or None if not configured
     """
     try:
-        result = (
-            _get_db().table("obsidian_vault_configs").select("*").eq("user_id", user_id).eq("is_active", True).execute()
+        esc_uid = pb.escape_filter(user_id)
+        return pb.get_first(
+            "obsidian_vault_configs",
+            filter=f"user_id='{esc_uid}' && is_active=true",
         )
-
-        return result.data[0] if result.data else None
-
     except Exception as e:
         logger.error(f"Failed to get vault config: {e}")
         return None
@@ -694,10 +679,7 @@ def get_vault_config_by_id(config_id: str) -> Optional[Dict]:
         Vault config record or None if not found
     """
     try:
-        result = _get_db().table("obsidian_vault_configs").select("*").eq("id", config_id).execute()
-
-        return result.data[0] if result.data else None
-
+        return pb.get_record("obsidian_vault_configs", config_id)
     except Exception as e:
         logger.error(f"Failed to get vault config: {e}")
         return None
@@ -726,15 +708,15 @@ def create_vault_config(user_id: str, client_id: str, vault_path: str, sync_opti
         raise ObsidianSyncError(f"Vault path is not a directory: {vault_path}")
 
     # Check for existing active config
-    existing = (
-        _get_db().table("obsidian_vault_configs").select("id").eq("user_id", user_id).eq("is_active", True).execute()
+    esc_uid = pb.escape_filter(user_id)
+    existing = pb.get_first(
+        "obsidian_vault_configs",
+        filter=f"user_id='{esc_uid}' && is_active=true",
     )
 
-    if existing.data:
+    if existing:
         # Deactivate existing config
-        _get_db().table("obsidian_vault_configs").update({"is_active": False}).eq(
-            "id", existing.data[0]["id"]
-        ).execute()
+        pb.update_record("obsidian_vault_configs", existing["id"], {"is_active": False})
 
     # Merge sync options with defaults
     merged_options = {**DEFAULT_SYNC_OPTIONS}
@@ -745,22 +727,18 @@ def create_vault_config(user_id: str, client_id: str, vault_path: str, sync_opti
     vault_name = vault_path_obj.name
 
     try:
-        now = datetime.now(timezone.utc).isoformat()
         config_data = {
             "user_id": user_id,
-            "client_id": client_id,
             "vault_path": str(vault_path_obj),
             "vault_name": vault_name,
             "is_active": True,
             "sync_options": merged_options,
-            "created_at": now,
-            "updated_at": now,
         }
 
-        result = _get_db().table("obsidian_vault_configs").insert(config_data).execute()
+        result = pb.create_record("obsidian_vault_configs", config_data)
 
-        logger.info(f"Created vault config for {vault_name}: {result.data[0]['id']}")
-        return result.data[0]
+        logger.info(f"Created vault config for {vault_name}: {result['id']}")
+        return result
 
     except Exception as e:
         raise ObsidianSyncError(f"Failed to create vault config: {e}") from None
@@ -777,10 +755,7 @@ def update_vault_config(config_id: str, updates: Dict) -> Dict:
         Updated config record
     """
     try:
-        result = _get_db().table("obsidian_vault_configs").update(updates).eq("id", config_id).execute()
-
-        return result.data[0] if result.data else {}
-
+        return pb.update_record("obsidian_vault_configs", config_id, updates)
     except Exception as e:
         raise ObsidianSyncError(f"Failed to update vault config: {e}") from None
 
@@ -813,7 +788,7 @@ def update_sync_progress(
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        _get_db().table("obsidian_vault_configs").update({"sync_progress": progress_data}).eq("id", config_id).execute()
+        pb.update_record("obsidian_vault_configs", config_id, {"sync_progress": progress_data})
 
     except Exception as e:
         # Don't fail the sync if progress update fails
@@ -823,7 +798,7 @@ def update_sync_progress(
 def clear_sync_progress(config_id: str) -> None:
     """Clear sync progress after sync completes."""
     try:
-        _get_db().table("obsidian_vault_configs").update({"sync_progress": None}).eq("id", config_id).execute()
+        pb.update_record("obsidian_vault_configs", config_id, {"sync_progress": None})
     except Exception as e:
         logger.warning(f"Failed to clear sync progress: {e}")
 
@@ -848,32 +823,34 @@ def deactivate_vault_config(config_id: str, remove_documents: bool = False) -> D
 
         if remove_documents:
             # Get all synced documents
-            sync_states = (
-                _get_db()
-                .table("obsidian_sync_state")
-                .select("document_id")
-                .eq("config_id", config_id)
-                .not_.is_("document_id", "null")
-                .execute()
+            esc_cid = pb.escape_filter(config_id)
+            sync_states = pb.get_all(
+                "obsidian_sync_state",
+                filter=f"config_id='{esc_cid}' && document_id!=''",
             )
 
-            doc_ids = [s["document_id"] for s in sync_states.data if s.get("document_id")]
+            doc_ids = [s["document_id"] for s in sync_states if s.get("document_id")]
 
             if doc_ids:
-                # Delete document chunks
-                _get_db().table("document_chunks").delete().in_("document_id", doc_ids).execute()
-
-                # Delete documents
-                _get_db().table("documents").delete().in_("id", doc_ids).execute()
+                # Delete document chunks and documents one by one
+                for doc_id in doc_ids:
+                    esc_did = pb.escape_filter(doc_id)
+                    chunks = pb.get_all("document_chunks", filter=f"document_id='{esc_did}'")
+                    for chunk in chunks:
+                        pb.delete_record("document_chunks", chunk["id"])
+                    pb.delete_record("documents", doc_id)
 
                 documents_removed = len(doc_ids)
                 logger.info(f"Removed {documents_removed} synced documents")
 
         # Delete sync state
-        _get_db().table("obsidian_sync_state").delete().eq("config_id", config_id).execute()
+        esc_cid = pb.escape_filter(config_id)
+        all_states = pb.get_all("obsidian_sync_state", filter=f"config_id='{esc_cid}'")
+        for state in all_states:
+            pb.delete_record("obsidian_sync_state", state["id"])
 
         # Deactivate config
-        _get_db().table("obsidian_vault_configs").update({"is_active": False}).eq("id", config_id).execute()
+        pb.update_record("obsidian_vault_configs", config_id, {"is_active": False})
 
         return {"status": "success", "config_id": config_id, "documents_removed": documents_removed}
 
@@ -897,17 +874,12 @@ def get_sync_state(config_id: str, file_path: str) -> Optional[Dict]:
         Sync state record or None
     """
     try:
-        result = (
-            _get_db()
-            .table("obsidian_sync_state")
-            .select("*")
-            .eq("config_id", config_id)
-            .eq("file_path", file_path)
-            .execute()
+        esc_cid = pb.escape_filter(config_id)
+        esc_fp = pb.escape_filter(file_path)
+        return pb.get_first(
+            "obsidian_sync_state",
+            filter=f"config_id='{esc_cid}' && file_path='{esc_fp}'",
         )
-
-        return result.data[0] if result.data else None
-
     except Exception as e:
         logger.error(f"Failed to get sync state: {e}")
         return None
@@ -926,29 +898,9 @@ def get_all_sync_states(config_id: str) -> Dict[str, Dict]:
         Dict mapping file_path to sync state
     """
     try:
-        all_states = {}
-        page_size = 1000
-        offset = 0
-
-        while True:
-            result = (
-                _get_db()
-                .table("obsidian_sync_state")
-                .select("*")
-                .eq("config_id", config_id)
-                .range(offset, offset + page_size - 1)
-                .execute()
-            )
-
-            for s in result.data:
-                all_states[s["file_path"]] = s
-
-            if len(result.data) < page_size:
-                break
-            offset += page_size
-
-        return all_states
-
+        esc_cid = pb.escape_filter(config_id)
+        records = pb.get_all("obsidian_sync_state", filter=f"config_id='{esc_cid}'")
+        return {s["file_path"]: s for s in records}
     except Exception as e:
         logger.error(f"Failed to get sync states: {e}")
         return {}
@@ -1022,12 +974,9 @@ def update_sync_state(
         # Try update first
         existing = get_sync_state(config_id, file_path)
         if existing:
-            result = _get_db().table("obsidian_sync_state").update(state_data).eq("id", existing["id"]).execute()
+            return pb.update_record("obsidian_sync_state", existing["id"], state_data)
         else:
-            state_data["created_at"] = now
-            result = _get_db().table("obsidian_sync_state").insert(state_data).execute()
-
-        return result.data[0] if result.data else {}
+            return pb.create_record("obsidian_sync_state", state_data)
 
     except Exception as e:
         logger.error(f"Failed to update sync state: {e}")
@@ -1044,7 +993,7 @@ def mark_sync_state_deleted(config_id: str, file_path: str) -> None:
     update_sync_state(config_id, file_path, sync_status="deleted")
 
 
-def _get_linked_document_ids(db, doc_ids: list[str]) -> set[str]:
+def _get_linked_document_ids(doc_ids: list[str]) -> set[str]:
     """Get document IDs that are linked to initiatives or projects.
 
     These should not be deleted during orphan cleanup to preserve user associations.
@@ -1052,18 +1001,24 @@ def _get_linked_document_ids(db, doc_ids: list[str]) -> set[str]:
     linked = set()
 
     # Check disco_initiative_documents
-    if doc_ids:
+    for doc_id in doc_ids:
         try:
-            result = db.table("disco_initiative_documents").select("document_id").in_("document_id", doc_ids).execute()
-            linked.update(row["document_id"] for row in result.data)
+            esc_did = pb.escape_filter(doc_id)
+            rows = pb.get_all("disco_initiative_documents", filter=f"document_id='{esc_did}'")
+            if rows:
+                linked.add(doc_id)
         except Exception as e:
             logger.warning(f"Failed to check initiative links: {e}")
 
     # Check project_documents
-    if doc_ids:
+    for doc_id in doc_ids:
+        if doc_id in linked:
+            continue
         try:
-            result = db.table("project_documents").select("document_id").in_("document_id", doc_ids).execute()
-            linked.update(row["document_id"] for row in result.data)
+            esc_did = pb.escape_filter(doc_id)
+            rows = pb.get_all("project_documents", filter=f"document_id='{esc_did}'")
+            if rows:
+                linked.add(doc_id)
         except Exception as e:
             logger.warning(f"Failed to check project links: {e}")
 
@@ -1088,37 +1043,28 @@ def _cleanup_orphaned_documents(config: Dict, synced_paths: Set[str]) -> int:
         Number of orphaned documents deleted
     """
     user_id = config["user_id"]
-    db = _get_db()
-    page_size = 1000
-    offset = 0
 
     # Collect all orphaned documents first, then delete.
-    # Deleting during pagination would shift offsets and skip rows.
     orphans: list[tuple[str, str]] = []  # (doc_id, doc_path)
 
-    while True:
-        result = (
-            db.table("documents")
-            .select("id, obsidian_file_path")
-            .eq("source_platform", "obsidian")
-            .eq("uploaded_by", user_id)
-            .not_.is_("obsidian_file_path", "null")
-            .range(offset, offset + page_size - 1)
-            .execute()
+        esc_uid = pb.escape_filter(user_id)
+        all_docs = pb.get_all(
+            "documents",
+            filter=f"source_platform='obsidian' && uploaded_by='{esc_uid}' && obsidian_file_path!=''",
         )
 
-        for doc in result.data:
+        for doc in all_docs:
             doc_path = doc.get("obsidian_file_path", "")
             if doc_path and doc_path not in synced_paths:
                 orphans.append((doc["id"], doc_path))
 
-        if len(result.data) < page_size:
-            break
-        offset += page_size
+    except Exception as e:
+        logger.warning(f"Failed to query orphaned documents: {e}")
+        return 0
 
     # Check which orphans are linked to initiatives/projects - don't delete those
     orphan_ids = [doc_id for doc_id, _ in orphans]
-    linked_ids = _get_linked_document_ids(db, orphan_ids) if orphan_ids else set()
+    linked_ids = _get_linked_document_ids(orphan_ids) if orphan_ids else set()
 
     deleted = 0
     skipped_linked = 0
@@ -1129,8 +1075,11 @@ def _cleanup_orphaned_documents(config: Dict, synced_paths: Set[str]) -> int:
             continue
 
         try:
-            db.table("document_chunks").delete().eq("document_id", doc_id).execute()
-            db.table("documents").delete().eq("id", doc_id).execute()
+            esc_did = pb.escape_filter(doc_id)
+            chunks = pb.get_all("document_chunks", filter=f"document_id='{esc_did}'")
+            for chunk in chunks:
+                pb.delete_record("document_chunks", chunk["id"])
+            pb.delete_record("documents", doc_id)
             logger.info(f"   Deleted orphan: {doc_path}")
             deleted += 1
         except Exception as e:
@@ -1168,9 +1117,8 @@ def create_sync_log(config_id: str, user_id: str, sync_type: str = "full", trigg
         "started_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    result = _get_db().table("obsidian_sync_log").insert(log_data).execute()
-
-    return result.data[0]["id"]
+    result = pb.create_record("obsidian_sync_log", log_data)
+    return result["id"]
 
 
 def complete_sync_log(
@@ -1211,7 +1159,7 @@ def complete_sync_log(
     if error_details:
         update_data["error_details"] = error_details
 
-    _get_db().table("obsidian_sync_log").update(update_data).eq("id", log_id).execute()
+    pb.update_record("obsidian_sync_log", log_id, update_data)
 
 
 # ============================================================================
@@ -1407,18 +1355,16 @@ def _upsert_obsidian_document(
     user_id = config["user_id"]
 
     # First, check if document already exists with this path
-    existing_doc = (
-        _get_db()
-        .table("documents")
-        .select("id")
-        .eq("user_id", user_id)
-        .eq("obsidian_file_path", relative_path)
-        .execute()
+    esc_uid = pb.escape_filter(user_id)
+    esc_path = pb.escape_filter(relative_path)
+    existing_doc = pb.get_first(
+        "documents",
+        filter=f"user_id='{esc_uid}' && obsidian_file_path='{esc_path}'",
     )
 
-    if existing_doc.data:
+    if existing_doc:
         # Document exists, update it
-        document_id = existing_doc.data[0]["id"]
+        document_id = existing_doc["id"]
         logger.info(f"      Found existing document (dedup): {document_id}")
         _update_obsidian_document(
             document_id=document_id,
@@ -1453,17 +1399,13 @@ def _upsert_obsidian_document(
         ):
             logger.info("      Concurrent insert detected, falling back to update")
             # Another sync created the document, fetch and update it
-            existing_doc = (
-                _get_db()
-                .table("documents")
-                .select("id")
-                .eq("user_id", user_id)
-                .eq("obsidian_file_path", relative_path)
-                .execute()
+            existing_doc = pb.get_first(
+                "documents",
+                filter=f"user_id='{esc_uid}' && obsidian_file_path='{esc_path}'",
             )
 
-            if existing_doc.data:
-                document_id = existing_doc.data[0]["id"]
+            if existing_doc:
+                document_id = existing_doc["id"]
                 _update_obsidian_document(
                     document_id=document_id,
                     file_content=file_content,
@@ -1489,15 +1431,11 @@ def _update_document_path(document_id: str, new_relative_path: str, new_filename
         new_relative_path: New relative path from vault root
         new_filename: New filename
     """
-    now = datetime.now(timezone.utc).isoformat()
     try:
-        _get_db().table("documents").update(
-            {
-                "obsidian_file_path": new_relative_path,
-                "filename": new_filename,
-                "updated_at": now,
-            }
-        ).eq("id", document_id).execute()
+        pb.update_record("documents", document_id, {
+            "obsidian_file_path": new_relative_path,
+            "filename": new_filename,
+        })
         logger.info(f"      Updated document path to: {new_relative_path}")
     except Exception as e:
         logger.error(f"Failed to update document path for {document_id}: {e}")
@@ -1526,44 +1464,7 @@ def _create_obsidian_document(
         raise ObsidianSyncError(f"Cannot upload empty file: {filename}")
 
     user_id = config["user_id"]
-    client_id = config["client_id"]
     vault_path = config["vault_path"]
-
-    # Generate unique storage path (sanitize filename for storage)
-    unique_id = str(uuid.uuid4())
-    # Sanitize filename for storage key:
-    # 1. Replace non-breaking spaces with regular spaces
-    safe_filename = filename.replace("\xa0", " ").replace("\u00a0", " ")
-    # 2. Replace em-dashes, en-dashes with hyphens
-    safe_filename = safe_filename.replace("—", "-").replace("–", "-")
-    # 3. Replace fancy quotes/apostrophes with standard ones
-    safe_filename = safe_filename.replace(""", "'").replace(""", "'").replace('"', '"').replace('"', '"')
-    # 4. Remove remaining special chars (keep alphanumeric, spaces, hyphens, dots, underscores, apostrophes)
-    safe_filename = re.sub(r"[^\w\s\-\.'']", "", safe_filename).strip()
-    # 5. Collapse multiple spaces into single space
-    safe_filename = re.sub(r"\s+", " ", safe_filename)
-    if not safe_filename:
-        safe_filename = "document.md"
-    storage_path = f"obsidian/{client_id}/{unique_id}_{safe_filename}"
-
-    # Upload to Supabase storage with error handling
-    logger.info(f"Uploading {len(file_content)} bytes to storage: {storage_path}")
-    try:
-        upload_result = (
-            _get_db()
-            .storage.from_("documents")
-            .upload(path=storage_path, file=file_content, file_options={"content-type": "text/markdown"})
-        )
-        # Check for upload errors (Supabase returns error in response, not exception)
-        if hasattr(upload_result, "error") and upload_result.error:
-            raise ObsidianSyncError(f"Storage upload failed: {upload_result.error}")
-        logger.info(f"Upload successful: {storage_path}")
-    except ObsidianSyncError:
-        raise
-    except Exception as e:
-        raise ObsidianSyncError(f"Storage upload failed for {filename}: {e}") from None
-
-    storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
 
     # Classify document based on filename/path patterns
     classification = classify_document_by_filename(filename, relative_path)
@@ -1576,12 +1477,9 @@ def _create_obsidian_document(
     now = datetime.now(timezone.utc).isoformat()
     document_data = {
         "user_id": user_id,
-        "client_id": client_id,
         "uploaded_by": user_id,
         "filename": filename,
         "title": title,
-        "storage_url": storage_url,
-        "storage_path": storage_path,
         "source_platform": "obsidian",
         "obsidian_vault_path": vault_path,
         "obsidian_file_path": relative_path,
@@ -1594,11 +1492,9 @@ def _create_obsidian_document(
         "primary_use_case": classification.get("primary_use_case"),
         "classification_confidence": classification.get("classification_confidence"),
         "classification_method": classification.get("classification_method"),
-        # Note: frontmatter is stored in obsidian_sync_state, not documents
     }
 
-    result = _get_db().table("documents").insert(document_data).execute()
-    document = result.data[0]
+    document = documents_repo.create_document(document_data)
 
     # Check for thesis-agents in frontmatter for auto-tagging
     thesis_agents = frontmatter.get("thesis-agents", [])
@@ -1646,34 +1542,18 @@ def _update_obsidian_document(
         raise ObsidianSyncError(f"Cannot update with empty content: {document_id}")
 
     # Get existing document
-    doc_result = _get_db().table("documents").select("storage_url, filename").eq("id", document_id).execute()
+    existing_doc = documents_repo.get_document(document_id)
 
-    if not doc_result.data:
+    if not existing_doc:
         raise ObsidianSyncError(f"Document not found: {document_id}")
 
-    storage_url = doc_result.data[0]["storage_url"]
-    filename = doc_result.data[0].get("filename", document_id)
-    storage_path = storage_url.split("/documents/")[-1]
-
-    # Update file in storage with error handling
-    logger.info(f"Updating {len(file_content)} bytes in storage: {storage_path}")
-    try:
-        update_result = (
-            _get_db()
-            .storage.from_("documents")
-            .update(path=storage_path, file=file_content, file_options={"upsert": "true"})
-        )
-        # Check for update errors
-        if hasattr(update_result, "error") and update_result.error:
-            raise ObsidianSyncError(f"Storage update failed: {update_result.error}")
-        logger.info(f"Update successful: {storage_path}")
-    except ObsidianSyncError:
-        raise
-    except Exception as e:
-        raise ObsidianSyncError(f"Storage update failed for {filename}: {e}") from None
+    filename = existing_doc.get("filename", document_id)
 
     # Delete old embeddings
-    _get_db().table("document_chunks").delete().eq("document_id", document_id).execute()
+    esc_did = pb.escape_filter(document_id)
+    old_chunks = pb.get_all("document_chunks", filter=f"document_id='{esc_did}'")
+    for chunk in old_chunks:
+        pb.delete_record("document_chunks", chunk["id"])
 
     # Update document record
     now = datetime.now(timezone.utc).isoformat()
@@ -1686,15 +1566,11 @@ def _update_obsidian_document(
 
     # Only update original_date if provided and not already set
     if original_date:
-        # Check if original_date is already set
-        existing_doc = (
-            _get_db().table("documents").select("original_date, document_type").eq("id", document_id).execute()
-        )
-        if existing_doc.data and not existing_doc.data[0].get("original_date"):
+        if not existing_doc.get("original_date"):
             update_data["original_date"] = original_date.isoformat()
 
         # Also check if document_type needs to be set (wasn't classified before)
-        if existing_doc.data and not existing_doc.data[0].get("document_type"):
+        if not existing_doc.get("document_type"):
             classification = classify_document_by_filename(filename, relative_path)
             if classification.get("document_type"):
                 logger.info(
@@ -1706,8 +1582,7 @@ def _update_obsidian_document(
                 update_data["classification_method"] = classification["classification_method"]
     else:
         # No original_date provided, but still check if we need to backfill classification
-        existing_doc = _get_db().table("documents").select("document_type").eq("id", document_id).execute()
-        if existing_doc.data and not existing_doc.data[0].get("document_type"):
+        if not existing_doc.get("document_type"):
             classification = classify_document_by_filename(filename, relative_path)
             if classification.get("document_type"):
                 logger.info(
@@ -1718,7 +1593,7 @@ def _update_obsidian_document(
                 update_data["classification_confidence"] = classification["classification_confidence"]
                 update_data["classification_method"] = classification["classification_method"]
 
-    result = _get_db().table("documents").update(update_data).eq("id", document_id).execute()
+    result = documents_repo.update_document(document_id, update_data)
 
     # Sync tags from file path (folder structure becomes tags)
     path_tags = _extract_path_tags(relative_path)
@@ -1731,7 +1606,7 @@ def _update_obsidian_document(
         if isinstance(frontmatter_tags, list):
             _sync_document_tags(document_id, frontmatter_tags, source="frontmatter")
 
-    return result.data[0] if result.data else {}
+    return result
 
 
 def _extract_path_tags(relative_path: str) -> List[str]:
@@ -1830,18 +1705,35 @@ def _sync_document_tags(document_id: str, tags: List[str], source: str = "frontm
     # Delete existing tags of this source type (preserve other sources)
     if source in ("frontmatter", "path"):
         try:
-            _get_db().table("document_tags").delete().eq("document_id", document_id).eq("source", source).execute()
+            esc_did = pb.escape_filter(document_id)
+            esc_src = pb.escape_filter(source)
+            existing_tags = pb.get_all(
+                "document_tags",
+                filter=f"document_id='{esc_did}' && source='{esc_src}'",
+            )
+            for t in existing_tags:
+                pb.delete_record("document_tags", t["id"])
         except Exception as e:
             logger.warning(f"Failed to delete existing {source} tags: {e}")
 
-    # Insert new tags
+    # Insert new tags (check-then-create pattern replaces upsert)
     for tag in tags:
         if isinstance(tag, str) and tag.strip():
             try:
-                _get_db().table("document_tags").upsert(
-                    {"document_id": document_id, "tag": tag.strip(), "source": source},
-                    on_conflict="document_id,tag",
-                ).execute()
+                esc_did = pb.escape_filter(document_id)
+                esc_tag = pb.escape_filter(tag.strip())
+                existing = pb.get_first(
+                    "document_tags",
+                    filter=f"document_id='{esc_did}' && tag='{esc_tag}'",
+                )
+                if existing:
+                    pb.update_record("document_tags", existing["id"], {"source": source})
+                else:
+                    pb.create_record("document_tags", {
+                        "document_id": document_id,
+                        "tag": tag.strip(),
+                        "source": source,
+                    })
                 logger.debug(f"      Synced tag: {tag}")
             except Exception as e:
                 logger.warning(f"      Failed to sync tag '{tag}': {e}")
@@ -1856,28 +1748,28 @@ def _link_document_to_agents(document_id: str, user_id: str, agent_names: List[s
         agent_names: List of agent names from frontmatter
     """
     # Get agent IDs for the specified names
-    agents_result = (
-        _get_db().table("agents").select("id, name").in_("name", [name.lower() for name in agent_names]).execute()
-    )
+    from repositories import agents as agents_repo
 
-    agent_map = {a["name"].lower(): a["id"] for a in agents_result.data}
+    agent_map = {}
+    for name in agent_names:
+        agent = agents_repo.get_agent_by_name(name.lower())
+        if agent:
+            agent_map[name.lower()] = agent["id"]
 
     for agent_name in agent_names:
         agent_id = agent_map.get(agent_name.lower())
         if agent_id:
             try:
-                _get_db().table("agent_knowledge_base").insert(
-                    {
-                        "agent_id": agent_id,
-                        "document_id": document_id,
-                        "added_by": user_id,
-                        "priority": 0,
-                        "relevance_score": 0.9,
-                        "classification_source": "frontmatter",
-                        "classification_confidence": 1.0,
-                        "user_confirmed": True,
-                    }
-                ).execute()
+                pb.create_record("agent_knowledge_base", {
+                    "agent_id": agent_id,
+                    "document_id": document_id,
+                    "added_by": user_id,
+                    "priority": 0,
+                    "relevance_score": 0.9,
+                    "classification_source": "frontmatter",
+                    "classification_confidence": 1.0,
+                    "user_confirmed": True,
+                })
                 logger.debug(f"      Linked to agent: {agent_name}")
             except Exception as e:
                 logger.warning(f"      Failed to link to agent {agent_name}: {e}")
@@ -1890,11 +1782,10 @@ def _link_document_to_agents(document_id: str, user_id: str, agent_names: List[s
 # ============================================================================
 
 
-def _match_folder_subscriptions(db, table_name: str, id_column: str, folder: str, ancestors: list) -> set:
+def _match_folder_subscriptions(table_name: str, id_column: str, folder: str, ancestors: list) -> set:
     """Match a document's folder against folder subscriptions in a given table.
 
     Args:
-        db: Database client
         table_name: Table to query (e.g., "disco_initiative_folders", "project_folders")
         id_column: Column name for the parent ID (e.g., "initiative_id", "project_id")
         folder: The document's folder path
@@ -1904,12 +1795,12 @@ def _match_folder_subscriptions(db, table_name: str, id_column: str, folder: str
         Set of matched parent IDs
     """
     try:
-        result = db.table(table_name).select(f"{id_column}, folder_path, recursive").execute()
-        if not result.data:
+        rows = pb.get_all(table_name)
+        if not rows:
             return set()
 
         matched = set()
-        for row in result.data:
+        for row in rows:
             fp = row["folder_path"]
             recursive = row["recursive"]
             parent_id = row[id_column]
@@ -1941,8 +1832,6 @@ def auto_link_document_to_initiatives(document_id: str, relative_path: str, user
     Returns:
         Number of initiatives and projects the document was linked to
     """
-    db = _get_db()
-
     # Extract folder from path (everything before last '/')
     if "/" not in relative_path:
         return 0  # Root-level file, no folder to match
@@ -1960,31 +1849,40 @@ def auto_link_document_to_initiatives(document_id: str, relative_path: str, user
 
     # --- Initiative folder subscriptions ---
     matched_initiatives = _match_folder_subscriptions(
-        db, "disco_initiative_folders", "initiative_id", folder, ancestors
+        "disco_initiative_folders", "initiative_id", folder, ancestors
     )
     for initiative_id in matched_initiatives:
         try:
-            db.table("disco_initiative_documents").upsert(
-                {
+            # Check-then-create pattern (replaces upsert)
+            esc_iid = pb.escape_filter(initiative_id)
+            esc_did = pb.escape_filter(document_id)
+            existing = pb.get_first(
+                "disco_initiative_documents",
+                filter=f"initiative_id='{esc_iid}' && document_id='{esc_did}'",
+            )
+            if not existing:
+                pb.create_record("disco_initiative_documents", {
                     "initiative_id": initiative_id,
                     "document_id": document_id,
                     "linked_by": user_id,
-                },
-                on_conflict="initiative_id,document_id",
-            ).execute()
+                })
 
             # Get initiative name for auto-tagging
-            init_result = db.table("disco_initiatives").select("name").eq("id", initiative_id).single().execute()
-            if init_result.data:
-                initiative_name = init_result.data["name"]
-                db.table("document_tags").upsert(
-                    {
-                        "document_id": document_id,
-                        "tag": initiative_name,
-                        "source": "initiative",
-                    },
-                    on_conflict="document_id,tag",
-                ).execute()
+            init_record = pb.get_record("disco_initiatives", initiative_id)
+            if init_record:
+                initiative_name = init_record.get("name")
+                if initiative_name:
+                    esc_tag = pb.escape_filter(initiative_name)
+                    existing_tag = pb.get_first(
+                        "document_tags",
+                        filter=f"document_id='{esc_did}' && tag='{esc_tag}'",
+                    )
+                    if not existing_tag:
+                        pb.create_record("document_tags", {
+                            "document_id": document_id,
+                            "tag": initiative_name,
+                            "source": "initiative",
+                        })
 
             linked_count += 1
             logger.info(f"[Auto-Link] Document {document_id} auto-linked to initiative {initiative_id}")
@@ -1993,30 +1891,39 @@ def auto_link_document_to_initiatives(document_id: str, relative_path: str, user
 
     # --- Project folder subscriptions ---
     matched_projects = _match_folder_subscriptions(
-        db, "project_folders", "project_id", folder, ancestors
+        "project_folders", "project_id", folder, ancestors
     )
     for project_id in matched_projects:
         try:
-            db.table("project_documents").upsert(
-                {
+            esc_pid = pb.escape_filter(project_id)
+            esc_did = pb.escape_filter(document_id)
+            existing = pb.get_first(
+                "project_documents",
+                filter=f"project_id='{esc_pid}' && document_id='{esc_did}'",
+            )
+            if not existing:
+                pb.create_record("project_documents", {
                     "project_id": project_id,
                     "document_id": document_id,
-                },
-                on_conflict="project_id,document_id",
-            ).execute()
+                })
 
             # Get project title for auto-tagging
-            proj_result = db.table("ai_projects").select("title").eq("id", project_id).single().execute()
-            if proj_result.data:
-                project_title = proj_result.data["title"]
-                db.table("document_tags").upsert(
-                    {
-                        "document_id": document_id,
-                        "tag": project_title,
-                        "source": "project",
-                    },
-                    on_conflict="document_id,tag",
-                ).execute()
+            from repositories import projects as projects_repo
+            proj = projects_repo.get_project(project_id)
+            if proj:
+                project_title = proj.get("title")
+                if project_title:
+                    esc_tag = pb.escape_filter(project_title)
+                    existing_tag = pb.get_first(
+                        "document_tags",
+                        filter=f"document_id='{esc_did}' && tag='{esc_tag}'",
+                    )
+                    if not existing_tag:
+                        pb.create_record("document_tags", {
+                            "document_id": document_id,
+                            "tag": project_title,
+                            "source": "project",
+                        })
 
             linked_count += 1
             logger.info(f"[Auto-Link] Document {document_id} auto-linked to project {project_id}")
@@ -2269,8 +2176,11 @@ def sync_vault(
                     if state.get("document_id"):
                         try:
                             doc_id = state["document_id"]
-                            _get_db().table("document_chunks").delete().eq("document_id", doc_id).execute()
-                            _get_db().table("documents").delete().eq("id", doc_id).execute()
+                            esc_did = pb.escape_filter(doc_id)
+                            chunks = pb.get_all("document_chunks", filter=f"document_id='{esc_did}'")
+                            for chunk in chunks:
+                                pb.delete_record("document_chunks", chunk["id"])
+                            pb.delete_record("documents", doc_id)
                             logger.info(f"   Deleted: {existing_path}")
                         except Exception as e:
                             logger.warning(f"   Failed to delete {existing_path}: {e}")
@@ -2463,30 +2373,19 @@ def get_sync_status(user_id: str) -> Dict:
 
     # Count synced files (with error handling for transient DB issues)
     try:
-        synced_result = (
-            _get_db()
-            .table("obsidian_sync_state")
-            .select("id", count="exact")
-            .eq("config_id", config["id"])
-            .eq("sync_status", "synced")
-            .execute()
-        )
-        synced_count = synced_result.count or 0
+        esc_cid = pb.escape_filter(config["id"])
+        synced_count = pb.count("obsidian_sync_state", filter=f"config_id='{esc_cid}' && sync_status='synced'")
     except Exception as e:
         logger.warning(f"Error counting synced files: {e}")
         synced_count = 0
 
     # Count pending/failed files (with error handling for transient DB issues)
     try:
-        pending_result = (
-            _get_db()
-            .table("obsidian_sync_state")
-            .select("id", count="exact")
-            .eq("config_id", config["id"])
-            .in_("sync_status", ["pending", "failed"])
-            .execute()
+        esc_cid = pb.escape_filter(config["id"])
+        pending_count = pb.count(
+            "obsidian_sync_state",
+            filter=f"config_id='{esc_cid}' && (sync_status='pending' || sync_status='failed')",
         )
-        pending_count = pending_result.count or 0
     except Exception as e:
         logger.warning(f"Error counting pending files: {e}")
         pending_count = 0
@@ -2692,8 +2591,11 @@ class ObsidianVaultWatcher:
                     if existing_state and existing_state.get("document_id"):
                         if self.sync_options.get("sync_on_delete", False):
                             doc_id = existing_state["document_id"]
-                            _get_db().table("document_chunks").delete().eq("document_id", doc_id).execute()
-                            _get_db().table("documents").delete().eq("id", doc_id).execute()
+                            esc_did = pb.escape_filter(doc_id)
+                            chunks = pb.get_all("document_chunks", filter=f"document_id='{esc_did}'")
+                            for chunk in chunks:
+                                pb.delete_record("document_chunks", chunk["id"])
+                            pb.delete_record("documents", doc_id)
                         mark_sync_state_deleted(self.config["id"], relative_path)
                         stats["files_deleted"] = 1
                 elif event_type == "moved":

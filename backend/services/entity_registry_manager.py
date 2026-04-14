@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
+import pb_client as pb
+from repositories import stakeholders as stakeholders_repo
 from services.phonetic_matcher import get_phonetic_matcher
 
 logger = logging.getLogger(__name__)
@@ -58,8 +60,7 @@ class EntityRegistryManager:
     - Learning from user corrections
     """
 
-    def __init__(self, supabase_client):
-        self.supabase = supabase_client
+    def __init__(self, supabase_client=None):
         self._phonetic_matcher = None
 
     @property
@@ -90,24 +91,14 @@ class EntityRegistryManager:
         Returns the new entry ID or None if already exists.
         """
         try:
-            result = (
-                self.supabase.table("organization_registry")
-                .insert(
-                    {
-                        "client_id": client_id,
-                        "canonical_name": canonical_name,
-                        "aliases": aliases or [],
-                        "domain": domain,
-                        "industry": industry,
-                        "notes": notes,
-                    }
-                )
-                .execute()
-            )
-
-            if result.data:
-                return result.data[0]["id"]
-            return None
+            result = pb.create_record("organization_registry", {
+                "canonical_name": canonical_name,
+                "aliases": aliases or [],
+                "domain": domain,
+                "industry": industry,
+                "notes": notes,
+            })
+            return result.get("id") if result else None
         except Exception as e:
             if "duplicate key" in str(e).lower():
                 logger.debug(f"Organization '{canonical_name}' already exists")
@@ -120,20 +111,16 @@ class EntityRegistryManager:
     ) -> Optional[OrganizationEntry]:
         """Get an organization by ID or canonical name."""
         try:
-            query = self.supabase.table("organization_registry").select("*")
-            query = query.eq("client_id", client_id)
-
             if org_id:
-                query = query.eq("id", org_id)
+                data = pb.get_record("organization_registry", org_id)
             elif canonical_name:
-                query = query.eq("canonical_name", canonical_name)
+                esc_name = pb.escape_filter(canonical_name)
+                data = pb.get_first("organization_registry", filter=f"canonical_name='{esc_name}'")
             else:
                 return None
 
-            result = query.single().execute()
-
-            if result.data:
-                return OrganizationEntry(**result.data)
+            if data:
+                return OrganizationEntry(**data)
             return None
         except Exception as e:
             logger.error(f"Error getting organization: {e}")
@@ -142,16 +129,11 @@ class EntityRegistryManager:
     async def list_organizations(self, client_id: str, limit: int = 100, offset: int = 0) -> list[OrganizationEntry]:
         """List organizations in the registry."""
         try:
-            result = (
-                self.supabase.table("organization_registry")
-                .select("*")
-                .eq("client_id", client_id)
-                .order("canonical_name")
-                .range(offset, offset + limit - 1)
-                .execute()
+            page = (offset // limit) + 1 if limit else 1
+            result = pb.list_records(
+                "organization_registry", sort="canonical_name", page=page, per_page=limit
             )
-
-            return [OrganizationEntry(**row) for row in (result.data or [])]
+            return [OrganizationEntry(**row) for row in result.get("items", [])]
         except Exception as e:
             logger.error(f"Error listing organizations: {e}")
             return []
@@ -159,7 +141,13 @@ class EntityRegistryManager:
     async def add_organization_alias(self, org_id: str, alias: str) -> bool:
         """Add an alias to an organization."""
         try:
-            self.supabase.rpc("add_organization_alias", {"p_org_id": org_id, "p_alias": alias}).execute()
+            # Fetch current aliases, append, and update
+            entry = pb.get_record("organization_registry", org_id)
+            if entry:
+                aliases = entry.get("aliases") or []
+                if alias not in aliases:
+                    aliases.append(alias)
+                    pb.update_record("organization_registry", org_id, {"aliases": aliases})
             return True
         except Exception as e:
             logger.error(f"Error adding organization alias: {e}")
@@ -196,27 +184,17 @@ class EntityRegistryManager:
             metaphone_last = codes[1][0] if codes[1][0] else None
 
         try:
-            result = (
-                self.supabase.table("person_name_registry")
-                .insert(
-                    {
-                        "client_id": client_id,
-                        "canonical_name": canonical_name,
-                        "first_name": first_name,
-                        "last_name": last_name,
-                        "aliases": aliases or [],
-                        "metaphone_first": metaphone_first,
-                        "metaphone_last": metaphone_last,
-                        "stakeholder_id": stakeholder_id,
-                        "notes": notes,
-                    }
-                )
-                .execute()
-            )
-
-            if result.data:
-                return result.data[0]["id"]
-            return None
+            result = pb.create_record("person_name_registry", {
+                "canonical_name": canonical_name,
+                "first_name": first_name,
+                "last_name": last_name,
+                "aliases": aliases or [],
+                "metaphone_first": metaphone_first,
+                "metaphone_last": metaphone_last,
+                "stakeholder_id": stakeholder_id,
+                "notes": notes,
+            })
+            return result.get("id") if result else None
         except Exception as e:
             if "duplicate key" in str(e).lower():
                 logger.debug(f"Person '{canonical_name}' already exists")
@@ -229,20 +207,16 @@ class EntityRegistryManager:
     ) -> Optional[PersonEntry]:
         """Get a person by ID or canonical name."""
         try:
-            query = self.supabase.table("person_name_registry").select("*")
-            query = query.eq("client_id", client_id)
-
             if person_id:
-                query = query.eq("id", person_id)
+                data = pb.get_record("person_name_registry", person_id)
             elif canonical_name:
-                query = query.eq("canonical_name", canonical_name)
+                esc_name = pb.escape_filter(canonical_name)
+                data = pb.get_first("person_name_registry", filter=f"canonical_name='{esc_name}'")
             else:
                 return None
 
-            result = query.single().execute()
-
-            if result.data:
-                return PersonEntry(**result.data)
+            if data:
+                return PersonEntry(**data)
             return None
         except Exception as e:
             logger.error(f"Error getting person: {e}")
@@ -251,16 +225,11 @@ class EntityRegistryManager:
     async def list_persons(self, client_id: str, limit: int = 100, offset: int = 0) -> list[PersonEntry]:
         """List persons in the registry."""
         try:
-            result = (
-                self.supabase.table("person_name_registry")
-                .select("*")
-                .eq("client_id", client_id)
-                .order("canonical_name")
-                .range(offset, offset + limit - 1)
-                .execute()
+            page = (offset // limit) + 1 if limit else 1
+            result = pb.list_records(
+                "person_name_registry", sort="canonical_name", page=page, per_page=limit
             )
-
-            return [PersonEntry(**row) for row in (result.data or [])]
+            return [PersonEntry(**row) for row in result.get("items", [])]
         except Exception as e:
             logger.error(f"Error listing persons: {e}")
             return []
@@ -268,7 +237,12 @@ class EntityRegistryManager:
     async def add_person_alias(self, person_id: str, alias: str) -> bool:
         """Add an alias to a person."""
         try:
-            self.supabase.rpc("add_person_alias", {"p_person_id": person_id, "p_alias": alias}).execute()
+            entry = pb.get_record("person_name_registry", person_id)
+            if entry:
+                aliases = entry.get("aliases") or []
+                if alias not in aliases:
+                    aliases.append(alias)
+                    pb.update_record("person_name_registry", person_id, {"aliases": aliases})
             return True
         except Exception as e:
             logger.error(f"Error adding person alias: {e}")
@@ -296,18 +270,15 @@ class EntityRegistryManager:
         """
         # Record the correction
         try:
-            self.supabase.table("entity_corrections").insert(
-                {
-                    "client_id": client_id,
-                    "entity_type": entity_type,
-                    "original_value": original_value,
-                    "corrected_value": corrected_value,
-                    "source_document_id": source_document_id,
-                    "source_candidate_id": source_candidate_id,
-                    "corrected_by": corrected_by,
-                    "correction_context": context,
-                }
-            ).execute()
+            pb.create_record("entity_corrections", {
+                "entity_type": entity_type,
+                "original_value": original_value,
+                "corrected_value": corrected_value,
+                "source_document_id": source_document_id,
+                "source_candidate_id": source_candidate_id,
+                "corrected_by": corrected_by,
+                "correction_context": context,
+            })
         except Exception as e:
             logger.error(f"Error recording correction: {e}")
 
@@ -356,15 +327,8 @@ class EntityRegistryManager:
         }
 
         try:
-            # Get all stakeholders for client
-            result = (
-                self.supabase.table("stakeholders")
-                .select("id, name, organization, title")
-                .eq("client_id", client_id)
-                .execute()
-            )
-
-            stakeholders = result.data or []
+            # Get all stakeholders
+            stakeholders = stakeholders_repo.list_stakeholders()
             logger.info(f"Bootstrapping from {len(stakeholders)} stakeholders")
 
             # Track unique organizations
@@ -406,19 +370,15 @@ class EntityRegistryManager:
     ) -> list[dict]:
         """Get recent correction history."""
         try:
-            query = (
-                self.supabase.table("entity_corrections")
-                .select("*")
-                .eq("client_id", client_id)
-                .order("created_at", desc=True)
-                .limit(limit)
-            )
-
+            filter_parts = []
             if entity_type:
-                query = query.eq("entity_type", entity_type)
-
-            result = query.execute()
-            return result.data or []
+                esc_type = pb.escape_filter(entity_type)
+                filter_parts.append(f"entity_type='{esc_type}'")
+            pb_filter = " && ".join(filter_parts) if filter_parts else None
+            result = pb.list_records(
+                "entity_corrections", filter=pb_filter, sort="-created", per_page=limit
+            )
+            return result.get("items", [])
         except Exception as e:
             logger.error(f"Error getting correction history: {e}")
             return []

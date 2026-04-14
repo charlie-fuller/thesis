@@ -14,9 +14,10 @@ from typing import Optional
 
 import anthropic
 
+import pb_client as pb
 from agents import AgentRouter
+from repositories import agents as agents_repo, conversations as conversations_repo
 from services.instruction_loader import instruction_file_exists, load_instruction_from_file
-from supabase import Client
 
 logger = logging.getLogger(__name__)
 
@@ -107,8 +108,7 @@ class ChatAgentService:
         # Use selection.system_instruction for Claude API call
     """
 
-    def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
-        self.supabase = supabase
+    def __init__(self, supabase=None, anthropic_client: anthropic.Anthropic = None):
         self.anthropic = anthropic_client
         self._router = AgentRouter(supabase, anthropic_client)
         self._instruction_cache: dict[str, str] = {}
@@ -155,23 +155,20 @@ class ChatAgentService:
         if not instruction:
             try:
                 # First get agent ID
-                agent_result = self.supabase.table("agents").select("id").eq("name", agent_name).single().execute()
+                agent = agents_repo.get_agent_by_name(agent_name)
 
-                if agent_result.data:
-                    agent_id = agent_result.data["id"]
+                if agent:
+                    agent_id = agent["id"]
 
                     # Get active instruction version
-                    version_result = (
-                        self.supabase.table("agent_instruction_versions")
-                        .select("instructions")
-                        .eq("agent_id", agent_id)
-                        .eq("is_active", True)
-                        .limit(1)
-                        .execute()
+                    esc_aid = pb.escape_filter(agent_id)
+                    version = pb.get_first(
+                        "agent_instruction_versions",
+                        filter=f"agent_id='{esc_aid}' && is_active=true",
                     )
 
-                    if version_result.data and version_result.data[0].get("instructions"):
-                        db_instruction = version_result.data[0]["instructions"]
+                    if version and version.get("instructions"):
+                        db_instruction = version["instructions"]
                         # Only use if it's real content, not a placeholder
                         if not db_instruction.startswith("--") and len(db_instruction) > 100:
                             instruction = db_instruction
@@ -355,31 +352,27 @@ which specialist might be better suited to help."""
         """
         try:
             # Check if conversation has an associated agent
-            conv_result = (
-                self.supabase.table("conversations")
-                .select("agent_id, agents(name)")
-                .eq("id", conversation_id)
-                .single()
-                .execute()
-            )
+            conv = conversations_repo.get_conversation(conversation_id)
 
-            if conv_result.data and conv_result.data.get("agents"):
-                agent_name = conv_result.data["agents"]["name"]
-                return {"current_agent": agent_name}
+            if conv and conv.get("agent_id"):
+                agent = agents_repo.get_agent(conv["agent_id"])
+                if agent:
+                    return {"current_agent": agent["name"]}
 
             # Check last message for agent context
-            msg_result = (
-                self.supabase.table("messages")
-                .select("metadata")
-                .eq("conversation_id", conversation_id)
-                .eq("role", "assistant")
-                .order("created_at", desc=True)
-                .limit(1)
-                .execute()
+            esc_cid = pb.escape_filter(conversation_id)
+            result = pb.list_records(
+                "messages",
+                filter=f"conversation_id='{esc_cid}' && role='assistant'",
+                sort="-created",
+                per_page=1,
             )
 
-            if msg_result.data and msg_result.data[0].get("metadata"):
-                metadata = msg_result.data[0]["metadata"]
+            messages = result.get("items", [])
+            if messages:
+                metadata = messages[0].get("metadata") or {}
+                if isinstance(metadata, str):
+                    metadata = pb.parse_json_field(metadata, default={})
                 if metadata.get("agent_name"):
                     return {"current_agent": metadata["agent_name"]}
 
@@ -410,10 +403,7 @@ def get_chat_agent_service() -> ChatAgentService:
     if _chat_agent_service is None:
         import os
 
-        from database import get_supabase
-
-        supabase = get_supabase()
         anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-        _chat_agent_service = ChatAgentService(supabase, anthropic_client)
+        _chat_agent_service = ChatAgentService(anthropic_client=anthropic_client)
 
     return _chat_agent_service

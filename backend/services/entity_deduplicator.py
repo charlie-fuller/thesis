@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional, Tuple
 
+import pb_client as pb
+from repositories import projects as projects_repo, stakeholders as stakeholders_repo
 from services.embeddings import create_embedding
 
 logger = logging.getLogger(__name__)
@@ -111,8 +113,7 @@ class EntityDeduplicator:
         deduplicator.clear_batch_cache()
     """
 
-    def __init__(self, supabase_client, config: Optional[DeduplicationConfig] = None):
-        self.supabase = supabase_client
+    def __init__(self, supabase_client=None, config: Optional[DeduplicationConfig] = None):
         self.config = config or DeduplicationConfig()
         self._batch_cache = BatchCache()
 
@@ -198,15 +199,9 @@ class EntityDeduplicator:
     async def _check_rejected_tasks(self, client_id: str, title: str) -> Optional[MatchResult]:
         """Check if task matches a rejected candidate."""
         try:
-            result = (
-                self.supabase.table("task_candidates")
-                .select("id, title")
-                .eq("client_id", client_id)
-                .eq("status", "rejected")
-                .execute()
-            )
+            rejected_items = pb.get_all("task_candidates", filter="status='rejected'")
 
-            for rejected in result.data or []:
+            for rejected in rejected_items:
                 similarity = fuzzy_match(title, rejected.get("title", ""))
                 if similarity > self.config.fuzzy_threshold:
                     return MatchResult(
@@ -225,15 +220,9 @@ class EntityDeduplicator:
         """Check if task matches a pending candidate."""
         try:
             # Fuzzy match first
-            result = (
-                self.supabase.table("task_candidates")
-                .select("id, title")
-                .eq("client_id", client_id)
-                .eq("status", "pending")
-                .execute()
-            )
+            pending_items = pb.get_all("task_candidates", filter="status='pending'")
 
-            for pending in result.data or []:
+            for pending in pending_items:
                 similarity = fuzzy_match(title, pending.get("title", ""))
                 if similarity > self.config.fuzzy_threshold:
                     return MatchResult(
@@ -243,30 +232,9 @@ class EntityDeduplicator:
                         match_reason=f"Similar to pending candidate: '{pending['title'][:50]}'",
                     )
 
-            # Semantic match if embedding available
+            # Semantic match skipped -- vector RPC not available in PocketBase
             if embedding:
-                try:
-                    semantic_result = self.supabase.rpc(
-                        "match_task_candidates",
-                        {
-                            "query_embedding": embedding,
-                            "p_client_id": client_id,
-                            "match_threshold": self.config.semantic_threshold,
-                            "match_count": 1,
-                        },
-                    ).execute()
-
-                    if semantic_result.data:
-                        match = semantic_result.data[0]
-                        return MatchResult(
-                            matched_id=match["id"],
-                            match_type="pending",
-                            match_confidence=match["similarity"],
-                            match_reason=f"Semantically similar to: '{match['title'][:50]}'",
-                            is_semantic=True,
-                        )
-                except Exception as e:
-                    logger.debug(f"Semantic task candidate match failed: {e}")
+                logger.debug("Semantic task candidate matching not available (no RPC)")
 
         except Exception as e:
             logger.warning(f"Error checking pending task candidates: {e}")
@@ -278,15 +246,9 @@ class EntityDeduplicator:
         """Check if task matches an existing project_task."""
         try:
             # Fuzzy match
-            result = (
-                self.supabase.table("project_tasks")
-                .select("id, title")
-                .eq("client_id", client_id)
-                .neq("status", "completed")
-                .execute()
-            )
+            all_tasks = pb.get_all("project_tasks", filter="status!='completed'")
 
-            for task in result.data or []:
+            for task in all_tasks:
                 similarity = fuzzy_match(title, task.get("title", ""))
                 if similarity > self.config.fuzzy_threshold:
                     return MatchResult(
@@ -296,30 +258,9 @@ class EntityDeduplicator:
                         match_reason=f"Similar to existing task: '{task['title'][:50]}'",
                     )
 
-            # Semantic match if embedding available
+            # Semantic match skipped -- vector RPC not available in PocketBase
             if embedding:
-                try:
-                    semantic_result = self.supabase.rpc(
-                        "match_existing_tasks",
-                        {
-                            "query_embedding": embedding,
-                            "p_client_id": client_id,
-                            "match_threshold": self.config.semantic_threshold,
-                            "match_count": 1,
-                        },
-                    ).execute()
-
-                    if semantic_result.data:
-                        match = semantic_result.data[0]
-                        return MatchResult(
-                            matched_id=match["id"],
-                            match_type="existing",
-                            match_confidence=match["similarity"],
-                            match_reason=f"Semantically similar to: '{match['title'][:50]}'",
-                            is_semantic=True,
-                        )
-                except Exception as e:
-                    logger.debug(f"Semantic existing task match failed: {e}")
+                logger.debug("Semantic existing task matching not available (no RPC)")
 
         except Exception as e:
             logger.warning(f"Error checking existing tasks: {e}")
@@ -402,15 +343,9 @@ class EntityDeduplicator:
     async def _check_rejected_opportunities(self, client_id: str, title: str) -> Optional[MatchResult]:
         """Check if opportunity matches a rejected candidate."""
         try:
-            result = (
-                self.supabase.table("project_candidates")
-                .select("id, title")
-                .eq("client_id", client_id)
-                .eq("status", "rejected")
-                .execute()
-            )
+            rejected_items = pb.get_all("project_candidates", filter="status='rejected'")
 
-            for rejected in result.data or []:
+            for rejected in rejected_items:
                 similarity = fuzzy_match(title, rejected.get("title", ""))
                 if similarity > self.config.fuzzy_threshold:
                     return MatchResult(
@@ -426,15 +361,9 @@ class EntityDeduplicator:
     async def _check_pending_project_candidates(self, client_id: str, title: str) -> Optional[MatchResult]:
         """Check if opportunity matches a pending candidate."""
         try:
-            result = (
-                self.supabase.table("project_candidates")
-                .select("id, title")
-                .eq("client_id", client_id)
-                .eq("status", "pending")
-                .execute()
-            )
+            pending_items = pb.get_all("project_candidates", filter="status='pending'")
 
-            for pending in result.data or []:
+            for pending in pending_items:
                 similarity = fuzzy_match(title, pending.get("title", ""))
                 if similarity > self.config.fuzzy_threshold:
                     return MatchResult(
@@ -450,14 +379,9 @@ class EntityDeduplicator:
     async def _check_existing_opportunities(self, client_id: str, title: str, quote: str) -> Optional[MatchResult]:
         """Check if opportunity matches an existing one."""
         try:
-            result = (
-                self.supabase.table("ai_projects")
-                .select("id, title, project_name, description")
-                .eq("client_id", client_id)
-                .execute()
-            )
+            all_projects = projects_repo.list_projects()
 
-            for opp in result.data or []:
+            for opp in all_projects:
                 # Check title
                 title_sim = fuzzy_match(title, opp.get("title", ""))
                 if title_sim > 0.85:
@@ -564,15 +488,9 @@ class EntityDeduplicator:
     async def _check_rejected_stakeholders(self, client_id: str, name: str) -> Optional[MatchResult]:
         """Check if stakeholder matches a rejected candidate."""
         try:
-            result = (
-                self.supabase.table("stakeholder_candidates")
-                .select("id, name")
-                .eq("client_id", client_id)
-                .eq("status", "rejected")
-                .execute()
-            )
+            rejected_items = pb.get_all("stakeholder_candidates", filter="status='rejected'")
 
-            for rejected in result.data or []:
+            for rejected in rejected_items:
                 similarity = self._name_similarity(name, rejected.get("name", ""))
                 if similarity > 0.85:
                     return MatchResult(
@@ -590,15 +508,9 @@ class EntityDeduplicator:
     ) -> Optional[MatchResult]:
         """Check if stakeholder matches a pending candidate."""
         try:
-            result = (
-                self.supabase.table("stakeholder_candidates")
-                .select("id, name, email")
-                .eq("client_id", client_id)
-                .eq("status", "pending")
-                .execute()
-            )
+            pending_items = pb.get_all("stakeholder_candidates", filter="status='pending'")
 
-            for pending in result.data or []:
+            for pending in pending_items:
                 # Email match is definitive
                 if email and pending.get("email"):
                     if email.lower() == pending["email"].lower():
@@ -627,14 +539,9 @@ class EntityDeduplicator:
     ) -> Optional[MatchResult]:
         """Check if stakeholder matches an existing one."""
         try:
-            result = (
-                self.supabase.table("stakeholders")
-                .select("id, name, email, role, department, organization")
-                .eq("client_id", client_id)
-                .execute()
-            )
+            all_stakeholders = stakeholders_repo.list_stakeholders()
 
-            for existing in result.data or []:
+            for existing in all_stakeholders:
                 # Email match is definitive
                 if email and existing.get("email"):
                     if email.lower() == existing["email"].lower():

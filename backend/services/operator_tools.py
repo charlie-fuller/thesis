@@ -7,7 +7,8 @@ project-triage data: opportunities, metrics, stakeholder information.
 import logging
 from typing import Any, Dict, List, Optional
 
-from supabase import Client
+import pb_client as pb
+from repositories import projects as projects_repo, stakeholders as stakeholders_repo
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +16,7 @@ logger = logging.getLogger(__name__)
 class OperatorTools:
     """Service class providing triage data access for the Operator agent."""
 
-    def __init__(self, supabase: Client, client_id: str):
-        self.supabase = supabase
+    def __init__(self, supabase=None, client_id: str = ""):
         self.client_id = client_id
 
     def get_opportunity_summary(self) -> Dict[str, Any]:
@@ -26,15 +26,7 @@ class OperatorTools:
             Summary dict with tier counts, status breakdown, top opportunities.
         """
         try:
-            result = (
-                self.supabase.table("ai_projects")
-                .select("id, opportunity_code, title, total_score, tier, status, department")
-                .eq("client_id", self.client_id)
-                .order("total_score", desc=True)
-                .execute()
-            )
-
-            opportunities = result.data or []
+            opportunities = projects_repo.list_projects(sort="-total_score")
 
             # Count by tier
             tier_counts = {1: 0, 2: 0, 3: 0, 4: 0}
@@ -87,18 +79,7 @@ class OperatorTools:
             List of opportunities for that department.
         """
         try:
-            result = (
-                self.supabase.table("ai_projects")
-                .select(
-                    "id, opportunity_code, title, total_score, tier, status, current_state, desired_state, next_step"
-                )
-                .eq("client_id", self.client_id)
-                .eq("department", department.lower())
-                .order("total_score", desc=True)
-                .execute()
-            )
-
-            return result.data or []
+            return projects_repo.list_projects(department=department.lower(), sort="-total_score")
 
         except Exception as e:
             logger.error(f"Error getting opportunities by department: {e}")
@@ -111,15 +92,7 @@ class OperatorTools:
             List of blocked opportunities with blockers.
         """
         try:
-            result = (
-                self.supabase.table("ai_projects")
-                .select("id, opportunity_code, title, department, total_score, blockers, next_step")
-                .eq("client_id", self.client_id)
-                .eq("status", "blocked")
-                .execute()
-            )
-
-            return result.data or []
+            return projects_repo.list_projects(status="blocked")
 
         except Exception as e:
             logger.error(f"Error getting blocked opportunities: {e}")
@@ -132,21 +105,20 @@ class OperatorTools:
             Dict with unvalidated metrics grouped by stakeholder.
         """
         try:
-            result = (
-                self.supabase.table("stakeholder_metrics")
-                .select("*, stakeholders(id, name, department)")
-                .eq("client_id", self.client_id)
-                .in_("validation_status", ["red", "yellow"])
-                .execute()
+            metrics = pb.get_all(
+                "stakeholder_metrics",
+                filter="(validation_status='red' || validation_status='yellow')",
             )
 
-            metrics = result.data or []
-
-            # Group by stakeholder
+            # Group by stakeholder (separate lookup since no joins)
             by_stakeholder = {}
             for m in metrics:
-                stakeholder = m.get("stakeholders", {})
-                s_name = stakeholder.get("name", "Unknown") if stakeholder else "Unknown"
+                # Look up stakeholder name
+                s_name = "Unknown"
+                if m.get("stakeholder_id"):
+                    s = stakeholders_repo.get_stakeholder(m["stakeholder_id"])
+                    if s:
+                        s_name = s.get("name", "Unknown")
                 if s_name not in by_stakeholder:
                     by_stakeholder[s_name] = []
                 by_stakeholder[s_name].append(
@@ -189,60 +161,61 @@ class OperatorTools:
         """
         try:
             # Find stakeholder by name (partial match)
-            stakeholder_result = (
-                self.supabase.table("stakeholders")
-                .select("*")
-                .eq("client_id", self.client_id)
-                .ilike("name", f"%{stakeholder_name}%")
-                .limit(1)
-                .execute()
-            )
+            results = stakeholders_repo.search_stakeholders(stakeholder_name)
 
-            if not stakeholder_result.data:
+            if not results:
                 return None
 
-            stakeholder = stakeholder_result.data[0]
+            stakeholder = results[0]
             stakeholder_id = stakeholder["id"]
 
             # Get metrics
-            metrics_result = (
-                self.supabase.table("stakeholder_metrics")
-                .select("metric_name, current_value, target_value, validation_status, unit")
-                .eq("stakeholder_id", stakeholder_id)
-                .execute()
+            esc_sid = pb.escape_filter(stakeholder_id)
+            metrics_list = pb.get_all(
+                "stakeholder_metrics",
+                filter=f"stakeholder_id='{esc_sid}'",
             )
 
-            # Get linked opportunities
-            opps_result = (
-                self.supabase.table("opportunity_stakeholder_link")
-                .select("role, ai_projects(opportunity_code, title, total_score, tier, status, next_step)")
-                .eq("stakeholder_id", stakeholder_id)
-                .execute()
+            # Get linked opportunities (separate lookups since no joins)
+            opp_links = pb.get_all(
+                "opportunity_stakeholder_link",
+                filter=f"stakeholder_id='{esc_sid}'",
             )
 
             # Also get owned opportunities
-            owned_opps_result = (
-                self.supabase.table("ai_projects")
-                .select("opportunity_code, title, total_score, tier, status, next_step")
-                .eq("owner_stakeholder_id", stakeholder_id)
-                .execute()
+            owned_opps = pb.get_all(
+                "ai_projects",
+                filter=f"owner_stakeholder_id='{esc_sid}'",
             )
 
             # Format response
             linked_opps = []
-            for link in opps_result.data or []:
-                opp = link.get("ai_projects")
-                if opp:
-                    linked_opps.append(
-                        {
-                            **opp,
+            for link in opp_links:
+                opp_id = link.get("opportunity_id")
+                if opp_id:
+                    opp = projects_repo.get_project(opp_id)
+                    if opp:
+                        linked_opps.append({
+                            "opportunity_code": opp.get("opportunity_code"),
+                            "title": opp.get("title"),
+                            "total_score": opp.get("total_score"),
+                            "tier": opp.get("tier"),
+                            "status": opp.get("status"),
+                            "next_step": opp.get("next_step"),
                             "role": link.get("role", "involved"),
-                        }
-                    )
+                        })
 
-            for opp in owned_opps_result.data or []:
-                if not any(lo["opportunity_code"] == opp["opportunity_code"] for lo in linked_opps):
-                    linked_opps.append({**opp, "role": "owner"})
+            for opp in owned_opps:
+                if not any(lo.get("opportunity_code") == opp.get("opportunity_code") for lo in linked_opps):
+                    linked_opps.append({
+                        "opportunity_code": opp.get("opportunity_code"),
+                        "title": opp.get("title"),
+                        "total_score": opp.get("total_score"),
+                        "tier": opp.get("tier"),
+                        "status": opp.get("status"),
+                        "next_step": opp.get("next_step"),
+                        "role": "owner",
+                    })
 
             return {
                 "stakeholder": {
@@ -266,7 +239,7 @@ class OperatorTools:
                         "status": m.get("validation_status", "red"),
                         "unit": m.get("unit"),
                     }
-                    for m in (metrics_result.data or [])
+                    for m in metrics_list
                 ],
                 "opportunities": sorted(linked_opps, key=lambda x: x.get("total_score", 0), reverse=True),
             }
@@ -282,32 +255,29 @@ class OperatorTools:
             Dict with Tier 1 opportunities and their next steps.
         """
         try:
-            result = (
-                self.supabase.table("ai_projects")
-                .select("*, stakeholders:owner_stakeholder_id(name)")
-                .eq("client_id", self.client_id)
-                .eq("tier", 1)
-                .order("total_score", desc=True)
-                .execute()
-            )
+            opportunities = projects_repo.list_projects(tier=1, sort="-total_score")
 
-            opportunities = result.data or []
+            formatted = []
+            for o in opportunities:
+                owner_name = None
+                if o.get("owner_stakeholder_id"):
+                    owner = stakeholders_repo.get_stakeholder(o["owner_stakeholder_id"])
+                    if owner:
+                        owner_name = owner.get("name")
+                formatted.append({
+                    "code": o.get("opportunity_code"),
+                    "title": o["title"],
+                    "department": o.get("department"),
+                    "owner": owner_name,
+                    "status": o.get("status"),
+                    "score": o.get("total_score"),
+                    "next_step": o.get("next_step"),
+                    "blockers": o.get("blockers") or [],
+                })
 
             return {
                 "count": len(opportunities),
-                "opportunities": [
-                    {
-                        "code": o["opportunity_code"],
-                        "title": o["title"],
-                        "department": o.get("department"),
-                        "owner": o.get("stakeholders", {}).get("name") if o.get("stakeholders") else None,
-                        "status": o.get("status"),
-                        "score": o.get("total_score"),
-                        "next_step": o.get("next_step"),
-                        "blockers": o.get("blockers") or [],
-                    }
-                    for o in opportunities
-                ],
+                "opportunities": formatted,
             }
 
         except Exception as e:

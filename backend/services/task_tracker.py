@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Optional
 
-from supabase import Client
+import pb_client as pb
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +52,8 @@ PRIORITY_LABELS = {1: "Critical", 2: "High", 3: "Medium", 4: "Low", 5: "Lowest"}
 class TaskTracker:
     """Service for tracking and querying user tasks."""
 
-    def __init__(self, supabase: Client):
-        self.supabase = supabase
+    def __init__(self, supabase=None):
+        pass  # No longer needs supabase client
 
     async def get_user_task_snapshot(self, user_id: str, client_id: Optional[str] = None) -> TaskSnapshot:
         """Get a complete snapshot of user's active tasks.
@@ -69,38 +69,19 @@ class TaskTracker:
         week_end = today + timedelta(days=7)
         week_ago = today - timedelta(days=7)
 
-        # Build query for active tasks
-        query = (
-            self.supabase.table("project_tasks")
-            .select(
-                "id, title, status, priority, due_date, blocked_at, blocker_reason, "
-                "source_type, source_transcript_id, source_conversation_id, "
-                "source_research_task_id, source_opportunity_id"
-            )
-            .eq("assignee_user_id", user_id)
-            .neq("status", "completed")
+        # Build filter for active tasks
+        esc_uid = pb.escape_filter(user_id)
+        tasks = pb.get_all(
+            "project_tasks",
+            filter=f"assignee_user_id='{esc_uid}' && status!='completed'",
         )
-
-        if client_id:
-            query = query.eq("client_id", client_id)
-
-        result = query.execute()
-        tasks = result.data or []
 
         # Query completed tasks in last 7 days
-        completed_query = (
-            self.supabase.table("project_tasks")
-            .select("id", count="exact")
-            .eq("assignee_user_id", user_id)
-            .eq("status", "completed")
-            .gte("completed_at", week_ago.isoformat())
+        esc_week = pb.escape_filter(week_ago.isoformat())
+        completed_count = pb.count(
+            "project_tasks",
+            filter=f"assignee_user_id='{esc_uid}' && status='completed' && completed_at>='{esc_week}'",
         )
-
-        if client_id:
-            completed_query = completed_query.eq("client_id", client_id)
-
-        completed_result = completed_query.execute()
-        completed_count = completed_result.count or 0
 
         # Categorize tasks
         overdue = []

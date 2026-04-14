@@ -12,6 +12,7 @@ from difflib import SequenceMatcher
 from enum import Enum
 from typing import Optional
 
+import pb_client as pb
 from services.phonetic_matcher import PhoneticMatcher, get_phonetic_matcher
 
 logger = logging.getLogger(__name__)
@@ -65,8 +66,7 @@ class EntityValidator:
     4. Phonetic match (Double Metaphone for names)
     """
 
-    def __init__(self, supabase_client, fuzzy_threshold: float = 0.85, phonetic_threshold: float = 0.7):
-        self.supabase = supabase_client
+    def __init__(self, supabase_client=None, fuzzy_threshold: float = 0.85, phonetic_threshold: float = 0.7):
         self.fuzzy_threshold = fuzzy_threshold
         self.phonetic_threshold = phonetic_threshold
         self._phonetic_matcher: Optional[PhoneticMatcher] = None
@@ -111,20 +111,28 @@ class EntityValidator:
             metaphone_first = codes[0][0] if codes[0][0] else None
             metaphone_last = codes[1][0] if codes[1][0] else None
 
-        # Search registry using RPC function
+        # Search registry using PocketBase filter (replaces RPC)
         try:
-            result = self.supabase.rpc(
-                "search_person_registry",
-                {
-                    "p_client_id": client_id,
-                    "p_search_term": clean_name,
-                    "p_metaphone_first": metaphone_first,
-                    "p_metaphone_last": metaphone_last,
-                    "p_limit": 5,
-                },
-            ).execute()
-
-            matches = result.data or []
+            esc_name = pb.escape_filter(clean_name)
+            # Search by canonical name or alias containing the search term
+            candidates = pb.get_all(
+                "person_name_registry",
+                filter=f"canonical_name~'{esc_name}'",
+            )
+            # Build match results with similarity scoring
+            matches = []
+            for entry in candidates[:5]:
+                canonical = entry.get("canonical_name", "")
+                similarity = self.calculate_fuzzy_similarity(clean_name, canonical)
+                match_type = "exact" if clean_name.lower() == canonical.lower() else "fuzzy"
+                matches.append({
+                    "id": entry.get("id"),
+                    "canonical_name": canonical,
+                    "match_type": match_type,
+                    "similarity": similarity,
+                })
+            # Sort by similarity descending
+            matches.sort(key=lambda m: m["similarity"], reverse=True)
         except Exception as e:
             logger.error(f"Error searching person registry: {e}")
             matches = []
@@ -235,14 +243,25 @@ class EntityValidator:
 
         clean_name = org_name.strip()
 
-        # Search registry using RPC function
+        # Search registry using PocketBase filter (replaces RPC)
         try:
-            result = self.supabase.rpc(
-                "search_organization_registry",
-                {"p_client_id": client_id, "p_search_term": clean_name, "p_limit": 5},
-            ).execute()
-
-            matches = result.data or []
+            esc_name = pb.escape_filter(clean_name)
+            candidates = pb.get_all(
+                "organization_registry",
+                filter=f"canonical_name~'{esc_name}'",
+            )
+            matches = []
+            for entry in candidates[:5]:
+                canonical = entry.get("canonical_name", "")
+                similarity = self.calculate_fuzzy_similarity(clean_name, canonical)
+                match_type = "exact" if clean_name.lower() == canonical.lower() else "fuzzy"
+                matches.append({
+                    "id": entry.get("id"),
+                    "canonical_name": canonical,
+                    "match_type": match_type,
+                    "similarity": similarity,
+                })
+            matches.sort(key=lambda m: m["similarity"], reverse=True)
         except Exception as e:
             logger.error(f"Error searching organization registry: {e}")
             matches = []
@@ -338,18 +357,15 @@ class EntityValidator:
             source_document_id: Optional document ID
         """
         try:
-            self.supabase.table("entity_validation_results").insert(
-                {
-                    "client_id": client_id,
-                    "entity_type": entity_type,
-                    "original_value": result.original_value,
-                    "validation_status": result.status.value,
-                    "suggested_value": result.suggested_value,
-                    "confidence": result.confidence,
-                    "match_reason": result.match_reason,
-                    "registry_entry_id": result.registry_entry_id,
-                    "source_document_id": source_document_id,
-                }
-            ).execute()
+            pb.create_record("entity_validation_results", {
+                "entity_type": entity_type,
+                "original_value": result.original_value,
+                "validation_status": result.status.value,
+                "suggested_value": result.suggested_value,
+                "confidence": result.confidence,
+                "match_reason": result.match_reason,
+                "registry_entry_id": result.registry_entry_id,
+                "source_document_id": source_document_id,
+            })
         except Exception as e:
             logger.error(f"Error recording validation result: {e}")

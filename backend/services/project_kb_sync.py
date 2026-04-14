@@ -11,7 +11,8 @@ This service runs after document upload/processing to:
 import logging
 from typing import List
 
-from database import get_supabase
+import pb_client as pb
+from repositories import projects as projects_repo, documents as documents_repo
 from services.project_justification import generate_project_justifications
 
 logger = logging.getLogger(__name__)
@@ -32,33 +33,24 @@ async def find_projects_affected_by_document(
 
     Returns list of project dicts with similarity scores.
     """
-    supabase = get_supabase()
-
     # Get the document's chunks
-    chunks_result = (
-        supabase.table("document_chunks").select("id, embedding, content").eq("document_id", document_id).execute()
-    )
+    chunks = documents_repo.list_document_chunks(document_id)
 
-    if not chunks_result.data:
+    if not chunks:
         logger.info(f"No chunks found for document {document_id}")
         return []
 
     # Get all projects for this client
-    projects_result = (
-        supabase.table("ai_projects")
-        .select("id, title, description, current_state, desired_state, department")
-        .eq("client_id", client_id)
-        .execute()
-    )
+    projects = projects_repo.list_projects()
 
-    if not projects_result.data:
+    if not projects:
         return []
 
     # For each project, check if any document chunk is relevant
     # We'll use a simple keyword/semantic approach
     affected = []
 
-    for project in projects_result.data:
+    for project in projects:
         # Build project context for matching
         project_context = " ".join(
             filter(
@@ -75,7 +67,7 @@ async def find_projects_affected_by_document(
 
         # Check each chunk for relevance
         max_relevance = 0.0
-        for chunk in chunks_result.data:
+        for chunk in chunks:
             chunk_content = (chunk.get("content") or "").lower()
 
             # Simple keyword overlap score
@@ -176,16 +168,13 @@ async def check_and_sync_projects_for_document(document_id: str):
 
     This is the function to call from document processing background tasks.
     """
-    supabase = get_supabase()
-
     # Get document's client_id
-    doc_result = supabase.table("documents").select("client_id").eq("id", document_id).single().execute()
-
-    if not doc_result.data:
+    doc = documents_repo.get_document(document_id)
+    if not doc:
         logger.warning(f"Document {document_id} not found for project sync")
         return
 
-    client_id = doc_result.data["client_id"]
+    client_id = doc.get("client_id", "")
 
     result = await sync_projects_after_document_change(
         document_id=document_id,

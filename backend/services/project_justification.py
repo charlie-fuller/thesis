@@ -14,7 +14,8 @@ from typing import Optional
 
 import anthropic
 
-from database import get_supabase
+import pb_client as pb
+from repositories import projects as projects_repo, tasks as tasks_repo
 from services.project_confidence import evaluate_project_confidence_smart
 
 logger = logging.getLogger(__name__)
@@ -192,19 +193,10 @@ async def generate_project_justifications(
     Raises:
         ValueError: If project not found
     """
-    supabase = get_supabase()
-
     # Fetch project
-    query = supabase.table("ai_projects").select("*").eq("id", project_id)
-    if client_id:
-        query = query.eq("client_id", client_id)
-
-    result = query.single().execute()
-
-    if not result.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise ValueError(f"Project {project_id} not found")
-
-    project = result.data
 
     # Build prompt and call Claude
     prompt = _build_generation_prompt(project)
@@ -234,27 +226,24 @@ async def generate_project_justifications(
 
         # Update the project in database
         if update_data:
-            supabase.table("ai_projects").update(update_data).eq("id", project_id).execute()
+            projects_repo.update_project(project_id, update_data)
 
         # Re-fetch the project to get updated data for confidence calculation
-        updated_result = supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
-        updated_project = updated_result.data
+        updated_project = projects_repo.get_project(project_id)
 
         # Calculate and save confidence score with context-aware questions
         # Fetch tasks for richer context
         tasks = []
         try:
-            tasks_result = supabase.table("project_tasks").select("title,status,notes,category").eq("source_project_id", project_id).limit(10).execute()
-            tasks = tasks_result.data or []
+            all_tasks = tasks_repo.list_tasks(source_project_id=project_id)
+            tasks = all_tasks[:10]
         except Exception:
             pass
         confidence, questions = await evaluate_project_confidence_smart(updated_project, tasks)
-        supabase.table("ai_projects").update(
-            {
-                "scoring_confidence": confidence,
-                "confidence_questions": questions,
-            }
-        ).eq("id", project_id).execute()
+        projects_repo.update_project(project_id, {
+            "scoring_confidence": confidence,
+            "confidence_questions": questions,
+        })
 
         logger.info(f"Generated justifications for project {project_id} (confidence: {confidence}%)")
 
@@ -275,12 +264,8 @@ async def generate_all_justifications(client_id: str) -> dict:
     Returns:
         Dict with counts of success/failure
     """
-    supabase = get_supabase()
-
     # Get all projects for client
-    result = supabase.table("ai_projects").select("id, title").eq("client_id", client_id).execute()
-
-    projects = result.data
+    projects = projects_repo.list_projects()
     success_count = 0
     failure_count = 0
     errors = []

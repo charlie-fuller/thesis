@@ -18,12 +18,11 @@ from urllib.parse import urlparse
 
 import anthropic
 
-from database import get_supabase
+import pb_client as pb
+from repositories import research as research_repo
 from logger_config import get_logger
 
 logger = get_logger(__name__)
-
-supabase = get_supabase()
 
 # Initialize Anthropic client for web search
 _anthropic_client: Optional[anthropic.Anthropic] = None
@@ -107,19 +106,17 @@ def get_source_credibility(domain: str) -> tuple[int, Optional[str], Optional[st
         tuple: (credibility_tier, source_type, source_name)
     """
     try:
-        result = (
-            supabase.table("research_sources")
-            .select("credibility_tier, source_type, name")
-            .eq("domain", domain)
-            .single()
-            .execute()
+        esc_domain = pb.escape_filter(domain)
+        result = pb.get_first(
+            "research_sources",
+            filter=f"domain='{esc_domain}'",
         )
 
-        if result.data:
+        if result:
             return (
-                result.data["credibility_tier"],
-                result.data.get("source_type"),
-                result.data.get("name"),
+                result["credibility_tier"],
+                result.get("source_type"),
+                result.get("name"),
             )
     except Exception as e:
         logger.debug(f"No credibility data for {domain}: {e}")
@@ -131,18 +128,14 @@ def get_source_credibility(domain: str) -> tuple[int, Optional[str], Optional[st
 def update_source_citation_count(domain: str):
     """Increment the citation count for a source."""
     try:
-        supabase.table("research_sources").update(
-            {
-                "times_cited": supabase.table("research_sources")
-                .select("times_cited")
-                .eq("domain", domain)
-                .single()
-                .execute()
-                .data.get("times_cited", 0)
-                + 1,
+        esc_domain = pb.escape_filter(domain)
+        source = pb.get_first("research_sources", filter=f"domain='{esc_domain}'")
+        if source:
+            current_count = source.get("times_cited", 0) or 0
+            pb.update_record("research_sources", source["id"], {
+                "times_cited": current_count + 1,
                 "last_cited_at": datetime.now(timezone.utc).isoformat(),
-            }
-        ).eq("domain", domain).execute()
+            })
     except Exception as e:
         logger.debug(f"Could not update citation count for {domain}: {e}")
 

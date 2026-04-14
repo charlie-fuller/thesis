@@ -16,7 +16,8 @@ from typing import Optional
 
 import anthropic
 
-from database import get_supabase
+import pb_client as pb
+from repositories import agents as agents_repo
 
 logger = logging.getLogger(__name__)
 
@@ -461,7 +462,6 @@ class DocumentClassifier:
     def __init__(self, anthropic_client: Optional[anthropic.Anthropic] = None):
         """Initialize classifier with optional Anthropic client."""
         self.anthropic = anthropic_client
-        self.supabase = get_supabase()
         self._agent_id_cache: dict[str, str] = {}
 
     def _get_agent_id(self, agent_name: str) -> Optional[str]:
@@ -470,9 +470,9 @@ class DocumentClassifier:
             return self._agent_id_cache[agent_name]
 
         try:
-            result = self.supabase.table("agents").select("id").eq("name", agent_name).execute()
-            if result.data:
-                agent_id = result.data[0]["id"]
+            agent = agents_repo.get_agent_by_name(agent_name)
+            if agent:
+                agent_id = agent["id"]
                 self._agent_id_cache[agent_name] = agent_id
                 return agent_id
         except Exception as e:
@@ -740,7 +740,7 @@ Return JSON with the most relevant agents (max 3):
                 "review_reason": result.review_reason,
             }
 
-            self.supabase.table("document_classifications").insert(classification_data).execute()
+            pb.create_record("document_classifications", classification_data)
 
             # Auto-link agents if confident and enabled
             if auto_link_agents and not result.requires_user_review:
@@ -766,39 +766,34 @@ Return JSON with the most relevant agents (max 3):
         """Create agent_knowledge_base link with relevance scoring."""
         try:
             # Check if link already exists
-            existing = (
-                self.supabase.table("agent_knowledge_base")
-                .select("id")
-                .eq("document_id", document_id)
-                .eq("agent_id", classification.agent_id)
-                .execute()
+            esc_did = pb.escape_filter(document_id)
+            esc_aid = pb.escape_filter(classification.agent_id)
+            existing = pb.get_all(
+                "agent_knowledge_base",
+                filter=f"document_id='{esc_did}' && agent_id='{esc_aid}'",
             )
 
-            if existing.data:
+            if existing:
                 # Update existing link
-                self.supabase.table("agent_knowledge_base").update(
-                    {
-                        "relevance_score": classification.relevance_score,
-                        "classification_source": f"auto_{source}",
-                        "classification_confidence": classification.confidence,
-                        "classification_reason": classification.reason,
-                        "user_confirmed": False,
-                    }
-                ).eq("id", existing.data[0]["id"]).execute()
+                pb.update_record("agent_knowledge_base", existing[0]["id"], {
+                    "relevance_score": classification.relevance_score,
+                    "classification_source": f"auto_{source}",
+                    "classification_confidence": classification.confidence,
+                    "classification_reason": classification.reason,
+                    "user_confirmed": False,
+                })
             else:
                 # Create new link
-                self.supabase.table("agent_knowledge_base").insert(
-                    {
-                        "document_id": document_id,
-                        "agent_id": classification.agent_id,
-                        "relevance_score": classification.relevance_score,
-                        "classification_source": f"auto_{source}",
-                        "classification_confidence": classification.confidence,
-                        "classification_reason": classification.reason,
-                        "user_confirmed": False,
-                        "priority": 0,
-                    }
-                ).execute()
+                pb.create_record("agent_knowledge_base", {
+                    "document_id": document_id,
+                    "agent_id": classification.agent_id,
+                    "relevance_score": classification.relevance_score,
+                    "classification_source": f"auto_{source}",
+                    "classification_confidence": classification.confidence,
+                    "classification_reason": classification.reason,
+                    "user_confirmed": False,
+                    "priority": 0,
+                })
 
             logger.info(f"Linked agent {classification.agent_name} to document {document_id}")
             return True

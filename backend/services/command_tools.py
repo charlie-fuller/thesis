@@ -1,14 +1,19 @@
 """Command Center tool definitions and executor.
 
 Provides tool schemas for Claude's tool_use API and a dispatcher
-that executes tools against Supabase and Neo4j.
+that executes tools against PocketBase and Neo4j.
 """
 
-import asyncio
 import json
 import os
 from datetime import date, datetime, timezone
 from typing import Any, Optional
+
+import pb_client as pb
+from repositories import documents as documents_repo
+from repositories import projects as projects_repo
+from repositories import stakeholders as stakeholders_repo
+from repositories import tasks as tasks_repo
 
 from logger_config import get_logger
 
@@ -286,14 +291,14 @@ COMMAND_TOOL_SCHEMAS = [
 # ============================================================================
 
 
-async def execute_tool(name: str, tool_input: dict, supabase, client_id: str) -> dict[str, Any]:
+async def execute_tool(name: str, tool_input: dict, supabase=None, client_id: str = "") -> dict[str, Any]:
     """Execute a command tool and return the result.
 
     Args:
         name: Tool name
         tool_input: Tool input parameters
-        supabase: Supabase client instance
-        client_id: Current user's client_id
+        supabase: Deprecated, ignored.
+        client_id: Deprecated, ignored.
 
     Returns:
         Dict with tool execution result
@@ -302,7 +307,7 @@ async def execute_tool(name: str, tool_input: dict, supabase, client_id: str) ->
         handler = _TOOL_HANDLERS.get(name)
         if not handler:
             return {"error": f"Unknown tool: {name}"}
-        return await handler(tool_input, supabase, client_id)
+        return await handler(tool_input)
     except Exception as e:
         logger.error(f"Tool execution error ({name}): {e}")
         return {"error": str(e)}
@@ -313,23 +318,23 @@ async def execute_tool(name: str, tool_input: dict, supabase, client_id: str) ->
 # ============================================================================
 
 
-async def _list_tasks(params: dict, supabase, client_id: str) -> dict:
-    query = supabase.table("v_tasks_with_assignee").select("*").eq("client_id", client_id)
-
+async def _list_tasks(params: dict) -> dict:
+    filter_parts = []
     if params.get("status"):
-        query = query.eq("status", params["status"])
+        filter_parts.append(f"status='{pb.escape_filter(params['status'])}'")
     if params.get("priority"):
-        query = query.eq("priority", params["priority"])
+        filter_parts.append(f"priority='{pb.escape_filter(str(params['priority']))}'")
     if params.get("team"):
-        query = query.eq("team", params["team"])
+        filter_parts.append(f"team='{pb.escape_filter(params['team'])}'")
     if params.get("linked_project_id"):
-        query = query.eq("linked_project_id", params["linked_project_id"])
+        filter_parts.append(f"linked_project_id='{pb.escape_filter(params['linked_project_id'])}'")
 
     limit = params.get("limit", 25)
-    query = query.order("priority").order("created_at", desc=True).limit(limit)
-
-    result = await asyncio.to_thread(lambda: query.execute())
-    tasks = result.data or []
+    pb_filter = " && ".join(filter_parts) if filter_parts else None
+    result = pb.list_records(
+        "project_tasks", filter=pb_filter, sort="priority,-created", per_page=limit
+    )
+    tasks = result.get("items", [])
 
     # Client-side filters
     if params.get("search"):
@@ -346,8 +351,8 @@ async def _list_tasks(params: dict, supabase, client_id: str) -> dict:
             {
                 "id": t["id"],
                 "title": t["title"],
-                "status": t["status"],
-                "priority": t["priority"],
+                "status": t.get("status"),
+                "priority": t.get("priority"),
                 "assignee_name": t.get("assignee_name"),
                 "due_date": t.get("due_date"),
                 "team": t.get("team"),
@@ -358,22 +363,17 @@ async def _list_tasks(params: dict, supabase, client_id: str) -> dict:
     }
 
 
-async def _create_task(params: dict, supabase, client_id: str) -> dict:
+async def _create_task(params: dict) -> dict:
     # Get next position
     status = params.get("status", "pending")
-    pos_result = await asyncio.to_thread(
-        lambda: supabase.table("project_tasks")
-        .select("position")
-        .eq("client_id", client_id)
-        .eq("status", status)
-        .order("position", desc=True)
-        .limit(1)
-        .execute()
+    esc_status = pb.escape_filter(status)
+    pos_result = pb.list_records(
+        "project_tasks", filter=f"status='{esc_status}'", sort="-position", per_page=1
     )
-    position = (pos_result.data[0]["position"] + 1) if pos_result.data else 0
+    pos_items = pos_result.get("items", [])
+    position = (pos_items[0].get("position", 0) + 1) if pos_items else 0
 
     record = {
-        "client_id": client_id,
         "title": params["title"],
         "description": params.get("description"),
         "status": status,
@@ -391,47 +391,31 @@ async def _create_task(params: dict, supabase, client_id: str) -> dict:
     # Remove None values
     record = {k: v for k, v in record.items() if v is not None}
 
-    result = await asyncio.to_thread(lambda: supabase.table("project_tasks").insert(record).execute())
-    task = result.data[0] if result.data else {}
+    task = tasks_repo.create_task(record)
     return {"created": True, "task": {"id": task.get("id"), "title": task.get("title"), "status": task.get("status")}}
 
 
-async def _update_task(params: dict, supabase, client_id: str) -> dict:
+async def _update_task(params: dict) -> dict:
     task_id = params.pop("task_id")
     updates = {k: v for k, v in params.items() if v is not None}
     if not updates:
         return {"error": "No fields to update"}
 
-    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
-
-    result = await asyncio.to_thread(
-        lambda: supabase.table("project_tasks")
-        .update(updates)
-        .eq("id", task_id)
-        .eq("client_id", client_id)
-        .execute()
-    )
-    if not result.data:
+    try:
+        t = tasks_repo.update_task(task_id, updates)
+    except Exception:
         return {"error": f"Task {task_id} not found"}
-    t = result.data[0]
-    return {"updated": True, "task": {"id": t["id"], "title": t["title"], "status": t["status"]}}
+    return {"updated": True, "task": {"id": t["id"], "title": t.get("title"), "status": t.get("status")}}
 
 
-async def _list_projects(params: dict, supabase, client_id: str) -> dict:
-    query = supabase.table("ai_projects").select("*").eq("client_id", client_id)
-
-    if params.get("department"):
-        query = query.eq("department", params["department"])
-    if params.get("tier"):
-        query = query.eq("tier", params["tier"])
-    if params.get("status"):
-        query = query.eq("status", params["status"])
-
-    limit = params.get("limit", 25)
-    query = query.order("total_score", desc=True).limit(limit)
-
-    result = await asyncio.to_thread(lambda: query.execute())
-    projects = result.data or []
+async def _list_projects(params: dict) -> dict:
+    projects = projects_repo.list_projects(
+        department=params.get("department", ""),
+        tier=params.get("tier", 0),
+        status=params.get("status", ""),
+        sort="-total_score",
+        limit=params.get("limit", 25),
+    )
 
     return {
         "count": len(projects),
@@ -450,9 +434,8 @@ async def _list_projects(params: dict, supabase, client_id: str) -> dict:
     }
 
 
-async def _create_project(params: dict, supabase, client_id: str) -> dict:
+async def _create_project(params: dict) -> dict:
     record = {
-        "client_id": client_id,
         "title": params["name"],
         "department": params.get("department"),
         "description": params.get("description"),
@@ -461,12 +444,11 @@ async def _create_project(params: dict, supabase, client_id: str) -> dict:
     }
     record = {k: v for k, v in record.items() if v is not None}
 
-    result = await asyncio.to_thread(lambda: supabase.table("ai_projects").insert(record).execute())
-    p = result.data[0] if result.data else {}
+    p = projects_repo.create_project(record)
     return {"created": True, "project": {"id": p.get("id"), "name": p.get("title", ""), "status": p.get("status")}}
 
 
-async def _update_project(params: dict, supabase, client_id: str) -> dict:
+async def _update_project(params: dict) -> dict:
     project_id = params.pop("project_id")
     updates = {k: v for k, v in params.items() if v is not None}
 
@@ -477,45 +459,36 @@ async def _update_project(params: dict, supabase, client_id: str) -> dict:
     if not updates:
         return {"error": "No fields to update"}
 
-    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
-
-    result = await asyncio.to_thread(
-        lambda: supabase.table("ai_projects")
-        .update(updates)
-        .eq("id", project_id)
-        .eq("client_id", client_id)
-        .execute()
-    )
-    if not result.data:
+    try:
+        p = projects_repo.update_project(project_id, updates)
+    except Exception:
         return {"error": f"Project {project_id} not found"}
-    p = result.data[0]
-    return {"updated": True, "project": {"id": p["id"], "name": p.get("title", ""), "status": p["status"]}}
+    return {"updated": True, "project": {"id": p["id"], "name": p.get("title", ""), "status": p.get("status")}}
 
 
-async def _list_stakeholders(params: dict, supabase, client_id: str) -> dict:
-    query = supabase.table("stakeholders").select("*").eq("client_id", client_id)
+async def _list_stakeholders(params: dict) -> dict:
+    all_stakeholders = stakeholders_repo.list_stakeholders(
+        department=params.get("department", ""),
+    )
 
-    if params.get("department"):
-        query = query.eq("department", params["department"])
+    # Client-side filters
     if params.get("engagement_level"):
-        query = query.eq("engagement_level", params["engagement_level"])
-
-    limit = params.get("limit", 25)
-    query = query.order("name").limit(limit)
-
-    result = await asyncio.to_thread(lambda: query.execute())
-    stakeholders = result.data or []
+        lvl = params["engagement_level"].lower()
+        all_stakeholders = [sh for sh in all_stakeholders if (sh.get("engagement_level") or "").lower() == lvl]
 
     if params.get("search"):
         s = params["search"].lower()
-        stakeholders = [sh for sh in stakeholders if s in (sh.get("name") or "").lower()]
+        all_stakeholders = [sh for sh in all_stakeholders if s in (sh.get("name") or "").lower()]
+
+    limit = params.get("limit", 25)
+    stakeholders = all_stakeholders[:limit]
 
     return {
         "count": len(stakeholders),
         "stakeholders": [
             {
                 "id": sh["id"],
-                "name": sh["name"],
+                "name": sh.get("name"),
                 "role": sh.get("role"),
                 "department": sh.get("department"),
                 "engagement_level": sh.get("engagement_level"),
@@ -526,34 +499,26 @@ async def _list_stakeholders(params: dict, supabase, client_id: str) -> dict:
     }
 
 
-async def _update_stakeholder(params: dict, supabase, client_id: str) -> dict:
+async def _update_stakeholder(params: dict) -> dict:
     stakeholder_id = params.pop("stakeholder_id")
     updates = {k: v for k, v in params.items() if v is not None}
     if not updates:
         return {"error": "No fields to update"}
 
-    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
-
-    result = await asyncio.to_thread(
-        lambda: supabase.table("stakeholders")
-        .update(updates)
-        .eq("id", stakeholder_id)
-        .eq("client_id", client_id)
-        .execute()
-    )
-    if not result.data:
+    try:
+        sh = stakeholders_repo.update_stakeholder(stakeholder_id, updates)
+    except Exception:
         return {"error": f"Stakeholder {stakeholder_id} not found"}
-    sh = result.data[0]
-    return {"updated": True, "stakeholder": {"id": sh["id"], "name": sh["name"]}}
+    return {"updated": True, "stakeholder": {"id": sh["id"], "name": sh.get("name")}}
 
 
-async def _search_documents(params: dict, supabase, client_id: str) -> dict:
+async def _search_documents(params: dict) -> dict:
     from document_processor import search_similar_chunks
 
     query = params["query"]
     limit = params.get("limit", 5)
 
-    chunks = search_similar_chunks(query, client_id, limit=limit, min_similarity=0.0)
+    chunks = search_similar_chunks(query, limit=limit, min_similarity=0.0)
 
     return {
         "count": len(chunks),
@@ -569,19 +534,12 @@ async def _search_documents(params: dict, supabase, client_id: str) -> dict:
     }
 
 
-async def _list_documents(params: dict, supabase, client_id: str) -> dict:
-    query = supabase.table("documents").select("id,filename,classification,file_type,created_at,chunk_count").eq(
-        "client_id", client_id
+async def _list_documents(params: dict) -> dict:
+    docs = documents_repo.list_documents(
+        classification=params.get("classification", ""),
+        sort="-created",
+        limit=params.get("limit", 25),
     )
-
-    if params.get("classification"):
-        query = query.eq("classification", params["classification"])
-
-    limit = params.get("limit", 25)
-    query = query.order("created_at", desc=True).limit(limit)
-
-    result = await asyncio.to_thread(lambda: query.execute())
-    docs = result.data or []
 
     if params.get("search"):
         s = params["search"].lower()
@@ -590,7 +548,7 @@ async def _list_documents(params: dict, supabase, client_id: str) -> dict:
     return {"count": len(docs), "documents": docs}
 
 
-async def _query_knowledge_graph(params: dict, supabase, client_id: str) -> dict:
+async def _query_knowledge_graph(params: dict) -> dict:
     cypher = params["cypher"].strip()
 
     # Block write operations
@@ -618,28 +576,16 @@ async def _query_knowledge_graph(params: dict, supabase, client_id: str) -> dict
         return {"error": f"Graph query failed: {str(e)}"}
 
 
-async def _get_dashboard_summary(params: dict, supabase, client_id: str) -> dict:
+async def _get_dashboard_summary(params: dict) -> dict:
     # Tasks by status
-    tasks_result = await asyncio.to_thread(
-        lambda: supabase.table("project_tasks")
-        .select("status", count="exact")
-        .eq("client_id", client_id)
-        .execute()
-    )
-    tasks = tasks_result.data or []
+    tasks = pb.get_all("project_tasks")
     task_counts = {}
     for t in tasks:
         s = t.get("status", "unknown")
         task_counts[s] = task_counts.get(s, 0) + 1
 
-    # Projects by status
-    projects_result = await asyncio.to_thread(
-        lambda: supabase.table("ai_projects")
-        .select("status,tier")
-        .eq("client_id", client_id)
-        .execute()
-    )
-    projects = projects_result.data or []
+    # Projects by status and tier (uses repo for computed scores)
+    projects = projects_repo.list_projects()
     project_status_counts = {}
     project_tier_counts = {}
     for p in projects:
@@ -650,25 +596,14 @@ async def _get_dashboard_summary(params: dict, supabase, client_id: str) -> dict
             project_tier_counts[f"tier_{t}"] = project_tier_counts.get(f"tier_{t}", 0) + 1
 
     # Stakeholder count
-    stakeholders_result = await asyncio.to_thread(
-        lambda: supabase.table("stakeholders")
-        .select("engagement_level")
-        .eq("client_id", client_id)
-        .execute()
-    )
-    stakeholders = stakeholders_result.data or []
+    stakeholders = stakeholders_repo.list_stakeholders()
     engagement_counts = {}
     for sh in stakeholders:
         e = sh.get("engagement_level", "unknown")
         engagement_counts[e] = engagement_counts.get(e, 0) + 1
 
     # Documents count
-    docs_result = await asyncio.to_thread(
-        lambda: supabase.table("documents")
-        .select("id", count="exact")
-        .eq("client_id", client_id)
-        .execute()
-    )
+    docs_count = pb.count("documents")
 
     return {
         "tasks": {"total": len(tasks), "by_status": task_counts},
@@ -678,38 +613,16 @@ async def _get_dashboard_summary(params: dict, supabase, client_id: str) -> dict
             "by_tier": project_tier_counts,
         },
         "stakeholders": {"total": len(stakeholders), "by_engagement": engagement_counts},
-        "documents": {"total": docs_result.count or 0},
+        "documents": {"total": docs_count},
     }
 
 
-async def _run_sql_query(params: dict, supabase, client_id: str) -> dict:
-    sql = params["sql"].strip()
-
-    # Block write operations
-    sql_upper = sql.upper().lstrip()
-    if not sql_upper.startswith("SELECT") and not sql_upper.startswith("WITH"):
-        return {"error": "Only SELECT queries are allowed."}
-
-    blocked = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE", "CREATE", "GRANT", "REVOKE"]
-    for keyword in blocked:
-        # Check for keyword as a standalone word
-        if f" {keyword} " in f" {sql_upper} ":
-            return {"error": f"Write operations not allowed. Found '{keyword}'."}
-
-    try:
-        result = await asyncio.to_thread(lambda: supabase.rpc("exec_sql", {"query": sql}).execute())
-        data = result.data
-        if isinstance(data, list) and len(data) > 100:
-            return {"count": len(data), "truncated": True, "rows": data[:100]}
-        return {"count": len(data) if isinstance(data, list) else 1, "rows": data}
-    except Exception as e:
-        error_msg = str(e)
-        # If RPC doesn't exist, fall back to a helpful message
-        if "exec_sql" in error_msg or "function" in error_msg.lower():
-            return {
-                "error": "SQL execution RPC not available. Use the specific tools (list_tasks, list_projects, etc.) instead."
-            }
-        return {"error": f"SQL query failed: {error_msg}"}
+async def _run_sql_query(params: dict) -> dict:
+    # PocketBase does not support raw SQL queries
+    # Direct agents to use the specific tools instead
+    return {
+        "error": "SQL execution is not available with PocketBase. Use the specific tools (list_tasks, list_projects, etc.) instead."
+    }
 
 
 # Handler registry

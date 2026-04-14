@@ -168,21 +168,15 @@ async def _store_semantic_result(
     Updates the existing metadata JSONB column with a 'semantic_compliance' key.
     """
     try:
-        from database import get_supabase
-
-        supabase = get_supabase()
+        import pb_client as pb
 
         # Fetch current metadata
-        existing = await asyncio.to_thread(
-            lambda: supabase.table(table_name).select("metadata").eq("id", message_id).single().execute()
-        )
+        existing = pb.get_record(table_name, message_id)
 
-        metadata = (existing.data or {}).get("metadata") or {}
+        metadata = (existing or {}).get("metadata") or {}
         metadata["semantic_compliance"] = result
 
-        await asyncio.to_thread(
-            lambda: supabase.table(table_name).update({"metadata": metadata}).eq("id", message_id).execute()
-        )
+        pb.update_record(table_name, message_id, {"metadata": metadata})
 
         logger.debug(f"Semantic compliance stored for {table_name}/{message_id}")
 

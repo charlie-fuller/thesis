@@ -15,7 +15,8 @@ from typing import AsyncGenerator
 
 import anthropic
 
-from supabase import Client
+import pb_client as pb
+from repositories import projects as projects_repo, tasks as tasks_repo, documents as documents_repo
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ def _build_task_list(tasks: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _fetch_kb_context(project_id: str, supabase: Client, client_id: str) -> str:
+def _fetch_kb_context(project_id: str, supabase=None, client_id: str = "") -> str:
     """Fetch linked KB documents for context using precomputed digests.
 
     Uses digests (3-5 sentence summaries) instead of raw content truncation.
@@ -125,7 +126,7 @@ def _fetch_kb_context(project_id: str, supabase: Client, client_id: str) -> str:
     """
     from services.document_digests import get_project_document_digests
 
-    docs = get_project_document_digests(project_id, supabase)
+    docs = get_project_document_digests(project_id)
     if not docs:
         return ""
 
@@ -138,15 +139,8 @@ def _fetch_kb_context(project_id: str, supabase: Client, client_id: str) -> str:
         else:
             # Fallback: fetch first few chunks for docs without digests
             try:
-                chunks = (
-                    supabase.table("document_chunks")
-                    .select("content")
-                    .eq("document_id", doc["id"])
-                    .order("chunk_index")
-                    .limit(3)
-                    .execute()
-                )
-                content = "\n".join(c["content"] for c in (chunks.data or []))
+                all_chunks = documents_repo.list_document_chunks(doc["id"])
+                content = "\n".join(c["content"] for c in all_chunks[:3])
                 if content:
                     context_parts.append(f"## {title}\n{content[:2000]}")
             except Exception:
@@ -252,8 +246,8 @@ Include:
 def evaluate_one_task_standalone(
     task_id: str,
     project_id: str,
-    client_id: str,
-    supabase: Client,
+    client_id: str = "",
+    supabase=None,
 ) -> dict:
     """Evaluate a single task within a project context. Returns evaluation dict.
 
@@ -261,35 +255,16 @@ def evaluate_one_task_standalone(
     Used by the frontend-driven per-task evaluation loop. Each call is a
     short-lived request (~10-15s) avoiding SSE timeout issues.
     """
-    # Fetch project
-    project_result = (
-        supabase.table("ai_projects")
-        .select(
-            "id, title, description, project_name, project_description, "
-            "current_state, desired_state, next_step, department, status"
-        )
-        .eq("id", project_id)
-        .eq("client_id", client_id)
-        .maybe_single()
-        .execute()
-    )
-    if not project_result.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise ValueError("Project not found")
 
-    # Fetch the specific task
-    task_result = (
-        supabase.table("project_tasks")
-        .select("id, title, description, notes, status, priority, assignee_name, due_date")
-        .eq("id", task_id)
-        .eq("client_id", client_id)
-        .maybe_single()
-        .execute()
-    )
-    if not task_result.data:
+    task = tasks_repo.get_task(task_id)
+    if not task:
         raise ValueError("Task not found")
 
-    project_context = _build_project_context(project_result.data)
-    kb_context = _fetch_kb_context(project_id, supabase, client_id)
+    project_context = _build_project_context(project)
+    kb_context = _fetch_kb_context(project_id)
     system_instructions = _load_system_instructions()
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -299,7 +274,7 @@ def evaluate_one_task_standalone(
     client = anthropic.Anthropic(api_key=api_key)
 
     return _evaluate_one_task(
-        task=task_result.data,
+        task=task,
         project_context=project_context,
         kb_context=kb_context,
         system_instructions=system_instructions,
@@ -309,15 +284,16 @@ def evaluate_one_task_standalone(
 
 def finalize_evaluation(
     project_id: str,
-    client_id: str,
-    evaluations: list[dict],
-    supabase: Client,
+    client_id: str = "",
+    evaluations: list[dict] = None,
+    supabase=None,
 ) -> dict:
     """Compute summary, agenticity score, and store final evaluation on project.
 
     Called after all individual task evaluations are complete.
     Returns the final evaluation_complete data shape.
     """
+    evaluations = evaluations or []
     total = len(evaluations)
     automatable = sum(1 for e in evaluations if e.get("category") == "automatable")
     assistable = sum(1 for e in evaluations if e.get("category") == "assistable")
@@ -334,25 +310,17 @@ def finalize_evaluation(
     eval_json = {"evaluations": evaluations, "summary": summary}
 
     # Compute task hash for staleness detection
-    tasks_result = (
-        supabase.table("project_tasks")
-        .select("id, updated_at")
-        .eq("linked_project_id", project_id)
-        .eq("client_id", client_id)
-        .execute()
-    )
-    tasks = tasks_result.data or []
+    esc_pid = pb.escape_filter(project_id)
+    tasks = pb.get_all("project_tasks", filter=f"linked_project_id='{esc_pid}'")
     task_hash = _compute_task_hash(tasks) if tasks else ""
 
     # Store on project
-    supabase.table("ai_projects").update(
-        {
-            "agenticity_score": agenticity_score,
-            "agenticity_evaluated_at": datetime.now(timezone.utc).isoformat(),
-            "agenticity_evaluation": eval_json,
-            "agenticity_task_hash": task_hash,
-        }
-    ).eq("id", project_id).execute()
+    projects_repo.update_project(project_id, {
+        "agenticity_score": agenticity_score,
+        "agenticity_evaluated_at": datetime.now(timezone.utc).isoformat(),
+        "agenticity_evaluation": eval_json,
+        "agenticity_task_hash": task_hash,
+    })
 
     return {
         "evaluations": evaluations,
@@ -364,9 +332,9 @@ def finalize_evaluation(
 
 async def evaluate_project_tasks(
     project_id: str,
-    client_id: str,
-    user_id: str,
-    supabase: Client,
+    client_id: str = "",
+    user_id: str = "",
+    supabase=None,
 ) -> AsyncGenerator[dict, None]:
     """Phase 1: Evaluate all tasks in a project for agentic workability.
 
@@ -378,35 +346,15 @@ async def evaluate_project_tasks(
     yield {"type": "status", "data": "Loading project tasks..."}
 
     # 1. Fetch project
-    project_result = (
-        supabase.table("ai_projects")
-        .select(
-            "id, title, description, project_name, project_description, "
-            "current_state, desired_state, next_step, department, status"
-        )
-        .eq("id", project_id)
-        .eq("client_id", client_id)
-        .maybe_single()
-        .execute()
-    )
+    project = projects_repo.get_project(project_id)
 
-    if not project_result.data:
+    if not project:
         yield {"type": "error", "data": "Project not found"}
         return
 
-    project = project_result.data
-
     # 2. Fetch tasks
-    tasks_result = (
-        supabase.table("project_tasks")
-        .select("id, title, description, notes, status, priority, assignee_name, due_date, updated_at")
-        .eq("linked_project_id", project_id)
-        .eq("client_id", client_id)
-        .order("priority", desc=True)
-        .execute()
-    )
-
-    tasks = tasks_result.data or []
+    esc_pid = pb.escape_filter(project_id)
+    tasks = pb.get_all("project_tasks", filter=f"linked_project_id='{esc_pid}'", sort="-priority")
     if not tasks:
         yield {"type": "error", "data": "No tasks found for this project"}
         return
@@ -416,7 +364,7 @@ async def evaluate_project_tasks(
 
     # 3. Build shared context (fetched once, reused per task)
     project_context = _build_project_context(project)
-    kb_context = _fetch_kb_context(project_id, supabase, client_id)
+    kb_context = _fetch_kb_context(project_id)
     system_instructions = _load_system_instructions()
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -518,14 +466,12 @@ async def evaluate_project_tasks(
 
     # 7. Store evaluation on project
     try:
-        supabase.table("ai_projects").update(
-            {
-                "agenticity_score": agenticity_score,
-                "agenticity_evaluated_at": datetime.now(timezone.utc).isoformat(),
-                "agenticity_evaluation": eval_json,
-                "agenticity_task_hash": task_hash,
-            }
-        ).eq("id", project_id).execute()
+        projects_repo.update_project(project_id, {
+            "agenticity_score": agenticity_score,
+            "agenticity_evaluated_at": datetime.now(timezone.utc).isoformat(),
+            "agenticity_evaluation": eval_json,
+            "agenticity_task_hash": task_hash,
+        })
     except Exception as e:
         logger.error(f"Failed to store kraken evaluation: {e}")
 
@@ -543,9 +489,9 @@ async def evaluate_project_tasks(
 async def execute_approved_tasks(
     project_id: str,
     task_ids: list[str],
-    client_id: str,
-    user_id: str,
-    supabase: Client,
+    client_id: str = "",
+    user_id: str = "",
+    supabase=None,
 ) -> AsyncGenerator[dict, None]:
     """Phase 2: Execute approved tasks, adding output as comments + KB docs.
 
@@ -559,49 +505,35 @@ async def execute_approved_tasks(
     yield {"type": "status", "data": "Loading project context..."}
 
     # 1. Fetch project
-    project_result = (
-        supabase.table("ai_projects")
-        .select(
-            "id, title, description, project_name, project_description, "
-            "current_state, desired_state, next_step, department, status, project_code"
-        )
-        .eq("id", project_id)
-        .eq("client_id", client_id)
-        .maybe_single()
-        .execute()
-    )
+    project = projects_repo.get_project(project_id)
 
-    if not project_result.data:
+    if not project:
         yield {"type": "error", "data": "Project not found"}
         return
 
-    project = project_result.data
     project_context = _build_project_context(project)
     project_code = project.get("project_code", "UNK")
 
     # 2. Fetch approved tasks
-    tasks_result = (
-        supabase.table("project_tasks")
-        .select("id, title, description, notes, status, priority, assignee_name, due_date")
-        .in_("id", task_ids)
-        .eq("client_id", client_id)
-        .execute()
-    )
+    tasks = []
+    for tid in task_ids:
+        t = tasks_repo.get_task(tid)
+        if t:
+            tasks.append(t)
 
-    tasks = tasks_result.data or []
     if not tasks:
         yield {"type": "error", "data": "No approved tasks found"}
         return
 
     # 3. Fetch KB context (digests for broad overview)
-    kb_context = _fetch_kb_context(project_id, supabase, client_id)
+    kb_context = _fetch_kb_context(project_id)
 
     # Collect all project document IDs for per-task vector search
     _project_doc_ids = []
     try:
         from services.document_digests import get_project_document_digests
 
-        _project_docs = get_project_document_digests(project_id, supabase)
+        _project_docs = get_project_document_digests(project_id)
         _project_doc_ids = [d["id"] for d in _project_docs]
     except Exception:
         pass
@@ -716,30 +648,31 @@ INSTRUCTIONS:
                 doc_tags = ["kraken", "auto-generated", project_code]
 
                 try:
-                    supabase.table("documents").insert(
-                        {
-                            "id": doc_id,
-                            "client_id": client_id,
-                            "filename": f"kraken-{task_id[:8]}.md",
-                            "title": doc_title,
-                            "content": output_text,
-                            "file_type": "text/markdown",
-                            "source": "kraken",
-                            "processed": False,
-                            "processing_status": "pending",
-                            "tags": doc_tags,
-                        }
-                    ).execute()
+                    documents_repo.create_document({
+                        "id": doc_id,
+                        "filename": f"kraken-{task_id[:8]}.md",
+                        "title": doc_title,
+                        "content": output_text,
+                        "file_type": "text/markdown",
+                        "source": "kraken",
+                        "processed": False,
+                        "processing_status": "pending",
+                        "tags": doc_tags,
+                    })
 
-                    # Link to project
-                    supabase.table("project_documents").upsert(
-                        {
+                    # Link to project (check-then-create instead of upsert)
+                    esc_pid = pb.escape_filter(project_id)
+                    esc_did = pb.escape_filter(doc_id)
+                    existing_link = pb.get_first(
+                        "project_documents",
+                        filter=f"project_id='{esc_pid}' && document_id='{esc_did}'",
+                    )
+                    if not existing_link:
+                        pb.create_record("project_documents", {
                             "project_id": project_id,
                             "document_id": doc_id,
                             "linked_by": user_id,
-                        },
-                        on_conflict="project_id,document_id",
-                    ).execute()
+                        })
 
                     docs_created += 1
 
@@ -760,8 +693,8 @@ INSTRUCTIONS:
                 "content": f"[Kraken Execution Output]\n\n{comment_content}",
             }
 
-            comment_result = supabase.table("task_comments").insert(comment_record).execute()
-            comment_id = comment_result.data[0]["id"] if comment_result.data else None
+            comment_result = pb.create_record("task_comments", comment_record)
+            comment_id = comment_result.get("id") if comment_result else None
 
             tasks_completed += 1
 
@@ -798,36 +731,21 @@ INSTRUCTIONS:
 
 async def get_evaluation(
     project_id: str,
-    client_id: str,
-    supabase: Client,
+    client_id: str = "",
+    supabase=None,
 ) -> dict | None:
     """Get stored evaluation results for a project."""
-    result = (
-        supabase.table("ai_projects")
-        .select("agenticity_score, agenticity_evaluated_at, agenticity_evaluation, agenticity_task_hash")
-        .eq("id", project_id)
-        .eq("client_id", client_id)
-        .maybe_single()
-        .execute()
-    )
+    data = projects_repo.get_project(project_id)
 
-    if not result.data:
+    if not data:
         return None
 
-    data = result.data
     if not data.get("agenticity_evaluation"):
         return None
 
     # Check staleness
-    tasks_result = (
-        supabase.table("project_tasks")
-        .select("id, updated_at")
-        .eq("linked_project_id", project_id)
-        .eq("client_id", client_id)
-        .execute()
-    )
-
-    tasks = tasks_result.data or []
+    esc_pid = pb.escape_filter(project_id)
+    tasks = pb.get_all("project_tasks", filter=f"linked_project_id='{esc_pid}'")
     current_hash = _compute_task_hash(tasks) if tasks else ""
     is_stale = current_hash != data.get("agenticity_task_hash", "")
 
@@ -843,9 +761,9 @@ async def get_evaluation(
 
 async def evaluate_single_task(
     task_id: str,
-    client_id: str,
-    user_id: str,
-    supabase: Client,
+    client_id: str = "",
+    user_id: str = "",
+    supabase=None,
 ) -> AsyncGenerator[dict, None]:
     """Evaluate a single task for AI workability.
 
@@ -856,21 +774,11 @@ async def evaluate_single_task(
     """
     yield {"type": "status", "data": "Loading task..."}
 
-    # Fetch the task
-    task_result = (
-        supabase.table("project_tasks")
-        .select("id, title, description, notes, status, priority, assignee_name, due_date, linked_project_id")
-        .eq("id", task_id)
-        .eq("client_id", client_id)
-        .maybe_single()
-        .execute()
-    )
+    task = tasks_repo.get_task(task_id)
 
-    if not task_result.data:
+    if not task:
         yield {"type": "error", "data": "Task not found"}
         return
-
-    task = task_result.data
 
     # Build context
     project_context = ""
@@ -879,20 +787,10 @@ async def evaluate_single_task(
 
     if linked_project_id:
         yield {"type": "status", "data": "Loading project context..."}
-        project_result = (
-            supabase.table("ai_projects")
-            .select(
-                "id, title, description, project_name, project_description, "
-                "current_state, desired_state, next_step, department, status"
-            )
-            .eq("id", linked_project_id)
-            .eq("client_id", client_id)
-            .maybe_single()
-            .execute()
-        )
-        if project_result.data:
-            project_context = _build_project_context(project_result.data)
-            kb_context = _fetch_kb_context(linked_project_id, supabase, client_id)
+        project = projects_repo.get_project(linked_project_id)
+        if project:
+            project_context = _build_project_context(project)
+            kb_context = _fetch_kb_context(linked_project_id)
 
     yield {"type": "status", "data": "Evaluating task..."}
 
@@ -930,9 +828,9 @@ async def evaluate_single_task(
 async def execute_single_task(
     task_id: str,
     evaluation_notes: str,
-    client_id: str,
-    user_id: str,
-    supabase: Client,
+    client_id: str = "",
+    user_id: str = "",
+    supabase=None,
 ) -> AsyncGenerator[dict, None]:
     """Execute a single task after evaluation approval.
 
@@ -945,28 +843,18 @@ async def execute_single_task(
     """
     yield {"type": "status", "data": "Preparing task execution..."}
 
-    # Fetch the task
-    task_result = (
-        supabase.table("project_tasks")
-        .select("id, title, description, notes, status, priority, assignee_name, due_date, linked_project_id")
-        .eq("id", task_id)
-        .eq("client_id", client_id)
-        .maybe_single()
-        .execute()
-    )
+    task = tasks_repo.get_task(task_id)
 
-    if not task_result.data:
+    if not task:
         yield {"type": "error", "data": "Task not found"}
         return
-
-    task = task_result.data
 
     # Append evaluation notes to the task
     existing_notes = task.get("notes") or ""
     separator = "\n\n---\n" if existing_notes else ""
     updated_notes = existing_notes + separator + evaluation_notes
 
-    supabase.table("project_tasks").update({"notes": updated_notes, "updated_by": user_id}).eq("id", task_id).execute()
+    tasks_repo.update_task(task_id, {"notes": updated_notes, "updated_by": user_id})
 
     # Build context
     project_context = ""
@@ -977,26 +865,16 @@ async def execute_single_task(
 
     if linked_project_id:
         yield {"type": "status", "data": "Loading project context..."}
-        project_result = (
-            supabase.table("ai_projects")
-            .select(
-                "id, title, description, project_name, project_description, "
-                "current_state, desired_state, next_step, department, status, project_code"
-            )
-            .eq("id", linked_project_id)
-            .eq("client_id", client_id)
-            .maybe_single()
-            .execute()
-        )
-        if project_result.data:
-            project_context = _build_project_context(project_result.data)
-            project_code = project_result.data.get("project_code", "UNK")
-            kb_context = _fetch_kb_context(linked_project_id, supabase, client_id)
+        linked_project = projects_repo.get_project(linked_project_id)
+        if linked_project:
+            project_context = _build_project_context(linked_project)
+            project_code = linked_project.get("project_code", "UNK")
+            kb_context = _fetch_kb_context(linked_project_id)
 
             try:
                 from services.document_digests import get_project_document_digests
 
-                _project_docs = get_project_document_digests(linked_project_id, supabase)
+                _project_docs = get_project_document_digests(linked_project_id)
                 _project_doc_ids = [d["id"] for d in _project_docs]
             except Exception:
                 pass
@@ -1098,29 +976,31 @@ INSTRUCTIONS:
             doc_tags = ["kraken", "auto-generated", project_code]
 
             try:
-                supabase.table("documents").insert(
-                    {
-                        "id": doc_id,
-                        "client_id": client_id,
-                        "filename": f"kraken-{task_id[:8]}.md",
-                        "title": doc_title,
-                        "content": output_text,
-                        "file_type": "text/markdown",
-                        "source": "kraken",
-                        "processed": False,
-                        "processing_status": "pending",
-                        "tags": doc_tags,
-                    }
-                ).execute()
+                documents_repo.create_document({
+                    "id": doc_id,
+                    "filename": f"kraken-{task_id[:8]}.md",
+                    "title": doc_title,
+                    "content": output_text,
+                    "file_type": "text/markdown",
+                    "source": "kraken",
+                    "processed": False,
+                    "processing_status": "pending",
+                    "tags": doc_tags,
+                })
 
-                supabase.table("project_documents").upsert(
-                    {
+                # Link to project (check-then-create instead of upsert)
+                esc_pid = pb.escape_filter(linked_project_id)
+                esc_did = pb.escape_filter(doc_id)
+                existing_link = pb.get_first(
+                    "project_documents",
+                    filter=f"project_id='{esc_pid}' && document_id='{esc_did}'",
+                )
+                if not existing_link:
+                    pb.create_record("project_documents", {
                         "project_id": linked_project_id,
                         "document_id": doc_id,
                         "linked_by": user_id,
-                    },
-                    on_conflict="project_id,document_id",
-                ).execute()
+                    })
 
                 summary_lines = output_text.split("\n")[:10]
                 summary_text = "\n".join(summary_lines)
@@ -1137,8 +1017,8 @@ INSTRUCTIONS:
             "content": f"[Kraken Execution Output]\n\n{comment_content}",
         }
 
-        comment_result = supabase.table("task_comments").insert(comment_record).execute()
-        comment_id = comment_result.data[0]["id"] if comment_result.data else None
+        comment_result = pb.create_record("task_comments", comment_record)
+        comment_id = comment_result.get("id") if comment_result else None
 
         yield {
             "type": "task_complete",

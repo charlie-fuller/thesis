@@ -8,6 +8,8 @@ Links extracted stakeholders to related opportunities and tasks based on:
 
 import logging
 
+import pb_client as pb
+from repositories import projects as projects_repo
 from services.stakeholder_extractor import ExtractedStakeholder
 
 logger = logging.getLogger(__name__)
@@ -16,8 +18,8 @@ logger = logging.getLogger(__name__)
 class StakeholderLinker:
     """Links stakeholders to related opportunities and tasks."""
 
-    def __init__(self, supabase_client):
-        self.supabase = supabase_client
+    def __init__(self, supabase_client=None):
+        pass  # No longer needs supabase client
 
     async def find_related_entities(
         self, stakeholder: ExtractedStakeholder, client_id: str
@@ -43,31 +45,23 @@ class StakeholderLinker:
         try:
             # Search by department if available
             if stakeholder.department:
-                dept_result = (
-                    self.supabase.table("ai_projects")
-                    .select("id")
-                    .eq("client_id", client_id)
-                    .ilike("department", f"%{stakeholder.department}%")
-                    .execute()
+                esc_dept = pb.escape_filter(stakeholder.department)
+                dept_projects = pb.get_all(
+                    "ai_projects",
+                    filter=f"department~'{esc_dept}'",
                 )
-
-                if dept_result.data:
-                    opportunity_ids.extend([o["id"] for o in dept_result.data])
+                opportunity_ids.extend([o["id"] for o in dept_projects])
 
             # Search by stakeholder name in owner_name
             if stakeholder.name:
-                name_result = (
-                    self.supabase.table("ai_projects")
-                    .select("id")
-                    .eq("client_id", client_id)
-                    .ilike("owner_name", f"%{stakeholder.name}%")
-                    .execute()
+                esc_name = pb.escape_filter(stakeholder.name)
+                name_projects = pb.get_all(
+                    "ai_projects",
+                    filter=f"owner_name~'{esc_name}'",
                 )
-
-                if name_result.data:
-                    for o in name_result.data:
-                        if o["id"] not in opportunity_ids:
-                            opportunity_ids.append(o["id"])
+                for o in name_projects:
+                    if o["id"] not in opportunity_ids:
+                        opportunity_ids.append(o["id"])
 
             # Search by role keywords in title/description
             if stakeholder.role:
@@ -76,19 +70,14 @@ class StakeholderLinker:
                     if len(keyword) < 3:
                         continue
 
-                    role_result = (
-                        self.supabase.table("ai_projects")
-                        .select("id")
-                        .eq("client_id", client_id)
-                        .or_(f"title.ilike.%{keyword}%,description.ilike.%{keyword}%")
-                        .limit(5)
-                        .execute()
+                    esc_kw = pb.escape_filter(keyword)
+                    role_projects = pb.get_all(
+                        "ai_projects",
+                        filter=f"(title~'{esc_kw}' || description~'{esc_kw}')",
                     )
-
-                    if role_result.data:
-                        for o in role_result.data:
-                            if o["id"] not in opportunity_ids:
-                                opportunity_ids.append(o["id"])
+                    for o in role_projects[:5]:
+                        if o["id"] not in opportunity_ids:
+                            opportunity_ids.append(o["id"])
 
             # Limit to prevent excessive linking
             return opportunity_ids[:10]
@@ -111,35 +100,25 @@ class StakeholderLinker:
                     if len(name_part) < 3:
                         continue
 
-                    assignee_result = (
-                        self.supabase.table("project_tasks")
-                        .select("id")
-                        .eq("client_id", client_id)
-                        .ilike("assignee_name", f"%{name_part}%")
-                        .limit(10)
-                        .execute()
+                    esc_part = pb.escape_filter(name_part)
+                    assignee_tasks = pb.get_all(
+                        "project_tasks",
+                        filter=f"assignee_name~'{esc_part}'",
                     )
-
-                    if assignee_result.data:
-                        for t in assignee_result.data:
-                            if t["id"] not in task_ids:
-                                task_ids.append(t["id"])
+                    for t in assignee_tasks[:10]:
+                        if t["id"] not in task_ids:
+                            task_ids.append(t["id"])
 
             # Search by stakeholder_name field in task_candidates that were accepted
             if stakeholder.name:
-                stakeholder_result = (
-                    self.supabase.table("project_tasks")
-                    .select("id")
-                    .eq("client_id", client_id)
-                    .ilike("stakeholder_name", f"%{stakeholder.name}%")
-                    .limit(10)
-                    .execute()
+                esc_name = pb.escape_filter(stakeholder.name)
+                stakeholder_tasks = pb.get_all(
+                    "project_tasks",
+                    filter=f"stakeholder_name~'{esc_name}'",
                 )
-
-                if stakeholder_result.data:
-                    for t in stakeholder_result.data:
-                        if t["id"] not in task_ids:
-                            task_ids.append(t["id"])
+                for t in stakeholder_tasks[:10]:
+                    if t["id"] not in task_ids:
+                        task_ids.append(t["id"])
 
             # Limit to prevent excessive linking
             return task_ids[:10]
@@ -213,7 +192,7 @@ class StakeholderLinker:
 
 
 async def link_stakeholder_to_entities(
-    supabase_client, stakeholder_id: str, opportunity_ids: list[str], task_ids: list[str]
+    supabase_client=None, stakeholder_id: str = "", opportunity_ids: list[str] = None, task_ids: list[str] = None
 ) -> dict:
     """Create actual links between a stakeholder and opportunities/tasks.
 
@@ -221,30 +200,29 @@ async def link_stakeholder_to_entities(
     Uses the opportunity_stakeholder_link table for opportunity linking
     and adds stakeholder_id to tasks.
     """
+    opportunity_ids = opportunity_ids or []
+    task_ids = task_ids or []
     results = {"opportunities_linked": 0, "tasks_linked": 0, "errors": []}
 
     # Link to opportunities using the link table
+    esc_sid = pb.escape_filter(stakeholder_id)
     for opp_id in opportunity_ids:
         try:
             # Check if link already exists
-            existing = (
-                supabase_client.table("opportunity_stakeholder_link")
-                .select("id")
-                .eq("opportunity_id", opp_id)
-                .eq("stakeholder_id", stakeholder_id)
-                .execute()
+            esc_oid = pb.escape_filter(opp_id)
+            existing = pb.get_all(
+                "opportunity_stakeholder_link",
+                filter=f"opportunity_id='{esc_oid}' && stakeholder_id='{esc_sid}'",
             )
 
-            if not existing.data:
+            if not existing:
                 # Create new link
-                supabase_client.table("opportunity_stakeholder_link").insert(
-                    {
-                        "opportunity_id": opp_id,
-                        "stakeholder_id": stakeholder_id,
-                        "role": "stakeholder",
-                        "notes": "Auto-linked from meeting extraction",
-                    }
-                ).execute()
+                pb.create_record("opportunity_stakeholder_link", {
+                    "opportunity_id": opp_id,
+                    "stakeholder_id": stakeholder_id,
+                    "role": "stakeholder",
+                    "notes": "Auto-linked from meeting extraction",
+                })
 
                 results["opportunities_linked"] += 1
 
@@ -255,11 +233,9 @@ async def link_stakeholder_to_entities(
     # Link to tasks (update stakeholder_id column if available)
     for task_id in task_ids:
         try:
-            # Check if task has stakeholder_id column
-            supabase_client.table("project_tasks").update({"stakeholder_id": stakeholder_id}).eq("id", task_id).is_(
-                "stakeholder_id", None
-            ).execute()
-
+            task = pb.get_record("project_tasks", task_id)
+            if task and not task.get("stakeholder_id"):
+                pb.update_record("project_tasks", task_id, {"stakeholder_id": stakeholder_id})
             results["tasks_linked"] += 1
 
         except Exception as e:

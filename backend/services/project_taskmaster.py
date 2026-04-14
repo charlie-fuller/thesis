@@ -15,7 +15,8 @@ from typing import Optional
 
 import anthropic
 
-from supabase import Client
+import pb_client as pb
+from repositories import projects as projects_repo, tasks as tasks_repo
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,6 @@ async def chat_with_taskmaster(
     message: str,
     client_id: str,
     user_id: str,
-    supabase: Client,
 ) -> dict:
     """Chat with Taskmaster about a project.
 
@@ -45,22 +45,9 @@ async def chat_with_taskmaster(
         dict with response, tasks_created count, and task_titles
     """
     # Get project details including metadata
-    project_result = (
-        supabase.table("ai_projects")
-        .select(
-            "id, title, description, project_name, project_description, current_state, "
-            "desired_state, next_step, department, status, blockers, metadata"
-        )
-        .eq("id", project_id)
-        .eq("client_id", client_id)
-        .single()
-        .execute()
-    )
-
-    if not project_result.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise ValueError(f"Project {project_id} not found")
-
-    project = project_result.data
 
     # Build project context
     context_parts = [
@@ -115,17 +102,16 @@ async def chat_with_taskmaster(
     # --- EVIDENCE LAYER 1: Previous agent outputs (Discovery Guide, etc.) ---
     agent_output_context = ""
     try:
-        outputs_result = (
-            supabase.table("disco_outputs")
-            .select("agent_type, version, content_markdown, recommendation, confidence_level")
-            .eq("project_id", project_id)
-            .order("created_at", desc=True)
-            .execute()
+        esc_pid = pb.escape_filter(project_id)
+        outputs = pb.get_all(
+            "disco_outputs",
+            filter=f"project_id='{esc_pid}'",
+            sort="-created",
         )
-        if outputs_result.data:
+        if outputs:
             seen_types = set()
             output_parts = ["AGENT ANALYSIS OUTPUTS (use these as primary task sources):"]
-            for output in outputs_result.data:
+            for output in outputs:
                 if output["agent_type"] not in seen_types:
                     seen_types.add(output["agent_type"])
                     output_parts.append(f"\n=== {output['agent_type']} (v{output['version']}) ===")
@@ -149,8 +135,8 @@ async def chat_with_taskmaster(
     try:
         from document_processor import search_similar_chunks
 
-        pd_result = supabase.table("project_documents").select("document_id").eq("project_id", project_id).execute()
-        project_doc_ids = [row["document_id"] for row in (pd_result.data or [])]
+        project_docs = projects_repo.get_project_documents(project_id)
+        project_doc_ids = [row["document_id"] for row in project_docs]
 
         if project_doc_ids:
             # Build a meaningful search query from project context
@@ -200,16 +186,10 @@ async def chat_with_taskmaster(
     # --- EXISTING TASKS: prevent duplication ---
     existing_tasks_context = ""
     try:
-        existing_result = (
-            supabase.table("project_tasks")
-            .select("title, status, sequence_number")
-            .eq("linked_project_id", project_id)
-            .order("sequence_number", desc=False)
-            .execute()
-        )
-        if existing_result.data:
+        existing_tasks = tasks_repo.list_tasks(source_project_id=project_id, sort="sequence_number")
+        if existing_tasks:
             task_lines = ["EXISTING TASKS (do not duplicate these):"]
-            for t in existing_result.data:
+            for t in existing_tasks:
                 seq = f"#{t['sequence_number']}" if t.get("sequence_number") else ""
                 task_lines.append(f"  - [{t['status']}] {seq} {t['title']}")
             existing_tasks_context = "\n".join(task_lines)
@@ -217,11 +197,13 @@ async def chat_with_taskmaster(
         logger.warning(f"Failed to load existing tasks for Taskmaster: {e}")
 
     # Get user name for task assignment
-    user_result = supabase.table("users").select("name, email").eq("id", user_id).single().execute()
-
     user_name = None
-    if user_result.data:
-        user_name = user_result.data.get("name") or user_result.data.get("email", "").split("@")[0]
+    try:
+        user_record = pb.get_record("users", user_id)
+        if user_record:
+            user_name = user_record.get("name") or user_record.get("email", "").split("@")[0]
+    except Exception:
+        pass
 
     # Call Taskmaster via Anthropic
     api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -286,16 +268,14 @@ After listing tasks, ask if they want to proceed with creating these tasks or mo
     task_blocks = re.findall(task_pattern, response_text, re.DOTALL)
 
     # Get next position for pending tasks
-    pos_result = (
-        supabase.table("project_tasks")
-        .select("position")
-        .eq("client_id", client_id)
-        .eq("status", "pending")
-        .order("position", desc=True)
-        .limit(1)
-        .execute()
+    pos_result = pb.list_records(
+        "project_tasks",
+        filter="status='pending'",
+        sort="-position",
+        per_page=1,
     )
-    next_position = (pos_result.data[0]["position"] + 1) if pos_result.data else 0
+    pos_items = pos_result.get("items", [])
+    next_position = (pos_items[0]["position"] + 1) if pos_items else 0
 
     # First pass: parse all tasks
     parsed_tasks = []
@@ -305,16 +285,14 @@ After listing tasks, ask if they want to proceed with creating these tasks or mo
             parsed_tasks.append(task_data)
 
     # Get the highest existing sequence_number for this project
-    seq_result = (
-        supabase.table("project_tasks")
-        .select("sequence_number")
-        .eq("linked_project_id", project_id)
-        .not_.is_("sequence_number", "null")
-        .order("sequence_number", desc=True)
-        .limit(1)
-        .execute()
+    seq_result = pb.list_records(
+        "project_tasks",
+        filter=f"linked_project_id='{esc_pid}' && sequence_number!=null",
+        sort="-sequence_number",
+        per_page=1,
     )
-    seq_offset = (seq_result.data[0]["sequence_number"] if seq_result.data else 0)
+    seq_items = seq_result.get("items", [])
+    seq_offset = (seq_items[0]["sequence_number"] if seq_items else 0)
 
     # Second pass: insert tasks, building a sequence-number-to-UUID map for dependencies
     seq_to_uuid = {}
@@ -337,7 +315,6 @@ After listing tasks, ask if they want to proceed with creating these tasks or mo
             description = f"Source: {source}"
 
         task_record = {
-            "client_id": client_id,
             "title": task_data["title"],
             "description": description,
             "status": "pending",
@@ -360,9 +337,9 @@ After listing tasks, ask if they want to proceed with creating these tasks or mo
             task_record["due_date"] = task_data["due_date"]
 
         try:
-            result = supabase.table("project_tasks").insert(task_record).execute()
-            if result.data:
-                created_id = result.data[0]["id"]
+            created = tasks_repo.create_task(task_record)
+            if created:
+                created_id = created["id"]
                 seq_to_uuid[seq_num] = created_id
             tasks_created += 1
             task_titles.append(task_data["title"])

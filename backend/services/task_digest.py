@@ -10,7 +10,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import Optional
 
-from supabase import Client
+import pb_client as pb
+from repositories import documents as documents_repo, agents as agents_repo
 
 from .task_tracker import TaskSnapshot, TaskTracker
 
@@ -35,9 +36,8 @@ class DigestContent:
 class TaskDigestService:
     """Service for generating task digest documents."""
 
-    def __init__(self, supabase: Client):
-        self.supabase = supabase
-        self.tracker = TaskTracker(supabase)
+    def __init__(self, supabase=None):
+        self.tracker = TaskTracker()
 
     async def generate_digest(self, user_id: str, client_id: Optional[str] = None) -> DigestContent:
         """Generate a task digest for a user.
@@ -103,67 +103,74 @@ class TaskDigestService:
         """
         try:
             # Create document record
-            doc_id = str(uuid.uuid4())
             filename = f"task-digest-{date.today().isoformat()}.md"
 
             # Check if a digest for today already exists
-            existing = (
-                self.supabase.table("documents")
-                .select("id")
-                .eq("client_id", client_id)
-                .eq("filename", filename)
-                .execute()
+            esc_fn = pb.escape_filter(filename)
+            existing = pb.get_all(
+                "documents",
+                filter=f"filename='{esc_fn}'",
             )
 
-            if existing.data:
+            is_update = False
+            if existing:
                 # Update existing digest
-                doc_id = existing.data[0]["id"]
-                self.supabase.table("documents").update(
-                    {
-                        "content": digest.markdown_content,
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                ).eq("id", doc_id).execute()
+                doc_id = existing[0]["id"]
+                documents_repo.update_document(doc_id, {
+                    "content": digest.markdown_content,
+                })
 
                 # Delete old chunks for re-embedding
-                self.supabase.table("document_chunks").delete().eq("document_id", doc_id).execute()
+                old_chunks = documents_repo.list_document_chunks(doc_id)
+                for chunk in old_chunks:
+                    pb.delete_record("document_chunks", chunk["id"])
 
+                is_update = True
                 logger.info(f"Updated existing digest document: {doc_id}")
             else:
                 # Create new document
-                self.supabase.table("documents").insert(
-                    {
-                        "id": doc_id,
-                        "client_id": client_id,
-                        "filename": filename,
-                        "title": digest.title,
-                        "content": digest.markdown_content,
-                        "file_type": "text/markdown",
-                        "source": "taskmaster_digest",
-                        "processed": False,
-                        "processing_status": "pending",
-                    }
-                ).execute()
-
+                created = documents_repo.create_document({
+                    "filename": filename,
+                    "title": digest.title,
+                    "content": digest.markdown_content,
+                    "file_type": "text/markdown",
+                    "source": "taskmaster_digest",
+                    "processed": False,
+                    "processing_status": "pending",
+                })
+                doc_id = created["id"]
                 logger.info(f"Created new digest document: {doc_id}")
 
             # Tag for Taskmaster agent
-            self.supabase.table("agent_knowledge_base").upsert(
-                {
-                    "document_id": doc_id,
-                    "agent_id": self._get_taskmaster_agent_id(),
-                    "relevance_score": 1.0,
-                    "assigned_by": "system",
-                    "assignment_type": "auto",
-                },
-                on_conflict="document_id,agent_id",
-            ).execute()
+            taskmaster_id = self._get_taskmaster_agent_id()
+            if taskmaster_id:
+                # Check if link already exists
+                esc_doc = pb.escape_filter(doc_id)
+                esc_agent = pb.escape_filter(taskmaster_id)
+                existing_link = pb.get_all(
+                    "agent_knowledge_base",
+                    filter=f"document_id='{esc_doc}' && agent_id='{esc_agent}'",
+                )
+                if existing_link:
+                    pb.update_record("agent_knowledge_base", existing_link[0]["id"], {
+                        "relevance_score": 1.0,
+                        "assigned_by": "system",
+                        "assignment_type": "auto",
+                    })
+                else:
+                    pb.create_record("agent_knowledge_base", {
+                        "document_id": doc_id,
+                        "agent_id": taskmaster_id,
+                        "relevance_score": 1.0,
+                        "assigned_by": "system",
+                        "assignment_type": "auto",
+                    })
 
             return {
                 "status": "success",
                 "document_id": doc_id,
                 "filename": filename,
-                "is_update": bool(existing.data),
+                "is_update": is_update,
             }
 
         except Exception as e:
@@ -172,10 +179,9 @@ class TaskDigestService:
 
     def _get_taskmaster_agent_id(self) -> str:
         """Get the Taskmaster agent's database ID."""
-        result = self.supabase.table("agents").select("id").eq("name", "taskmaster").execute()
-
-        if result.data:
-            return result.data[0]["id"]
+        agent = agents_repo.get_agent_by_name("taskmaster")
+        if agent:
+            return agent["id"]
         return None
 
     def _build_markdown(self, title: str, summary: str, snapshot: TaskSnapshot, health: int, today: date) -> str:

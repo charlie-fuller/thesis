@@ -30,12 +30,12 @@ from services.compliance_drift_tracker import (
     get_compliance_reminder,
     record_compliance_score,
 )
+import pb_client as pb
 from services.manifesto_compliance import (
     score_manifesto_compliance,
     should_semantic_evaluate,
     trigger_semantic_evaluation,
 )
-from supabase import Client
 
 logger = logging.getLogger(__name__)
 
@@ -429,13 +429,12 @@ class MeetingOrchestrator:
 
     def __init__(
         self,
-        supabase: Client,
-        anthropic_client: anthropic.Anthropic,
-        agents: dict[str, BaseAgent],
+        supabase=None,
+        anthropic_client: anthropic.Anthropic = None,
+        agents: dict[str, BaseAgent] = None,
         facilitator: Optional[BaseAgent] = None,
         reporter: Optional[BaseAgent] = None,
     ):
-        self.supabase = supabase
         self.anthropic = anthropic_client
         self.agents = agents
         self.facilitator = facilitator  # The Facilitator meta-agent (always present)
@@ -1336,13 +1335,11 @@ Respond with ONLY the handoff message, nothing else."""
                 "metadata": metadata or {},
             }
 
-            result = await asyncio.to_thread(
-                lambda: self.supabase.table("meeting_room_messages").insert(insert_data).execute()
-            )
+            result = pb.create_record("meeting_room_messages", insert_data)
 
             # Get the message ID for embedding
-            if result.data and len(result.data) > 0:
-                message_id = result.data[0].get("id")
+            if result:
+                message_id = result.get("id")
                 if message_id and role != "system":  # Skip system messages
                     # Queue embedding in background (don't await)
                     asyncio.create_task(self._embed_message_background(message_id, content))
@@ -1358,48 +1355,39 @@ Respond with ONLY the handoff message, nothing else."""
         try:
             embed_func = await _get_embed_function()
             if embed_func:
-                await embed_func(self.supabase, UUID(message_id), content)
+                await embed_func(None, UUID(message_id), content)
         except Exception as e:
             logger.warning(f"Background embedding failed for {message_id}: {e}")
 
     async def _update_participant_stats(self, meeting_room_id: str, agent_id: str, tokens_used: int) -> None:
         """Update participant stats after a turn."""
         try:
-            # Use RPC or direct SQL for increment operations
-            await asyncio.to_thread(
-                lambda: self.supabase.rpc(
-                    "increment_meeting_participant_stats",
-                    {
-                        "p_meeting_room_id": meeting_room_id,
-                        "p_agent_id": agent_id,
-                        "p_tokens": tokens_used,
-                    },
-                ).execute()
+            esc_mid = pb.escape_filter(meeting_room_id)
+            esc_aid = pb.escape_filter(agent_id)
+            participant = pb.get_first(
+                "meeting_room_participants",
+                filter=f"meeting_room_id='{esc_mid}' && agent_id='{esc_aid}'",
             )
+            if participant:
+                current_turns = participant.get("turns_taken", 0)
+                current_tokens = participant.get("tokens_used", 0)
+                pb.update_record(
+                    "meeting_room_participants",
+                    participant["id"],
+                    {
+                        "turns_taken": current_turns + 1,
+                        "tokens_used": current_tokens + tokens_used,
+                    },
+                )
         except Exception as e:
-            # Fallback to manual update if RPC doesn't exist
-            logger.warning(f"RPC not available, skipping participant stats update: {e}")
+            logger.warning(f"Failed to update participant stats: {e}")
 
     async def _update_meeting_tokens(self, meeting_room_id: str, tokens: int) -> None:
         """Update total tokens used in the meeting."""
         try:
-            # Get current total
-            result = await asyncio.to_thread(
-                lambda: self.supabase.table("meeting_rooms")
-                .select("total_tokens_used")
-                .eq("id", meeting_room_id)
-                .single()
-                .execute()
-            )
-
-            current = result.data.get("total_tokens_used", 0) if result.data else 0
-
-            await asyncio.to_thread(
-                lambda: self.supabase.table("meeting_rooms")
-                .update({"total_tokens_used": current + tokens})
-                .eq("id", meeting_room_id)
-                .execute()
-            )
+            room = pb.get_record("meeting_rooms", meeting_room_id)
+            current = room.get("total_tokens_used", 0) if room else 0
+            pb.update_record("meeting_rooms", meeting_room_id, {"total_tokens_used": current + tokens})
         except Exception as e:
             logger.error(f"Failed to update meeting tokens: {e}")
 
@@ -1596,16 +1584,14 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
     async def _check_for_user_interjection(self, meeting_room_id: str) -> bool:
         """Check if user has sent a message during autonomous discussion."""
         try:
-            result = await asyncio.to_thread(
-                lambda: self.supabase.table("meeting_room_messages")
-                .select("id")
-                .eq("meeting_room_id", meeting_room_id)
-                .eq("role", "user")
-                .eq("pending_interjection", True)
-                .limit(1)
-                .execute()
+            esc_mid = pb.escape_filter(meeting_room_id)
+            result = pb.list_records(
+                "meeting_room_messages",
+                filter=f"meeting_room_id='{esc_mid}' && role='user' && pending_interjection=true",
+                per_page=1,
             )
-            return len(result.data) > 0 if result.data else False
+            items = result.get("items", [])
+            return len(items) > 0
         except Exception as e:
             logger.warning(f"Error checking for user interjection: {e}")
             return False
@@ -1613,26 +1599,14 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
     async def _update_autonomous_config(self, meeting_room_id: str, config_update: dict) -> None:
         """Update the autonomous discussion config in meeting room."""
         try:
-            # Get current config
-            result = await asyncio.to_thread(
-                lambda: self.supabase.table("meeting_rooms")
-                .select("config")
-                .eq("id", meeting_room_id)
-                .single()
-                .execute()
-            )
-
-            current_config = result.data.get("config", {}) if result.data else {}
+            room = pb.get_record("meeting_rooms", meeting_room_id)
+            current_config = room.get("config", {}) if room else {}
+            if isinstance(current_config, str):
+                current_config = pb.parse_json_field(current_config, default={})
             autonomous_config = current_config.get("autonomous", {})
             autonomous_config.update(config_update)
             current_config["autonomous"] = autonomous_config
-
-            await asyncio.to_thread(
-                lambda: self.supabase.table("meeting_rooms")
-                .update({"config": current_config})
-                .eq("id", meeting_room_id)
-                .execute()
-            )
+            pb.update_record("meeting_rooms", meeting_room_id, {"config": current_config})
         except Exception as e:
             logger.error(f"Failed to update autonomous config: {e}")
 
@@ -1959,13 +1933,11 @@ Please share your perspective and engage with what other agents have said."""
                 "metadata": metadata or {},
             }
 
-            result = await asyncio.to_thread(
-                lambda: self.supabase.table("meeting_room_messages").insert(insert_data).execute()
-            )
+            result = pb.create_record("meeting_room_messages", insert_data)
 
             # Get the message ID for embedding
-            if result.data and len(result.data) > 0:
-                message_id = result.data[0].get("id")
+            if result:
+                message_id = result.get("id")
                 if message_id:
                     # Queue embedding in background (don't await)
                     asyncio.create_task(self._embed_message_background(message_id, content))
@@ -1990,15 +1962,10 @@ Please share your perspective and engage with what other agents have said."""
     async def get_autonomous_status(self, meeting_room_id: str) -> dict:
         """Get the current autonomous discussion status."""
         try:
-            result = await asyncio.to_thread(
-                lambda: self.supabase.table("meeting_rooms")
-                .select("config")
-                .eq("id", meeting_room_id)
-                .single()
-                .execute()
-            )
-
-            config = result.data.get("config", {}) if result.data else {}
+            room = pb.get_record("meeting_rooms", meeting_room_id)
+            config = room.get("config", {}) if room else {}
+            if isinstance(config, str):
+                config = pb.parse_json_field(config, default={})
             autonomous = config.get("autonomous", {})
 
             return {
@@ -2023,7 +1990,7 @@ Please share your perspective and engage with what other agents have said."""
             }
 
 
-async def get_meeting_orchestrator(supabase: Client, anthropic_client: anthropic.Anthropic) -> MeetingOrchestrator:
+async def get_meeting_orchestrator(supabase=None, anthropic_client: anthropic.Anthropic = None) -> MeetingOrchestrator:
     """Factory function to create a MeetingOrchestrator with all agents loaded.
 
     Includes the Facilitator and Reporter meta-agents which are always present in meetings.
@@ -2042,7 +2009,7 @@ async def get_meeting_orchestrator(supabase: Client, anthropic_client: anthropic
     try:
         from agents.facilitator import FacilitatorAgent
 
-        facilitator = FacilitatorAgent(supabase, anthropic_client)
+        facilitator = FacilitatorAgent(None, anthropic_client)
         await facilitator.initialize()
         logger.info("Facilitator meta-agent initialized")
     except Exception as e:
@@ -2053,7 +2020,7 @@ async def get_meeting_orchestrator(supabase: Client, anthropic_client: anthropic
     try:
         from agents.reporter import ReporterAgent
 
-        reporter = ReporterAgent(supabase, anthropic_client)
+        reporter = ReporterAgent(None, anthropic_client)
         await reporter.initialize()
         logger.info("Reporter meta-agent initialized")
     except Exception as e:
@@ -2064,12 +2031,12 @@ async def get_meeting_orchestrator(supabase: Client, anthropic_client: anthropic
 
     # Core agents (these should exist)
     try:
-        agents["atlas"] = AtlasAgent(supabase, anthropic_client)
-        agents["capital"] = CapitalAgent(supabase, anthropic_client)
-        agents["guardian"] = GuardianAgent(supabase, anthropic_client)
-        agents["counselor"] = CounselorAgent(supabase, anthropic_client)
-        agents["oracle"] = OracleAgent(supabase, anthropic_client)
-        agents["sage"] = SageAgent(supabase, anthropic_client)
+        agents["atlas"] = AtlasAgent(None, anthropic_client)
+        agents["capital"] = CapitalAgent(None, anthropic_client)
+        agents["guardian"] = GuardianAgent(None, anthropic_client)
+        agents["counselor"] = CounselorAgent(None, anthropic_client)
+        agents["oracle"] = OracleAgent(None, anthropic_client)
+        agents["sage"] = SageAgent(None, anthropic_client)
     except Exception as e:
         logger.error(f"Error loading core agents: {e}")
 
@@ -2077,56 +2044,56 @@ async def get_meeting_orchestrator(supabase: Client, anthropic_client: anthropic
     try:
         from agents.strategist import StrategistAgent
 
-        agents["strategist"] = StrategistAgent(supabase, anthropic_client)
+        agents["strategist"] = StrategistAgent(None, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.architect import ArchitectAgent
 
-        agents["architect"] = ArchitectAgent(supabase, anthropic_client)
+        agents["architect"] = ArchitectAgent(None, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.operator import OperatorAgent
 
-        agents["operator"] = OperatorAgent(supabase, anthropic_client)
+        agents["operator"] = OperatorAgent(None, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.pioneer import PioneerAgent
 
-        agents["pioneer"] = PioneerAgent(supabase, anthropic_client)
+        agents["pioneer"] = PioneerAgent(None, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.catalyst import CatalystAgent
 
-        agents["catalyst"] = CatalystAgent(supabase, anthropic_client)
+        agents["catalyst"] = CatalystAgent(None, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.scholar import ScholarAgent
 
-        agents["scholar"] = ScholarAgent(supabase, anthropic_client)
+        agents["scholar"] = ScholarAgent(None, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.nexus import NexusAgent
 
-        agents["nexus"] = NexusAgent(supabase, anthropic_client)
+        agents["nexus"] = NexusAgent(None, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.echo import EchoAgent
 
-        agents["echo"] = EchoAgent(supabase, anthropic_client)
+        agents["echo"] = EchoAgent(None, anthropic_client)
     except ImportError:
         pass
 
@@ -2143,4 +2110,4 @@ async def get_meeting_orchestrator(supabase: Client, anthropic_client: anthropic
     if reporter:
         logger.info("Reporter is active and will handle summary requests")
 
-    return MeetingOrchestrator(supabase, anthropic_client, agents, facilitator, reporter)
+    return MeetingOrchestrator(None, anthropic_client, agents, facilitator, reporter)

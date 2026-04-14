@@ -20,7 +20,9 @@ from typing import Optional
 
 import anthropic
 
-from database import get_supabase
+import pb_client as pb
+from repositories import documents as documents_repo
+from repositories import misc as misc_repo
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +105,6 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
     Returns:
         Dict with kb_documents, memories, and stakeholder_context
     """
-    supabase = get_supabase()
     context = {
         "kb_documents": [],
         "memories": [],
@@ -111,47 +112,31 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
     }
 
     try:
-        # Get all recent documents for this client, prioritizing transcripts
-        # Order by uploaded_at to get most recent first
-        # Note: Document content is stored in document_chunks, not documents table
+        # Get all recent documents, prioritizing transcripts
         logger.info(f"Fetching career context for user_id={user_id}, client_id={client_id}")
 
-        # Get ALL document metadata for this client
-        # Only include documents with original_date from January 5, 2026 onwards
-        docs_result = (
-            supabase.table("documents")
-            .select("id, title, filename, document_type, uploaded_at, original_date")
-            .eq("client_id", client_id)
-            .gte("original_date", "2026-01-05")
-            .order("original_date", desc=True)
-            .limit(50)  # Get more docs, we'll filter and prioritize
-            .execute()
-        )
+        # Get document metadata with original_date from January 5, 2026 onwards
+        docs = pb.list_records(
+            "documents",
+            filter="original_date>='2026-01-05'",
+            sort="-original_date",
+            per_page=50,
+        ).get("items", [])
 
-        logger.info(f"Documents query returned {len(docs_result.data) if docs_result.data else 0} documents")
+        logger.info(f"Documents query returned {len(docs)} documents")
 
-        if docs_result.data:
-            # Get document IDs to fetch chunks
-            doc_ids = [doc["id"] for doc in docs_result.data]
-
-            # Fetch chunks for these documents (get first few chunks per doc for context)
-            chunks_result = (
-                supabase.table("document_chunks")
-                .select("document_id, content, chunk_index")
-                .in_("document_id", doc_ids)
-                .order("chunk_index")
-                .execute()
-            )
-
-            # Build content map from chunks (concatenate first chunks per document)
+        if docs:
+            # Build content map from chunks for each document
             content_map = {}
-            for chunk in chunks_result.data or []:
-                doc_id = chunk["document_id"]
-                if doc_id not in content_map:
-                    content_map[doc_id] = ""
-                # Only take first ~2000 chars per document
-                if len(content_map[doc_id]) < 2000:
-                    content_map[doc_id] += chunk.get("content", "") + "\n"
+            for doc in docs:
+                doc_chunks = documents_repo.list_document_chunks(doc["id"])
+                doc_chunks.sort(key=lambda c: c.get("chunk_index", 0))
+                content = ""
+                for chunk in doc_chunks:
+                    if len(content) < 2000:
+                        content += chunk.get("content", "") + "\n"
+                if content:
+                    content_map[doc["id"]] = content
 
             logger.info(f"Fetched content for {len(content_map)} documents from chunks")
 
@@ -183,7 +168,7 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
                 "deadline",
             ]
 
-            for doc in docs_result.data:
+            for doc in docs:
                 doc_id = doc["id"]
                 content = content_map.get(doc_id, "")
                 if not content:
@@ -453,8 +438,6 @@ async def generate_career_status_report(
     Raises:
         Exception on generation or database errors
     """
-    supabase = get_supabase()
-
     # Gather context
     context = await get_career_context(user_id, client_id)
 
@@ -504,13 +487,9 @@ async def generate_career_status_report(
         }
 
         # Insert into database
-        result = supabase.table("compass_status_reports").insert(report_data).execute()
-
-        if result.data:
-            logger.info(f"Generated career status report for user {user_id}")
-            return result.data[0]
-        else:
-            raise Exception("Failed to save report to database")
+        created = misc_repo.create_compass_status_report(report_data)
+        logger.info(f"Generated career status report for user {user_id}")
+        return created
 
     except Exception as e:
         logger.error(f"Failed to generate career status report: {e}")
@@ -519,50 +498,29 @@ async def generate_career_status_report(
 
 async def get_latest_report(user_id: str, client_id: str) -> Optional[dict]:
     """Get the most recent report for a user."""
-    supabase = get_supabase()
-
-    result = (
-        supabase.table("compass_status_reports")
-        .select("*")
-        .eq("user_id", user_id)
-        .eq("client_id", client_id)
-        .order("report_date", desc=True)
-        .limit(1)
-        .execute()
+    esc_uid = pb.escape_filter(user_id)
+    result = pb.list_records(
+        "compass_status_reports",
+        filter=f"user_id='{esc_uid}'",
+        sort="-report_date",
+        per_page=1,
     )
-
-    return result.data[0] if result.data else None
+    items = result.get("items", [])
+    return items[0] if items else None
 
 
 async def list_reports(user_id: str, client_id: str, limit: int = 10) -> list:
     """List historical reports for a user."""
-    supabase = get_supabase()
-
-    result = (
-        supabase.table("compass_status_reports")
-        .select("id, report_date, overall_score, executive_summary, created_at")
-        .eq("user_id", user_id)
-        .eq("client_id", client_id)
-        .order("report_date", desc=True)
-        .limit(limit)
-        .execute()
+    esc_uid = pb.escape_filter(user_id)
+    result = pb.list_records(
+        "compass_status_reports",
+        filter=f"user_id='{esc_uid}'",
+        sort="-report_date",
+        per_page=limit,
     )
-
-    return result.data or []
+    return result.get("items", [])
 
 
 async def get_report_by_id(report_id: str, user_id: str, client_id: str) -> Optional[dict]:
     """Get a specific report by ID."""
-    supabase = get_supabase()
-
-    result = (
-        supabase.table("compass_status_reports")
-        .select("*")
-        .eq("id", report_id)
-        .eq("user_id", user_id)
-        .eq("client_id", client_id)
-        .single()
-        .execute()
-    )
-
-    return result.data if result.data else None
+    return misc_repo.get_compass_status_report(report_id)

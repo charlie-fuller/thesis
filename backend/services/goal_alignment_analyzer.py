@@ -15,7 +15,8 @@ from typing import Optional
 
 import anthropic
 
-from database import get_supabase
+import pb_client as pb
+from repositories import projects as projects_repo
 
 logger = logging.getLogger(__name__)
 
@@ -263,19 +264,10 @@ async def analyze_goal_alignment(
     Raises:
         ValueError: If project not found
     """
-    supabase = get_supabase()
-
     # Fetch project
-    query = supabase.table("ai_projects").select("*").eq("id", project_id)
-    if client_id:
-        query = query.eq("client_id", client_id)
-
-    result = query.single().execute()
-
-    if not result.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise ValueError(f"Project {project_id} not found")
-
-    project = result.data
 
     # Build prompt and call Claude
     prompt = _build_analysis_prompt(project)
@@ -289,9 +281,7 @@ async def analyze_goal_alignment(
         score, details = _parse_analysis_response(response_text)
 
         # Update the project in database
-        supabase.table("ai_projects").update({"goal_alignment_score": score, "goal_alignment_details": details}).eq(
-            "id", project_id
-        ).execute()
+        projects_repo.update_project(project_id, {"goal_alignment_score": score, "goal_alignment_details": details})
 
         logger.info(f"Analyzed goal alignment for project {project_id}: score={score}/100")
 
@@ -308,12 +298,8 @@ async def batch_analyze_all(client_id: str) -> dict:
     Returns:
         Dict with counts and statistics
     """
-    supabase = get_supabase()
-
-    # Get all projects for client
-    result = supabase.table("ai_projects").select("id, title").eq("client_id", client_id).execute()
-
-    projects = result.data
+    # Get all projects
+    projects = projects_repo.list_projects()
     success_count = 0
     failure_count = 0
     errors = []

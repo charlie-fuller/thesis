@@ -11,7 +11,8 @@ from datetime import datetime, timezone
 
 import anthropic
 
-from supabase import Client
+import pb_client as pb
+from repositories import documents as documents_repo, projects as projects_repo
 
 logger = logging.getLogger(__name__)
 
@@ -66,57 +67,45 @@ async def generate_digest(content: str, filename: str = "") -> str | None:
         return None
 
 
-async def generate_and_store_digest(document_id: str, supabase: Client | None = None) -> str | None:
+async def generate_and_store_digest(document_id: str, supabase=None) -> str | None:
     """Fetch document content, generate digest, and store it back.
 
     Args:
         document_id: UUID of the document
-        supabase: Optional Supabase client (will import default if not provided)
+        supabase: Ignored (kept for backward compatibility)
 
     Returns:
         The generated digest, or None on failure
     """
-    if supabase is None:
-        from database import get_supabase
-
-        supabase = get_supabase()
-
     try:
         # Get document metadata
-        doc_result = supabase.table("documents").select("filename, title").eq("id", document_id).single().execute()
+        doc = documents_repo.get_document(document_id)
 
-        if not doc_result.data:
+        if not doc:
             logger.warning(f"Document {document_id} not found for digest generation")
             return None
 
-        doc = doc_result.data
         filename = doc.get("filename") or doc.get("title") or ""
 
         # Assemble content from document_chunks (content lives there, not on documents)
-        chunks_result = (
-            supabase.table("document_chunks")
-            .select("content")
-            .eq("document_id", document_id)
-            .order("chunk_index")
-            .execute()
-        )
+        chunks = documents_repo.list_document_chunks(document_id)
 
-        if not chunks_result.data:
+        if not chunks:
             logger.info(f"No chunks found for document {document_id}, skipping digest")
             return None
 
-        content = "\n".join(chunk["content"] for chunk in chunks_result.data)
+        # Sort by chunk_index
+        chunks.sort(key=lambda c: c.get("chunk_index", 0))
+        content = "\n".join(chunk["content"] for chunk in chunks)
 
         digest = await generate_digest(content, filename)
         if not digest:
             return None
 
-        supabase.table("documents").update(
-            {
-                "digest": digest,
-                "digest_generated_at": datetime.now(timezone.utc).isoformat(),
-            }
-        ).eq("id", document_id).execute()
+        documents_repo.update_document(document_id, {
+            "digest": digest,
+            "digest_generated_at": datetime.now(timezone.utc).isoformat(),
+        })
 
         logger.info(f"Digest generated for {document_id} ({len(digest)} chars)")
         return digest
@@ -126,12 +115,12 @@ async def generate_and_store_digest(document_id: str, supabase: Client | None = 
         return None
 
 
-def get_digests_for_documents(doc_ids: list[str], supabase: Client) -> dict[str, str]:
+def get_digests_for_documents(doc_ids: list[str], supabase=None) -> dict[str, str]:
     """Batch fetch digests for a list of document IDs.
 
     Args:
         doc_ids: List of document UUIDs
-        supabase: Supabase client
+        supabase: Ignored (kept for backward compatibility)
 
     Returns:
         Dict mapping document_id -> digest (only includes docs with digests)
@@ -140,21 +129,23 @@ def get_digests_for_documents(doc_ids: list[str], supabase: Client) -> dict[str,
         return {}
 
     try:
-        result = (
-            supabase.table("documents").select("id, digest").in_("id", doc_ids).not_.is_("digest", "null").execute()
-        )
-        return {row["id"]: row["digest"] for row in (result.data or [])}
+        result = {}
+        for doc_id in doc_ids:
+            doc = documents_repo.get_document(doc_id)
+            if doc and doc.get("digest"):
+                result[doc["id"]] = doc["digest"]
+        return result
     except Exception as e:
         logger.error(f"Failed to fetch digests: {e}")
         return {}
 
 
-def get_project_document_digests(project_id: str, supabase: Client) -> list[dict]:
+def get_project_document_digests(project_id: str, supabase=None) -> list[dict]:
     """Get digests for all documents linked to a project (direct + via initiatives).
 
     Args:
         project_id: The project UUID
-        supabase: Supabase client
+        supabase: Ignored (kept for backward compatibility)
 
     Returns:
         List of {id, title, digest} dicts
@@ -163,27 +154,23 @@ def get_project_document_digests(project_id: str, supabase: Client) -> list[dict
 
     # Direct project documents
     try:
-        result = supabase.table("project_documents").select("document_id").eq("project_id", project_id).execute()
-        for row in result.data or []:
+        esc_pid = pb.escape_filter(project_id)
+        rows = pb.get_all("project_documents", filter=f"project_id='{esc_pid}'")
+        for row in rows:
             doc_ids.add(row["document_id"])
     except Exception as e:
         logger.warning(f"Failed to fetch project documents: {e}")
 
     # Initiative-linked documents
     try:
-        init_result = (
-            supabase.table("project_initiative_links").select("initiative_id").eq("project_id", project_id).execute()
-        )
-        initiative_ids = [r["initiative_id"] for r in (init_result.data or [])]
+        esc_pid = pb.escape_filter(project_id)
+        init_links = pb.get_all("project_initiative_links", filter=f"project_id='{esc_pid}'")
+        initiative_ids = [r["initiative_id"] for r in init_links]
 
         for init_id in initiative_ids[:5]:
-            init_docs = (
-                supabase.table("disco_initiative_documents")
-                .select("document_id")
-                .eq("initiative_id", init_id)
-                .execute()
-            )
-            for row in init_docs.data or []:
+            esc_iid = pb.escape_filter(init_id)
+            init_docs = pb.get_all("disco_initiative_documents", filter=f"initiative_id='{esc_iid}'")
+            for row in init_docs:
                 doc_ids.add(row["document_id"])
     except Exception as e:
         logger.warning(f"Failed to fetch initiative documents: {e}")
@@ -193,11 +180,16 @@ def get_project_document_digests(project_id: str, supabase: Client) -> list[dict
 
     # Fetch titles and digests
     try:
-        result = supabase.table("documents").select("id, title, digest").in_("id", list(doc_ids)).execute()
-        return [
-            {"id": row["id"], "title": row.get("title", "Untitled"), "digest": row.get("digest")}
-            for row in (result.data or [])
-        ]
+        results = []
+        for doc_id in doc_ids:
+            doc = documents_repo.get_document(doc_id)
+            if doc:
+                results.append({
+                    "id": doc["id"],
+                    "title": doc.get("title", "Untitled"),
+                    "digest": doc.get("digest"),
+                })
+        return results
     except Exception as e:
         logger.error(f"Failed to fetch document details: {e}")
         return []

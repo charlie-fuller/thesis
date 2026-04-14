@@ -14,6 +14,8 @@ from typing import Optional
 
 import anthropic
 
+import pb_client as pb
+from repositories import documents as documents_repo
 from services.stakeholder_deduplicator import StakeholderDeduplicator, find_duplicate_candidates
 from services.stakeholder_extractor import ExtractedStakeholder, StakeholderExtractor
 from services.stakeholder_linker import StakeholderLinker
@@ -36,12 +38,11 @@ MEETING_DOCUMENT_PATTERNS = [
 class StakeholderScanner:
     """Coordinates stakeholder extraction from meeting documents."""
 
-    def __init__(self, supabase_client, anthropic_client: Optional[anthropic.Anthropic] = None):
-        self.supabase = supabase_client
+    def __init__(self, supabase_client=None, anthropic_client: Optional[anthropic.Anthropic] = None):
         self.anthropic = anthropic_client
         self.extractor = StakeholderExtractor(anthropic_client)
-        self.deduplicator = StakeholderDeduplicator(supabase_client)
-        self.linker = StakeholderLinker(supabase_client)
+        self.deduplicator = StakeholderDeduplicator()
+        self.linker = StakeholderLinker()
 
     async def scan_documents(
         self,
@@ -113,28 +114,32 @@ class StakeholderScanner:
 
             # Calculate date threshold
             cutoff = datetime.now(timezone.utc) - timedelta(days=since_days)
+            esc_cutoff = pb.escape_filter(cutoff.isoformat())
 
-            # Build query
-            query = (
-                self.supabase.table("documents")
-                .select("id, title, content, file_name, source, created_at, original_date")
-                .eq("client_id", client_id)
-                .gte("created_at", cutoff.isoformat())
-            )
+            # Build filter
+            filter_parts = [f"created>='{esc_cutoff}'"]
 
             # Filter for unscanned unless force_rescan
             if not force_rescan:
-                query = query.is_("stakeholders_scanned_at", None)
+                filter_parts.append("stakeholders_scanned_at=''")
+
+            filter_str = " && ".join(filter_parts)
 
             # Order by most recent first
-            result = query.order("created_at", desc=True).limit(limit * 2).execute()
+            result = pb.list_records(
+                "documents",
+                filter=filter_str,
+                sort="-created",
+                per_page=limit * 2,
+            )
+            docs = result.get("items", [])
 
-            if not result.data:
+            if not docs:
                 return []
 
             # Filter for meeting-like documents
             meeting_docs = []
-            for doc in result.data:
+            for doc in docs:
                 if self._is_meeting_document(doc):
                     meeting_docs.append(doc)
                     if len(meeting_docs) >= limit:
@@ -208,7 +213,7 @@ class StakeholderScanner:
         # Create candidates
         for idx, stakeholder in enumerate(extracted):
             # Check for existing candidate with same name from this document
-            existing = await find_duplicate_candidates(self.supabase, client_id, stakeholder.name, stakeholder.email)
+            existing = await find_duplicate_candidates(client_id=client_id, name=stakeholder.name, email=stakeholder.email)
 
             if existing:
                 # Already have a candidate for this person
@@ -247,7 +252,6 @@ class StakeholderScanner:
         """Create a stakeholder candidate record."""
         try:
             data = {
-                "client_id": client_id,
                 "name": stakeholder.name,
                 "role": stakeholder.role,
                 "department": stakeholder.department,
@@ -272,7 +276,7 @@ class StakeholderScanner:
                 data["potential_match_stakeholder_id"] = match_info.existing_stakeholder_id
                 data["match_confidence"] = match_info.match_confidence
 
-            self.supabase.table("stakeholder_candidates").insert(data).execute()
+            pb.create_record("stakeholder_candidates", data)
 
         except Exception as e:
             logger.error(f"Error creating stakeholder candidate: {e}")
@@ -281,8 +285,8 @@ class StakeholderScanner:
     async def _mark_document_scanned(self, doc_id: str):
         """Mark a document as scanned for stakeholders."""
         try:
-            self.supabase.table("documents").update(
-                {"stakeholders_scanned_at": datetime.now(timezone.utc).isoformat()}
-            ).eq("id", doc_id).execute()
+            documents_repo.update_document(doc_id, {
+                "stakeholders_scanned_at": datetime.now(timezone.utc).isoformat(),
+            })
         except Exception as e:
             logger.error(f"Error marking document as scanned: {e}")

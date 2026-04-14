@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import Optional
 
+import pb_client as pb
+from repositories import stakeholders as stakeholders_repo
 from services.stakeholder_extractor import ExtractedStakeholder
 
 logger = logging.getLogger(__name__)
@@ -30,8 +32,8 @@ class StakeholderMatch:
 class StakeholderDeduplicator:
     """Detects potential duplicate stakeholders."""
 
-    def __init__(self, supabase_client):
-        self.supabase = supabase_client
+    def __init__(self, supabase_client=None):
+        pass  # No longer needs supabase client
 
     async def find_matches(
         self, extracted_stakeholders: list[ExtractedStakeholder], client_id: str
@@ -62,16 +64,9 @@ class StakeholderDeduplicator:
         return matches
 
     async def _get_existing_stakeholders(self, client_id: str) -> list[dict]:
-        """Fetch existing stakeholders for the client."""
+        """Fetch existing stakeholders."""
         try:
-            result = (
-                self.supabase.table("stakeholders")
-                .select("id, name, email, role, department, organization")
-                .eq("client_id", client_id)
-                .execute()
-            )
-
-            return result.data if result.data else []
+            return stakeholders_repo.list_stakeholders()
         except Exception as e:
             logger.error(f"Failed to fetch existing stakeholders: {e}")
             return []
@@ -195,28 +190,24 @@ class StakeholderDeduplicator:
 
 
 async def find_duplicate_candidates(
-    supabase_client, client_id: str, name: str, email: Optional[str] = None
+    supabase_client=None, client_id: str = "", name: str = "", email: Optional[str] = None
 ) -> list[dict]:
     """Quick check for existing candidates with similar name/email.
 
     Used to avoid creating duplicate candidates from the same document.
     """
     try:
-        query = (
-            supabase_client.table("stakeholder_candidates")
-            .select("id, name, email, status, source_document_name")
-            .eq("client_id", client_id)
-            .eq("status", "pending")
-        )
+        esc_name = pb.escape_filter(name)
+        filter_parts = ["status='pending'"]
 
-        # If email provided, check for exact email match
         if email:
-            query = query.or_(f"email.eq.{email},name.ilike.%{name}%")
+            esc_email = pb.escape_filter(email)
+            filter_parts.append(f"(email='{esc_email}' || name~'{esc_name}')")
         else:
-            query = query.ilike("name", f"%{name}%")
+            filter_parts.append(f"name~'{esc_name}'")
 
-        result = query.execute()
-        return result.data if result.data else []
+        filter_str = " && ".join(filter_parts)
+        return pb.get_all("stakeholder_candidates", filter=filter_str)
 
     except Exception as e:
         logger.error(f"Error checking for duplicate candidates: {e}")

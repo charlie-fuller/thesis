@@ -27,16 +27,13 @@ import anthropic
 import httpx
 import yaml
 
-from database import get_supabase
+import pb_client as pb
 from document_processor import search_similar_chunks
 from logger_config import get_logger
+from repositories import documents as documents_repo, projects as projects_repo
 from services.entity_deduplicator import EntityDeduplicator
 
 logger = get_logger(__name__)
-
-# Get Supabase configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-supabase = get_supabase()
 
 # Frontmatter pattern
 FRONTMATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
@@ -497,14 +494,9 @@ async def find_matching_project(
     if match found, otherwise None.
     """
     # Layer 1: Title/project_name fuzzy match
-    existing = (
-        supabase.table("ai_projects")
-        .select("id, title, project_name, description")
-        .eq("client_id", client_id)
-        .execute()
-    )
+    existing = projects_repo.list_projects()
 
-    for proj in existing.data or []:
+    for proj in existing:
         # Check title similarity
         title_sim = fuzzy_match(extracted_title, proj.get("title", ""))
         if title_sim > 0.85:
@@ -548,10 +540,11 @@ async def find_matching_project(
                 continue
 
             # Check if this document is a source for any project
-            linked_proj = supabase.table("ai_projects").select("id, title").eq("source_id", doc_id).execute()
+            esc_did = pb.escape_filter(doc_id)
+            linked_proj_list = pb.get_all("ai_projects", filter=f"source_id='{esc_did}'")
 
-            if linked_proj.data:
-                proj = linked_proj.data[0]
+            if linked_proj_list:
+                proj = linked_proj_list[0]
                 return {
                     "matched_project_id": proj["id"],
                     "match_confidence": chunk.get("similarity", 0.85),
@@ -571,15 +564,9 @@ async def find_matching_task(client_id: str, extracted_title: str) -> Optional[D
 
     Returns dict with matched_task_id and match_confidence if found.
     """
-    existing = (
-        supabase.table("project_tasks")
-        .select("id, title")
-        .eq("client_id", client_id)
-        .neq("status", "completed")
-        .execute()
-    )
+    existing = pb.get_all("project_tasks", filter="status!='completed'")
 
-    for task in existing.data or []:
+    for task in existing:
         title_sim = fuzzy_match(extracted_title, task.get("title", ""))
         if title_sim > 0.85:
             return {
@@ -756,7 +743,7 @@ async def scan_document(
 
     # Create deduplicator if not provided (for backwards compatibility)
     if deduplicator is None:
-        deduplicator = EntityDeduplicator(supabase)
+        deduplicator = EntityDeduplicator()
     if batch_id is None:
         batch_id = str(uuid.uuid4())
 
@@ -768,11 +755,7 @@ async def scan_document(
             logger.debug(f"Excluded by pattern: {filename}")
             # Mark as scanned so we don't check again
             now = datetime.now(timezone.utc).isoformat()
-            supabase.table("documents").update(
-                {
-                    "granola_scanned_at": now,
-                }
-            ).eq("id", document_id).execute()
+            documents_repo.update_document(document_id, {"granola_scanned_at": now})
             return {"status": "skipped", "reason": "excluded_pattern", "document_id": document_id}
 
     # Check if already scanned
@@ -802,15 +785,12 @@ async def scan_document(
 
         # Update document scan timestamp (for all extraction types)
         now = datetime.now(timezone.utc).isoformat()
-        supabase.table("documents").update(
-            {
-                "granola_scanned_at": now,
-                "projects_scanned_at": now,
-                "tasks_scanned_at": now,
-                "stakeholders_scanned_at": now,
-                "updated_at": now,
-            }
-        ).eq("id", document_id).execute()
+        documents_repo.update_document(document_id, {
+            "granola_scanned_at": now,
+            "projects_scanned_at": now,
+            "tasks_scanned_at": now,
+            "stakeholders_scanned_at": now,
+        })
 
         # Store extracted projects as candidates (only Tier 1-2: total score >= 14)
         projects_created = 0
@@ -882,12 +862,12 @@ async def scan_document(
                     candidate_data["match_reason"] = proj_match.match_reason
                     logger.info(f"Potential duplicate found: {proj_match.match_reason}")
 
-                result = supabase.table("project_candidates").insert(candidate_data).execute()
+                result = pb.create_record("project_candidates", candidate_data)
                 projects_created += 1
 
                 # Update batch cache with actual ID
-                if result.data:
-                    candidate_id = result.data[0]["id"]
+                if result:
+                    candidate_id = result["id"]
                     deduplicator.update_batch_cache_id("opportunity", batch_id, proj_title, candidate_id)
                     # Track project title -> candidate ID for task linking
                     project_title_to_candidate_id[proj_title.lower()] = candidate_id
@@ -983,12 +963,12 @@ async def scan_document(
                     candidate_data["match_reason"] = task_match.match_reason
                     logger.info(f"Potential task duplicate found: {task_match.match_reason}")
 
-                result = supabase.table("task_candidates").insert(candidate_data).execute()
+                result = pb.create_record("task_candidates", candidate_data)
                 tasks_created += 1
 
                 # Update batch cache with actual ID
-                if result.data:
-                    deduplicator.update_batch_cache_id("task", batch_id, task_title, result.data[0]["id"])
+                if result:
+                    deduplicator.update_batch_cache_id("task", batch_id, task_title, result["id"])
 
             except Exception as e:
                 logger.warning(f"Failed to create task candidate: {e}")
@@ -1052,12 +1032,12 @@ async def scan_document(
                     candidate_data["match_reason"] = sh_match.match_reason
                     logger.info(f"Potential stakeholder duplicate found: {sh_match.match_reason}")
 
-                result = supabase.table("stakeholder_candidates").insert(candidate_data).execute()
+                result = pb.create_record("stakeholder_candidates", candidate_data)
                 stakeholders_created += 1
 
                 # Update batch cache with actual ID
-                if result.data:
-                    deduplicator.update_batch_cache_id("stakeholder", batch_id, name, result.data[0]["id"])
+                if result:
+                    deduplicator.update_batch_cache_id("stakeholder", batch_id, name, result["id"])
 
             except Exception as e:
                 logger.warning(f"Failed to create stakeholder candidate: {e}")
@@ -1105,17 +1085,12 @@ async def scan_meeting_documents(
 
     # Find meeting-like documents in KB using heuristics
     try:
-        result = (
-            supabase.table("documents")
-            .select(
-                "id, filename, title, original_date, storage_url, granola_scanned_at, obsidian_file_path, uploaded_at"
-            )
-            .eq("user_id", user_id)
-            .limit(2000)
-            .execute()
+        result = pb.list_records(
+            "documents",
+            per_page=2000,
         )
 
-        all_docs = result.data or []
+        all_docs = result.get("items", [])
 
         # Classify documents by priority using heuristics
         meeting_docs = []
@@ -1136,9 +1111,9 @@ async def scan_meeting_documents(
                 # Mark low-priority docs as scanned so they don't appear as pending
                 if not doc.get("granola_scanned_at"):
                     try:
-                        supabase.table("documents").update(
-                            {"granola_scanned_at": datetime.now(timezone.utc).isoformat()}
-                        ).eq("id", doc["id"]).execute()
+                        documents_repo.update_document(
+                            doc["id"], {"granola_scanned_at": datetime.now(timezone.utc).isoformat()}
+                        )
                     except Exception:
                         pass  # Non-critical, continue
                 continue
@@ -1198,7 +1173,7 @@ async def scan_meeting_documents(
     results = []
 
     # Create shared deduplicator with batch ID for within-batch dedup across all documents
-    deduplicator = EntityDeduplicator(supabase)
+    deduplicator = EntityDeduplicator()
     batch_id = str(uuid.uuid4())
 
     for doc in documents:
@@ -1246,17 +1221,12 @@ def get_scan_status(user_id: str, since_date: Optional[date] = None) -> Dict[str
 
     try:
         # Query documents directly to get original_date for filtering
-        # Note: Can't use ilike with PostgREST due to Cloudflare 1101 errors,
-        # so we fetch all docs and filter in Python
-        result = (
-            supabase.table("documents")
-            .select("id, filename, original_date, granola_scanned_at, obsidian_file_path, uploaded_at")
-            .eq("user_id", user_id)
-            .limit(2000)
-            .execute()
+        result = pb.list_records(
+            "documents",
+            per_page=2000,
         )
 
-        all_docs = result.data or []
+        all_docs = result.get("items", [])
 
         # Filter to meeting documents using heuristics
         meeting_docs = []
