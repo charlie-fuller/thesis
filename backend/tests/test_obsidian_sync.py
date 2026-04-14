@@ -1,5 +1,8 @@
 """Tests for Obsidian Vault Sync functionality.
 
+Updated for PocketBase migration: mocks pb_client (imported as pb in
+obsidian_sync.py) instead of the old _get_db() / Supabase patterns.
+
 Tests cover:
 - Frontmatter parsing
 - Wikilink conversion
@@ -379,7 +382,7 @@ class TestVaultScanning:
 
 
 # ============================================================================
-# Sync State Tests (with mocked database)
+# Sync State Tests (with mocked pb_client)
 # ============================================================================
 
 
@@ -390,47 +393,36 @@ class TestSyncState:
         """Test creating a new sync state entry."""
         from services.obsidian_sync import update_sync_state
 
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = (
-            MagicMock(data=[])
-        )
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[
-                {
-                    "id": "new-state-id",
-                    "config_id": "config-123",
-                    "file_path": "notes/test.md",
-                    "sync_status": "synced",
-                }
-            ]
-        )
+        with patch("services.obsidian_sync.get_sync_state", return_value=None), \
+             patch("services.obsidian_sync.pb.create_record") as mock_create:
+            mock_create.return_value = {
+                "id": "new-state-id",
+                "config_id": "config-123",
+                "file_path": "notes/test.md",
+                "sync_status": "synced",
+            }
 
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
-            with patch("services.obsidian_sync.get_sync_state", return_value=None):
-                result = update_sync_state(
-                    config_id="config-123",
-                    file_path="notes/test.md",
-                    file_hash="abc123",
-                    sync_status="synced",
-                )
+            result = update_sync_state(
+                config_id="config-123",
+                file_path="notes/test.md",
+                file_hash="abc123",
+                sync_status="synced",
+            )
 
-                assert result.get("sync_status") == "synced"
+            assert result.get("sync_status") == "synced"
+            mock_create.assert_called_once()
 
     def test_get_all_sync_states(self):
         """Test retrieving all sync states for a vault."""
         from services.obsidian_sync import get_all_sync_states
 
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.range.return_value.execute.return_value = (
-            MagicMock(
-                data=[
-                    {"file_path": "note1.md", "sync_status": "synced"},
-                    {"file_path": "note2.md", "sync_status": "pending"},
-                ]
-            )
-        )
+        with patch("services.obsidian_sync.pb.get_all") as mock_get_all, \
+             patch("services.obsidian_sync.pb.escape_filter", side_effect=lambda v: v):
+            mock_get_all.return_value = [
+                {"file_path": "note1.md", "sync_status": "synced"},
+                {"file_path": "note2.md", "sync_status": "pending"},
+            ]
 
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             states = get_all_sync_states("config-123")
 
             assert "note1.md" in states
@@ -496,35 +488,16 @@ This is test content.""")
                 "sync_options": {"parse_frontmatter": True, "convert_wikilinks": True},
             }
 
-            mock_supabase = MagicMock()
+            with patch("services.obsidian_sync.process_document"), \
+                 patch("services.obsidian_sync.update_sync_state", return_value={}), \
+                 patch(
+                     "services.obsidian_sync._create_obsidian_document",
+                     return_value="doc-123",
+                 ):
+                result = sync_file(config, file_path, existing_state=None)
 
-            # Mock chain: table().select().eq().eq().execute()
-            mock_select_chain = MagicMock()
-            mock_select_chain.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
-            mock_select_chain.eq.return_value.execute.return_value = MagicMock(data=[])
-            mock_supabase.table.return_value.select.return_value = mock_select_chain
-
-            # Mock storage upload
-            mock_supabase.storage.from_.return_value.upload.return_value = MagicMock(path="test-path")
-
-            # Mock document insert
-            mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-                data=[{"id": "doc-123", "filename": "test-note.md"}]
-            )
-
-            # Mock _create_obsidian_document to return doc ID directly
-            with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
-                with patch("services.obsidian_sync.process_document"):
-                    with patch("services.obsidian_sync.update_sync_state", return_value={}):
-                        with patch(
-                            "services.obsidian_sync._create_obsidian_document",
-                            return_value="doc-123",
-                        ):
-                            with patch("services.obsidian_sync.SUPABASE_URL", "https://test.supabase.co"):
-                                result = sync_file(config, file_path, existing_state=None)
-
-                                assert result["status"] == "added"
-                                assert result["document_id"] == "doc-123"
+                assert result["status"] == "added"
+                assert result["document_id"] == "doc-123"
 
 
 # ============================================================================
@@ -554,13 +527,12 @@ class TestObsidianAPIRoutes:
         """Test that /api/obsidian/configure validates vault path."""
         from services.obsidian_sync import ObsidianSyncError
 
-        # Patch at the route level where create_vault_config is imported
         with (
             patch("api.routes.obsidian_sync.create_vault_config") as mock_create,
-            patch("api.routes.obsidian_sync._get_db") as mock_db,
+            patch("api.routes.obsidian_sync.pb") as mock_pb,
         ):
             mock_create.side_effect = ObsidianSyncError("Vault path does not exist")
-            mock_db.return_value = MagicMock()
+            mock_pb.get_first.return_value = None
 
             response = authenticated_client.post("/api/obsidian/configure", json={"vault_path": "/nonexistent/path"})
 
@@ -646,12 +618,9 @@ class TestSyncLogging:
         """Test that create_sync_log returns a valid UUID."""
         from services.obsidian_sync import create_sync_log
 
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{"id": "log-uuid-123"}]
-        )
+        with patch("services.obsidian_sync.pb.create_record") as mock_create:
+            mock_create.return_value = {"id": "log-uuid-123"}
 
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             log_id = create_sync_log(
                 config_id="config-123",
                 user_id="user-123",
@@ -665,12 +634,9 @@ class TestSyncLogging:
         """Test that create_sync_log sets status to 'running'."""
         from services.obsidian_sync import create_sync_log
 
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{"id": "log-uuid-123"}]
-        )
+        with patch("services.obsidian_sync.pb.create_record") as mock_create:
+            mock_create.return_value = {"id": "log-uuid-123"}
 
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             create_sync_log(
                 config_id="config-123",
                 user_id="user-123",
@@ -678,9 +644,9 @@ class TestSyncLogging:
                 trigger_source="watch",
             )
 
-            # Check the insert was called with correct status
-            insert_call = mock_supabase.table.return_value.insert.call_args
-            log_data = insert_call[0][0]
+            # Check the create was called with correct status
+            call_args = mock_create.call_args
+            log_data = call_args[0][1]  # second positional arg (data)
             assert log_data["status"] == "running"
             assert log_data["sync_type"] == "incremental"
             assert log_data["trigger_source"] == "watch"
@@ -689,9 +655,7 @@ class TestSyncLogging:
         """Test that complete_sync_log updates with stats."""
         from services.obsidian_sync import complete_sync_log
 
-        mock_supabase = MagicMock()
-
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
+        with patch("services.obsidian_sync.pb.update_record") as mock_update:
             complete_sync_log(
                 log_id="log-123",
                 status="completed",
@@ -706,8 +670,8 @@ class TestSyncLogging:
             )
 
             # Check update was called
-            update_call = mock_supabase.table.return_value.update.call_args
-            update_data = update_call[0][0]
+            call_args = mock_update.call_args
+            update_data = call_args[0][2]  # third positional arg (data)
             assert update_data["status"] == "completed"
             assert update_data["files_scanned"] == 100
             assert update_data["files_added"] == 10
@@ -717,9 +681,7 @@ class TestSyncLogging:
         """Test that complete_sync_log records error details."""
         from services.obsidian_sync import complete_sync_log
 
-        mock_supabase = MagicMock()
-
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
+        with patch("services.obsidian_sync.pb.update_record") as mock_update:
             complete_sync_log(
                 log_id="log-123",
                 status="failed",
@@ -730,8 +692,8 @@ class TestSyncLogging:
                 ],
             )
 
-            update_call = mock_supabase.table.return_value.update.call_args
-            update_data = update_call[0][0]
+            call_args = mock_update.call_args
+            update_data = call_args[0][2]  # third positional arg (data)
             assert update_data["status"] == "failed"
             assert update_data["error_message"] == "Connection timeout"
             assert len(update_data["error_details"]) == 2
@@ -749,20 +711,10 @@ class TestDeleteHandling:
         """Test that mark_sync_state_deleted updates status."""
         from services.obsidian_sync import mark_sync_state_deleted
 
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = (
-            MagicMock(data=[{"id": "state-123", "file_path": "note.md"}])
-        )
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[{"sync_status": "deleted"}]
-        )
+        with patch("services.obsidian_sync.update_sync_state") as mock_update:
+            mark_sync_state_deleted("config-123", "note.md")
 
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
-            with patch("services.obsidian_sync.get_sync_state", return_value={"id": "state-123"}):
-                mark_sync_state_deleted("config-123", "note.md")
-
-                # Verify update was called
-                assert mock_supabase.table.return_value.update.called
+            mock_update.assert_called_once_with("config-123", "note.md", sync_status="deleted")
 
 
 # ============================================================================
@@ -810,11 +762,9 @@ metadata:
         """Test wikilinks with heading anchors."""
         from services.obsidian_sync import convert_wikilinks
 
-        # Note: Basic wikilink conversion doesn't handle anchors specially
         content = "See [[Note#Section]] for details."
         result = convert_wikilinks(content)
 
-        # Should convert the whole thing as a link target
         assert "[Note#Section]" in result
 
     def test_should_include_file_outside_vault(self):
@@ -872,12 +822,8 @@ class TestVaultConfigEdgeCases:
         """Test get_vault_config returns None for non-existent user."""
         from services.obsidian_sync import get_vault_config
 
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = (
-            MagicMock(data=[])
-        )
-
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
+        with patch("services.obsidian_sync.pb.get_first", return_value=None), \
+             patch("services.obsidian_sync.pb.escape_filter", side_effect=lambda v: v):
             result = get_vault_config("nonexistent-user")
             assert result is None
 
@@ -885,37 +831,32 @@ class TestVaultConfigEdgeCases:
         """Test that creating a new config deactivates the old one."""
         from services.obsidian_sync import create_vault_config
 
-        mock_supabase = MagicMock()
-
-        # Mock existing active config
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = (
-            MagicMock(data=[{"id": "old-config-123"}])
-        )
-
-        # Mock update (deactivate)
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
-
-        # Mock insert (new config)
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{"id": "new-config-456", "vault_path": "/test/vault", "is_active": True}]
-        )
-
         with tempfile.TemporaryDirectory() as vault_dir:
-            with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
+            with patch("services.obsidian_sync.pb.get_first") as mock_first, \
+                 patch("services.obsidian_sync.pb.get_all") as mock_all, \
+                 patch("services.obsidian_sync.pb.update_record") as mock_update, \
+                 patch("services.obsidian_sync.pb.create_record") as mock_create, \
+                 patch("services.obsidian_sync.pb.escape_filter", side_effect=lambda v: v):
+                # Mock existing active config
+                mock_first.return_value = {"id": "old-config-123", "is_active": True}
+                mock_all.return_value = [{"id": "old-config-123"}]
+                mock_update.return_value = {}
+                mock_create.return_value = {
+                    "id": "new-config-456",
+                    "vault_path": vault_dir,
+                    "is_active": True,
+                }
+
                 create_vault_config(user_id="user-123", client_id="client-123", vault_path=vault_dir)
 
                 # Verify update was called to deactivate old config
-                update_calls = list(mock_supabase.table.return_value.update.call_args_list)
-                assert len(update_calls) >= 1
+                assert mock_update.called
 
     def test_update_vault_config_raises_on_failure(self):
         """Test that update_vault_config raises on database error."""
         from services.obsidian_sync import ObsidianSyncError, update_vault_config
 
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.side_effect = Exception("DB Error")
-
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
+        with patch("services.obsidian_sync.pb.update_record", side_effect=Exception("DB Error")):
             with pytest.raises(ObsidianSyncError) as exc_info:
                 update_vault_config("config-123", {"sync_options": {}})
 
@@ -934,83 +875,89 @@ class TestSyncStateEdgeCases:
         """Test that update_sync_state creates new entry when none exists."""
         from services.obsidian_sync import update_sync_state
 
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[
-                {
-                    "id": "new-state",
-                    "config_id": "config-123",
-                    "file_path": "new-note.md",
-                    "sync_status": "synced",
-                }
-            ]
-        )
+        with patch("services.obsidian_sync.get_sync_state", return_value=None), \
+             patch("services.obsidian_sync.pb.create_record") as mock_create:
+            mock_create.return_value = {
+                "id": "new-state",
+                "config_id": "config-123",
+                "file_path": "new-note.md",
+                "sync_status": "synced",
+            }
 
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
-            with patch("services.obsidian_sync.get_sync_state", return_value=None):
-                result = update_sync_state(
-                    config_id="config-123",
-                    file_path="new-note.md",
-                    file_hash="abc123",
-                    sync_status="synced",
-                )
+            result = update_sync_state(
+                config_id="config-123",
+                file_path="new-note.md",
+                file_hash="abc123",
+                sync_status="synced",
+            )
 
-                assert result.get("sync_status") == "synced"
-                # Verify insert was called (not update)
-                assert mock_supabase.table.return_value.insert.called
+            assert result.get("sync_status") == "synced"
+            assert mock_create.called
 
-    def test_update_sync_state_with_error_clears_last_synced(self):
+    def test_update_sync_state_updates_existing(self):
+        """Test that update_sync_state updates entry when it exists."""
+        from services.obsidian_sync import update_sync_state
+
+        with patch("services.obsidian_sync.get_sync_state", return_value={"id": "state-123"}), \
+             patch("services.obsidian_sync.pb.update_record") as mock_update:
+            mock_update.return_value = {
+                "id": "state-123",
+                "sync_status": "synced",
+            }
+
+            result = update_sync_state(
+                config_id="config-123",
+                file_path="note.md",
+                file_hash="abc123",
+                sync_status="synced",
+            )
+
+            assert mock_update.called
+            # Verify update was called with the existing record ID
+            call_args = mock_update.call_args
+            assert call_args[0][1] == "state-123"  # record ID
+
+    def test_update_sync_state_with_error(self):
         """Test that failed sync sets sync_error."""
         from services.obsidian_sync import update_sync_state
 
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[{"sync_status": "failed", "sync_error": "Connection timeout"}]
-        )
+        with patch("services.obsidian_sync.get_sync_state", return_value={"id": "state-123"}), \
+             patch("services.obsidian_sync.pb.update_record") as mock_update:
+            mock_update.return_value = {"sync_status": "failed", "sync_error": "Connection timeout"}
 
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
-            with patch("services.obsidian_sync.get_sync_state", return_value={"id": "state-123"}):
-                update_sync_state(
-                    config_id="config-123",
-                    file_path="note.md",
-                    sync_status="failed",
-                    sync_error="Connection timeout",
-                )
+            update_sync_state(
+                config_id="config-123",
+                file_path="note.md",
+                sync_status="failed",
+                sync_error="Connection timeout",
+            )
 
-                update_call = mock_supabase.table.return_value.update.call_args
-                update_data = update_call[0][0]
-                assert update_data["sync_status"] == "failed"
-                assert update_data["sync_error"] == "Connection timeout"
+            call_args = mock_update.call_args
+            update_data = call_args[0][2]  # third positional arg (data)
+            assert update_data["sync_status"] == "failed"
+            assert update_data["sync_error"] == "Connection timeout"
 
     def test_get_all_sync_states_empty_result(self):
         """Test get_all_sync_states returns empty dict for no results."""
         from services.obsidian_sync import get_all_sync_states
 
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
-
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
+        with patch("services.obsidian_sync.pb.get_all", return_value=[]), \
+             patch("services.obsidian_sync.pb.escape_filter", side_effect=lambda v: v):
             result = get_all_sync_states("config-123")
             assert result == {}
 
     def test_get_all_sync_states_maps_by_path(self):
-        """Test get_all_sync_states correctly maps file paths with pagination."""
+        """Test get_all_sync_states correctly maps file paths."""
         from services.obsidian_sync import get_all_sync_states
 
-        mock_supabase = MagicMock()
-        # The paginated query chains: .table().select().eq().range().execute()
-        mock_result = MagicMock(
-            data=[
+        with patch("services.obsidian_sync.pb.get_all") as mock_get_all, \
+             patch("services.obsidian_sync.pb.escape_filter", side_effect=lambda v: v):
+            mock_get_all.return_value = [
                 {"file_path": "note1.md", "sync_status": "synced", "file_hash": "abc"},
                 {"file_path": "folder/note2.md", "sync_status": "pending", "file_hash": "def"},
                 {"file_path": "deep/nested/note3.md", "sync_status": "synced", "file_hash": "ghi"},
             ]
-        )
-        mock_supabase.table.return_value.select.return_value.eq.return_value.range.return_value.execute.return_value = (
-            mock_result
-        )
 
-        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             result = get_all_sync_states("config-123")
 
             assert len(result) == 3
@@ -1152,7 +1099,6 @@ tags:
 
     def test_valid_content_passes_validation(self):
         """Test that valid non-empty content would pass validation."""
-        # This is a sanity check that our validation logic is correct
         content = b"# Hello World\n\nThis is content."
 
         assert content is not None

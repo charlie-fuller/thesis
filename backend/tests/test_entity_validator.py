@@ -1,6 +1,8 @@
 """Tests for Entity Validation System.
 
 Tests the phonetic matching, entity validation, and registry management services.
+These tests inject mock clients directly into service constructors, so they are
+DB-layer agnostic and work with both Supabase and PocketBase backends.
 
 Version: 1.0.0
 Created: 2026-01-23

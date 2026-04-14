@@ -1,135 +1,102 @@
 """Pytest configuration and fixtures for Thesis backend tests.
 
 This file contains shared fixtures and configuration used across all test modules.
+Updated for PocketBase migration: mocks pb_client instead of Supabase.
 """
 
 import os
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-
-# Load real .env file first (before setting any test defaults)
-# This ensures integration tests have access to real credentials
-from dotenv import load_dotenv
-
-_env_path = Path(__file__).parent.parent / ".env"
-if _env_path.exists():
-    load_dotenv(_env_path)
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 # Detect if we're running ONLY integration tests
-# Check sys.argv for test_integration.py to avoid mock pollution
 _running_integration_only = any("test_integration.py" in arg for arg in sys.argv)
 
 # Set test environment variables before importing app
-# BUT skip for integration-only runs to preserve real credentials
 if not _running_integration_only:
     os.environ["TESTING"] = "true"
-
-    # Only set fallback test values if no real credentials are present
-    # This allows integration tests to run with real .env values
-    def _set_if_not_real(key: str, test_value: str, min_real_length: int = 30):
-        """Set environment variable only if current value looks like a placeholder."""
-        current = os.environ.get(key, "")
-        if not current or len(current) < min_real_length or "test" in current.lower():
-            os.environ[key] = test_value
-
-    _set_if_not_real("SUPABASE_JWT_SECRET", "test-jwt-secret-key-for-testing-only", 50)
-    _set_if_not_real("SUPABASE_URL", "https://test.supabase.co", 20)
-    _set_if_not_real("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key", 50)
-    _set_if_not_real("ANTHROPIC_API_KEY", "test-anthropic-key", 20)
-    _set_if_not_real("VOYAGE_API_KEY", "test-voyage-key", 20)
+    os.environ.setdefault("THESIS_API_KEY", "test-api-key")
+    os.environ.setdefault("THESIS_POCKETBASE_URL", "http://127.0.0.1:8090")
+    os.environ.setdefault("THESIS_ANTHROPIC_API_KEY", "test-anthropic-key")
+    os.environ.setdefault("THESIS_VOYAGE_API_KEY", "test-voyage-key")
 
 
 # ============================================================================
-# Mock Fixtures
+# PocketBase Mock Fixtures
 # ============================================================================
 
 
 @pytest.fixture
-def mock_supabase():
-    """Mock Supabase client for database operations."""
+def mock_pb():
+    """Mock PocketBase client (pb_client module) for database operations.
+
+    Patches the module-level functions in pb_client so that any code
+    calling pb_client.get_record(), pb_client.list_records(), etc.
+    gets mock responses.
+    """
     mock = MagicMock()
 
-    # Mock table operations
-    mock.table.return_value.select.return_value.execute.return_value = MagicMock(data=[])
-    mock.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "test-id"}])
-    mock.table.return_value.update.return_value.execute.return_value = MagicMock(data=[])
-    mock.table.return_value.delete.return_value.execute.return_value = MagicMock(data=[])
-
-    # Mock storage operations
-    mock.storage.from_.return_value.upload.return_value = MagicMock(path="test-path")
-    mock.storage.from_.return_value.download.return_value = b"test content"
-    mock.storage.from_.return_value.remove.return_value = MagicMock()
+    # Default return values matching pb_client function signatures
+    mock.list_records.return_value = {"page": 1, "perPage": 200, "totalPages": 1, "totalItems": 0, "items": []}
+    mock.get_record.return_value = None
+    mock.create_record.return_value = {"id": "test-id", "created": "2025-01-01T00:00:00Z"}
+    mock.update_record.return_value = {"id": "test-id", "updated": "2025-01-01T00:00:00Z"}
+    mock.delete_record.return_value = None
+    mock.get_first.return_value = None
+    mock.get_all.return_value = []
+    mock.count.return_value = 0
+    mock.escape_filter.side_effect = lambda v: v.replace("'", "\\'")
+    mock.parse_json_field.side_effect = lambda v, default=None: v if isinstance(v, (dict, list)) else default
 
     return mock
 
 
 @pytest.fixture
-def mock_anthropic():
-    """Mock Anthropic client for Claude API calls."""
-    mock = MagicMock()
+def mock_pb_patched(mock_pb):
+    """Context manager that patches all pb_client functions.
 
-    # Mock streaming response
-    mock_stream = MagicMock()
-    mock_stream.text_stream = iter(["Hello", " ", "from", " ", "Claude!"])
-    mock.messages.stream.return_value.__enter__.return_value = mock_stream
+    Usage in tests:
+        def test_something(self, mock_pb_patched):
+            mock_pb, patches = mock_pb_patched
+            mock_pb.get_record.return_value = {"id": "123", "name": "test"}
+            # ... test code that calls pb_client functions ...
+    """
+    patches = {}
+    pb_functions = [
+        "list_records", "get_record", "create_record", "update_record",
+        "delete_record", "get_first", "get_all", "count",
+        "escape_filter", "parse_json_field",
+    ]
+    active_patches = []
+    for fn_name in pb_functions:
+        p = patch(f"pb_client.{fn_name}", getattr(mock_pb, fn_name))
+        active_patches.append(p)
+        patches[fn_name] = p.start()
 
-    return mock
+    yield mock_pb, patches
 
-
-@pytest.fixture
-def mock_voyage():
-    """Mock Voyage AI client for embeddings."""
-    mock = MagicMock()
-
-    # Mock embedding response
-    mock.embed.return_value.embeddings = [[0.1] * 1024]
-
-    return mock
+    for p in active_patches:
+        p.stop()
 
 
 # ============================================================================
-# Authentication Fixtures
+# Authentication Fixtures (API key based)
 # ============================================================================
 
 
 @pytest.fixture
-def valid_jwt_token():
-    """Generate a valid JWT token for testing."""
-    from datetime import datetime, timedelta, timezone
-
-    import jwt
-
-    payload = {
-        "sub": "00000000-0000-0000-0000-000000000002",
-        "email": "testuser@example.com",
-        "aud": "authenticated",
-        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
-        "iat": datetime.now(timezone.utc),
-    }
-
-    return jwt.encode(payload, os.environ["SUPABASE_JWT_SECRET"], algorithm="HS256")
+def api_key():
+    """Return the test API key."""
+    return os.environ.get("THESIS_API_KEY", "test-api-key")
 
 
 @pytest.fixture
-def expired_jwt_token():
-    """Generate an expired JWT token for testing."""
-    from datetime import datetime, timedelta, timezone
-
-    import jwt
-
-    payload = {
-        "sub": "00000000-0000-0000-0000-000000000002",
-        "email": "testuser@example.com",
-        "aud": "authenticated",
-        "exp": datetime.now(timezone.utc) - timedelta(hours=1),  # Expired
-        "iat": datetime.now(timezone.utc) - timedelta(hours=2),
-    }
-
-    return jwt.encode(payload, os.environ["SUPABASE_JWT_SECRET"], algorithm="HS256")
+def auth_headers(api_key):
+    """Return auth headers with the test API key."""
+    return {"Authorization": f"Bearer {api_key}"}
 
 
 @pytest.fixture
@@ -155,6 +122,32 @@ def regular_user():
 
 
 # ============================================================================
+# Mock Fixtures (AI providers)
+# ============================================================================
+
+
+@pytest.fixture
+def mock_anthropic():
+    """Mock Anthropic client for Claude API calls."""
+    mock = MagicMock()
+
+    # Mock streaming response
+    mock_stream = MagicMock()
+    mock_stream.text_stream = iter(["Hello", " ", "from", " ", "Claude!"])
+    mock.messages.stream.return_value.__enter__.return_value = mock_stream
+
+    return mock
+
+
+@pytest.fixture
+def mock_voyage():
+    """Mock Voyage AI client for embeddings."""
+    mock = MagicMock()
+    mock.embed.return_value.embeddings = [[0.1] * 1024]
+    return mock
+
+
+# ============================================================================
 # Test Data Fixtures
 # ============================================================================
 
@@ -168,7 +161,6 @@ def sample_document():
         "uploaded_by": "test-user-id",
         "filename": "test-document.pdf",
         "storage_path": "test-client/test-document.pdf",
-        "storage_url": "https://test.supabase.co/storage/v1/object/test-document.pdf",
         "mime_type": "application/pdf",
         "file_size": 1024,
         "processed": True,
@@ -184,7 +176,7 @@ def sample_conversation():
         "client_id": "00000000-0000-0000-0000-000000000001",
         "title": "Test Conversation",
         "archived": False,
-        "created_at": "2025-01-01T00:00:00Z",
+        "created": "2025-01-01T00:00:00Z",
     }
 
 
@@ -196,7 +188,7 @@ def sample_message():
         "conversation_id": "conv-123",
         "role": "user",
         "content": "Hello, this is a test message",
-        "created_at": "2025-01-01T00:00:00Z",
+        "created": "2025-01-01T00:00:00Z",
     }
 
 
@@ -218,13 +210,22 @@ def sample_chunk():
 
 
 @pytest.fixture
-def test_client():
-    """Create a test client with mocked dependencies."""
-    mock_supabase = MagicMock()
-    mock_supabase.table.return_value.select.return_value.execute.return_value = MagicMock(data=[])
-    mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "test-id"}])
+def test_client(mock_pb):
+    """Create a test client with mocked PocketBase.
 
-    with patch("database.get_supabase", return_value=mock_supabase):
+    The app uses API key auth middleware. Requests without a valid
+    API key will get 401. Use authenticated_client for auth'd requests.
+    """
+    with patch("pb_client.init_pb"), \
+         patch("pb_client._client", MagicMock()), \
+         patch("pb_client.list_records", mock_pb.list_records), \
+         patch("pb_client.get_record", mock_pb.get_record), \
+         patch("pb_client.create_record", mock_pb.create_record), \
+         patch("pb_client.update_record", mock_pb.update_record), \
+         patch("pb_client.delete_record", mock_pb.delete_record), \
+         patch("pb_client.get_first", mock_pb.get_first), \
+         patch("pb_client.get_all", mock_pb.get_all), \
+         patch("pb_client.count", mock_pb.count):
         from main import app
 
         with TestClient(app) as client:
@@ -232,60 +233,24 @@ def test_client():
 
 
 @pytest.fixture
-def authenticated_client(valid_jwt_token, regular_user):
-    """Create an authenticated test client with properly mocked database."""
-    mock_supabase = MagicMock()
+def authenticated_client(test_client, auth_headers):
+    """Create an authenticated test client.
 
-    # Default mock for conversations list
-    mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = (
-        MagicMock(data=[])
-    )
-
-    # Mock user lookup for auth
-    mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = (
-        MagicMock(data={"role": "user", "client_id": regular_user["client_id"]})
-    )
-
-    # Mock documents list
-    mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
-
-    with patch("database.get_supabase", return_value=mock_supabase):
-        from main import app
-
-        with TestClient(app) as client:
-            client.headers = {"Authorization": f"Bearer {valid_jwt_token}"}
-            yield client
+    Uses the test API key defined in THESIS_API_KEY env var.
+    """
+    test_client.headers.update(auth_headers)
+    yield test_client
 
 
 @pytest.fixture
-def admin_client(valid_jwt_token, admin_user):
-    """Create an authenticated admin test client."""
-    mock_supabase = MagicMock()
+def admin_client(test_client, auth_headers):
+    """Create an authenticated admin test client.
 
-    # Mock user lookup for auth
-    mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = (
-        MagicMock(data={"role": "admin", "client_id": admin_user["client_id"]})
-    )
-
-    with patch("database.get_supabase", return_value=mock_supabase):
-        from main import app
-
-        with TestClient(app) as client:
-            client.headers = {"Authorization": f"Bearer {valid_jwt_token}"}
-            yield client
-
-
-# ============================================================================
-# Async Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def mock_async_supabase():
-    """Mock async Supabase operations."""
-    mock = AsyncMock()
-    mock.execute_query = AsyncMock(return_value={"data": [], "error": None})
-    return mock
+    Note: With API key auth, there is no role distinction at the auth layer.
+    Admin vs user is determined by business logic, not the auth middleware.
+    """
+    test_client.headers.update(auth_headers)
+    yield test_client
 
 
 # ============================================================================
@@ -296,7 +261,6 @@ def mock_async_supabase():
 @pytest.fixture
 def sample_pdf_bytes():
     """Return minimal valid PDF bytes for testing."""
-    # Minimal PDF structure
     return b"""%PDF-1.4.
 1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
 2 0 obj << /Type /Pages /Kids [] /Count 0 >> endobj
@@ -331,10 +295,8 @@ This concludes the sample document."""
 # Module State Management
 # ============================================================================
 
-import sys
 
-# Store original modules that might get mocked
-_PROTECTED_MODULES = ["config", "database", "services", "auth", "anthropic"]
+_PROTECTED_MODULES = ["config", "pb_client", "services", "auth", "anthropic"]
 _original_modules = {}
 
 
@@ -350,12 +312,10 @@ def _restore_modules():
     for name, module in _original_modules.items():
         if name in sys.modules:
             current = sys.modules[name]
-            # If current module is a Mock, restore original
             if hasattr(current, "_mock_name") or type(current).__name__ == "MagicMock":
                 sys.modules[name] = module
 
 
-# Save modules at import time
 _save_original_modules()
 
 
@@ -366,16 +326,10 @@ def restore_modules_session():
     yield
 
 
-# ============================================================================
-# Cleanup
-# ============================================================================
-
-
 @pytest.fixture(autouse=True)
 def cleanup():
     """Clean up after each test."""
     yield
-    # Restore modules that may have been mocked
     _restore_modules()
 
 
@@ -490,7 +444,7 @@ def sample_meeting_room():
         "topic": "AI Implementation Strategy",
         "autonomous_mode": False,
         "participants": ["atlas", "capital", "guardian"],
-        "created_at": "2025-01-01T00:00:00Z",
+        "created": "2025-01-01T00:00:00Z",
     }
 
 
@@ -502,42 +456,6 @@ def sample_meeting_messages():
         {"role": "assistant", "agent_id": "atlas", "content": "Research shows..."},
         {"role": "assistant", "agent_id": "capital", "content": "Financial analysis..."},
     ]
-
-
-# ============================================================================
-# Integration Test Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def integration_supabase():
-    """Real Supabase client for integration tests.
-
-    Only used when INTEGRATION_TESTS=true is set.
-    """
-    import os
-
-    if os.environ.get("INTEGRATION_TESTS") != "true":
-        pytest.skip("Integration tests disabled")
-
-    from supabase import create_client
-
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-
-    if not url or not key:
-        pytest.skip("Supabase credentials not configured")
-
-    return create_client(url, key)
-
-
-@pytest.fixture
-def integration_client(integration_supabase):
-    """Test client for integration tests with real database."""
-    from main import app
-
-    with TestClient(app) as client:
-        yield client
 
 
 # ============================================================================

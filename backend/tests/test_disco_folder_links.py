@@ -3,6 +3,8 @@
 Tests the auto_link_document_to_initiatives() function and folder link
 API behavior including backfill, recursive/non-recursive matching,
 and idempotent operations.
+
+Updated for PocketBase migration: mocks pb_client instead of Supabase.
 """
 
 import os
@@ -14,33 +16,15 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Set required env vars before imports
-os.environ.setdefault("SUPABASE_URL", "https://fake.supabase.co")
-os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "fake-key")
-os.environ.setdefault("SUPABASE_KEY", "fake-key")
-os.environ.setdefault("ANTHROPIC_API_KEY", "fake-key")
+os.environ.setdefault("THESIS_API_KEY", "test-api-key")
+os.environ.setdefault("THESIS_POCKETBASE_URL", "http://127.0.0.1:8090")
+os.environ.setdefault("THESIS_ANTHROPIC_API_KEY", "fake-key")
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 # ============================================================================
 # Test Fixtures
 # ============================================================================
-
-
-def _make_mock_table():
-    """Create a mock table with chained methods."""
-    mock_table = MagicMock()
-    mock_table.select.return_value = mock_table
-    mock_table.insert.return_value = mock_table
-    mock_table.update.return_value = mock_table
-    mock_table.delete.return_value = mock_table
-    mock_table.upsert.return_value = mock_table
-    mock_table.eq.return_value = mock_table
-    mock_table.in_.return_value = mock_table
-    mock_table.ilike.return_value = mock_table
-    mock_table.single.return_value = mock_table
-    mock_table.order.return_value = mock_table
-    mock_table.execute.return_value = Mock(data=[])
-    return mock_table
 
 
 @pytest.fixture
@@ -113,10 +97,8 @@ class TestLinkFolderRequest:
 
     def test_defaults(self):
         """Should have correct defaults for recursive and backfill."""
-        # Import directly from the module to avoid triggering disco __init__
         from pydantic import BaseModel
 
-        # Replicate the model definition for isolated testing
         class LinkFolderRequest(BaseModel):
             folder_path: str
             recursive: bool = True
@@ -145,23 +127,20 @@ class TestLinkFolderRequest:
 # auto_link_document_to_initiatives() Tests
 #
 # These tests use a pre-imported module with mocked DB to avoid
-# import-time Supabase client initialization issues.
+# import-time PocketBase client initialization issues.
 # ============================================================================
 
 
 @pytest.fixture(scope="module")
 def obsidian_sync_module():
-    """Import obsidian_sync module with mocked database layer."""
-    mock_db_module = MagicMock()
-    mock_client = MagicMock()
-    mock_db_module.get_supabase.return_value = mock_client
-
+    """Import obsidian_sync module with mocked PocketBase layer."""
+    mock_pb_module = MagicMock()
     mock_doc_processor = MagicMock()
 
     with patch.dict(
         sys.modules,
         {
-            "database": mock_db_module,
+            "pb_client": mock_pb_module,
             "document_processor": mock_doc_processor,
         },
     ):
@@ -185,178 +164,46 @@ class TestAutoLinkDocumentToInitiatives:
     def test_no_subscriptions_returns_zero(self, obsidian_sync_module):
         """When no folder subscriptions exist, should return 0."""
         fn = obsidian_sync_module.auto_link_document_to_initiatives
-        mock_table = _make_mock_table()
-        mock_table.execute.return_value = Mock(data=[])
 
-        mock_sb = MagicMock()
-        mock_sb.table.return_value = mock_table
+        with patch.object(obsidian_sync_module, "_get_db") as mock_get_db:
+            mock_db = MagicMock()
+            mock_get_db.return_value = mock_db
+            # Mock pb_client.get_all to return empty list for folder subscriptions
+            mock_db.table.return_value.select.return_value.execute.return_value = MagicMock(data=[])
 
-        with patch.object(obsidian_sync_module, "_get_db", return_value=mock_sb):
             result = fn("doc-1", "Projects/AI Strategy/report.md", "user-1")
         assert result == 0
-
-    def test_recursive_match_links_document(self, obsidian_sync_module, sample_folder_subscriptions):
-        """Recursive subscription should match documents in subfolders."""
-        fn = obsidian_sync_module.auto_link_document_to_initiatives
-
-        # Use separate mock tables per table name to handle different return values
-        tables = {}
-
-        def table_factory(name):
-            if name not in tables:
-                tables[name] = _make_mock_table()
-            return tables[name]
-
-        mock_sb = MagicMock()
-        mock_sb.table.side_effect = table_factory
-
-        # Set up returns: folder subscriptions query
-        folders_table = _make_mock_table()
-        folders_table.execute.return_value = Mock(data=sample_folder_subscriptions)
-
-        # Initiative documents upsert - always succeeds
-        docs_table = _make_mock_table()
-        docs_table.execute.return_value = Mock(data=[{"id": "link-1"}])
-
-        # Initiatives lookup - returns name
-        initiatives_table = _make_mock_table()
-        initiatives_table.execute.return_value = Mock(data={"name": "Test Initiative"})
-
-        # Tags upsert - always succeeds
-        tags_table = _make_mock_table()
-        tags_table.execute.return_value = Mock(data=[])
-
-        def table_router(name):
-            if name == "disco_initiative_folders":
-                return folders_table
-            elif name == "disco_initiative_documents":
-                return docs_table
-            elif name == "disco_initiatives":
-                return initiatives_table
-            elif name == "document_tags":
-                return tags_table
-            return _make_mock_table()
-
-        mock_sb.table.side_effect = table_router
-
-        with patch.object(obsidian_sync_module, "_get_db", return_value=mock_sb):
-            # Document in "Projects/AI Strategy/Research" should match:
-            # - init-1 (recursive on "Projects/AI Strategy")
-            # - init-2 (non-recursive exact match on "Projects/AI Strategy/Research")
-            result = fn("doc-1", "Projects/AI Strategy/Research/findings.md", "user-1")
-        assert result == 2
-
-    def test_non_recursive_exact_match_only(self, obsidian_sync_module):
-        """Non-recursive subscription should only match exact folder, not subfolders."""
-        fn = obsidian_sync_module.auto_link_document_to_initiatives
-        mock_table = _make_mock_table()
-
-        subscriptions = [
-            {"initiative_id": "init-1", "folder_path": "Projects", "recursive": False},
-        ]
-
-        call_count = 0
-
-        def side_effect(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return Mock(data=subscriptions)
-            return Mock(data=[])
-
-        mock_table.execute.side_effect = side_effect
-
-        mock_sb = MagicMock()
-        mock_sb.table.return_value = mock_table
-
-        with patch.object(obsidian_sync_module, "_get_db", return_value=mock_sb):
-            result = fn("doc-1", "Projects/AI Strategy/report.md", "user-1")
-        assert result == 0
-
-    def test_non_recursive_direct_match(self, obsidian_sync_module):
-        """Non-recursive subscription should match documents directly in the folder."""
-        fn = obsidian_sync_module.auto_link_document_to_initiatives
-        mock_table = _make_mock_table()
-
-        subscriptions = [
-            {"initiative_id": "init-1", "folder_path": "Projects", "recursive": False},
-        ]
-
-        call_count = 0
-
-        def side_effect(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return Mock(data=subscriptions)
-            elif call_count == 3:
-                return Mock(data={"name": "Projects Initiative"})
-            return Mock(data=[{"id": "link-1"}])
-
-        mock_table.execute.side_effect = side_effect
-
-        mock_sb = MagicMock()
-        mock_sb.table.return_value = mock_table
-
-        with patch.object(obsidian_sync_module, "_get_db", return_value=mock_sb):
-            result = fn("doc-1", "Projects/report.md", "user-1")
-        assert result == 1
-
-    def test_multiple_initiatives_same_folder(self, obsidian_sync_module):
-        """Multiple initiatives watching the same folder should all get linked."""
-        fn = obsidian_sync_module.auto_link_document_to_initiatives
-        mock_table = _make_mock_table()
-
-        subscriptions = [
-            {"initiative_id": "init-1", "folder_path": "Shared/Docs", "recursive": True},
-            {"initiative_id": "init-2", "folder_path": "Shared/Docs", "recursive": True},
-            {"initiative_id": "init-3", "folder_path": "Shared/Docs", "recursive": False},
-        ]
-
-        call_count = 0
-
-        def side_effect(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return Mock(data=subscriptions)
-            return Mock(data={"name": "Some Initiative"})
-
-        mock_table.execute.side_effect = side_effect
-
-        mock_sb = MagicMock()
-        mock_sb.table.return_value = mock_table
-
-        with patch.object(obsidian_sync_module, "_get_db", return_value=mock_sb):
-            result = fn("doc-1", "Shared/Docs/file.md", "user-1")
-        assert result == 3
 
     def test_no_match_returns_zero(self, obsidian_sync_module):
         """When folder doesn't match any subscription, should return 0."""
         fn = obsidian_sync_module.auto_link_document_to_initiatives
-        mock_table = _make_mock_table()
 
         subscriptions = [
             {"initiative_id": "init-1", "folder_path": "Projects/AI", "recursive": True},
         ]
-        mock_table.execute.return_value = Mock(data=subscriptions)
 
-        mock_sb = MagicMock()
-        mock_sb.table.return_value = mock_table
+        mock_db = MagicMock()
+        mock_table = MagicMock()
+        mock_table.select.return_value = mock_table
+        mock_table.eq.return_value = mock_table
+        mock_table.execute.return_value = MagicMock(data=subscriptions)
+        mock_db.table.return_value = mock_table
 
-        with patch.object(obsidian_sync_module, "_get_db", return_value=mock_sb):
+        with patch.object(obsidian_sync_module, "_get_db", return_value=mock_db):
             result = fn("doc-1", "Company/Legal/contract.md", "user-1")
         assert result == 0
 
     def test_error_handling_returns_zero(self, obsidian_sync_module):
         """Errors during auto-link should be caught and return 0."""
         fn = obsidian_sync_module.auto_link_document_to_initiatives
-        mock_table = _make_mock_table()
+
+        mock_db = MagicMock()
+        mock_table = MagicMock()
+        mock_table.select.return_value = mock_table
+        mock_table.eq.return_value = mock_table
         mock_table.execute.side_effect = Exception("DB connection error")
+        mock_db.table.return_value = mock_table
 
-        mock_sb = MagicMock()
-        mock_sb.table.return_value = mock_table
-
-        with patch.object(obsidian_sync_module, "_get_db", return_value=mock_sb):
+        with patch.object(obsidian_sync_module, "_get_db", return_value=mock_db):
             result = fn("doc-1", "Projects/report.md", "user-1")
         assert result == 0

@@ -1,6 +1,7 @@
 """Chat Endpoint and RAG Tests.
 
 Tests for the chat API endpoint, RAG context retrieval, and streaming responses.
+Updated for PocketBase migration: mocks pb_client instead of Supabase.
 """
 
 from unittest.mock import MagicMock, patch
@@ -13,16 +14,9 @@ from unittest.mock import MagicMock, patch
 class TestChatRequestValidation:
     """Tests for chat request validation."""
 
-    @patch("database.get_supabase")
     @patch("api.routes.chat.anthropic_client")
-    def test_chat_with_valid_message(self, mock_anthropic, mock_get_supabase, authenticated_client):
+    def test_chat_with_valid_message(self, mock_anthropic, authenticated_client):
         """Test chat with a valid message."""
-        # Setup mocks
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "msg-123"}])
-        mock_get_supabase.return_value = mock_supabase
-
         # Mock streaming response
         mock_stream = MagicMock()
         mock_stream.text_stream = iter(["Hello", " world!"])
@@ -44,7 +38,7 @@ class TestChatRequestValidation:
         """Test that unauthenticated requests are rejected."""
         response = test_client.post("/api/chat", json={"conversation_id": "conv-123", "message": "Hello"})
 
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_chat_with_empty_message(self, authenticated_client):
         """Test that empty messages are rejected."""
@@ -76,11 +70,10 @@ class TestRAGContext:
     """Tests for RAG context retrieval."""
 
     @patch("document_processor.search_similar_chunks")
-    def test_rag_search_called_for_normal_messages(self, mock_search, mock_supabase):
+    def test_rag_search_called_for_normal_messages(self, mock_search):
         """Test that RAG search is called for substantive messages."""
         mock_search.return_value = []
 
-        # This would be called internally during chat processing
         from document_processor import search_similar_chunks
 
         search_similar_chunks(
@@ -94,11 +87,9 @@ class TestRAGContext:
     @patch("document_processor.search_similar_chunks")
     def test_rag_skipped_for_greetings(self, mock_search):
         """Test that RAG is skipped for simple greetings."""
-        # Simple messages should not trigger RAG search
         simple_messages = ["hello", "hi", "hey", "thanks", "bye"]
 
         for msg in simple_messages:
-            # The chat endpoint logic checks for simple messages
             is_simple = msg.lower().strip() in {
                 "hello",
                 "hi",
@@ -143,10 +134,8 @@ class TestStreamingResponse:
 
     def test_streaming_response_format(self):
         """Test that streaming responses are properly formatted."""
-        # Simulate streaming response chunks
         chunks = ["Hello", ", ", "this", " is", " a", " test!"]
 
-        # Each chunk should be a valid piece of text
         full_response = "".join(chunks)
         assert full_response == "Hello, this is a test!"
 
@@ -167,44 +156,36 @@ class TestStreamingResponse:
 class TestConversationContext:
     """Tests for conversation history context."""
 
-    @patch("database.get_supabase")
-    def test_conversation_history_retrieved(self, mock_get_supabase):
+    def test_conversation_history_retrieved(self, mock_pb_patched):
         """Test that conversation history is properly retrieved."""
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(
-            data=[
-                {"role": "user", "content": "Previous question"},
-                {"role": "assistant", "content": "Previous answer"},
-            ]
-        )
-        mock_get_supabase.return_value = mock_supabase
+        mock_pb, patches = mock_pb_patched
 
-        # Verify conversation history retrieval
-        result = (
-            mock_supabase.table("messages")
-            .select("*")
-            .eq("conversation_id", "conv-123")
-            .order("created_at")
-            .limit(10)
-            .execute()
-        )
+        mock_pb.get_all.return_value = [
+            {"role": "user", "content": "Previous question"},
+            {"role": "assistant", "content": "Previous answer"},
+        ]
 
-        assert len(result.data) == 2
-        assert result.data[0]["role"] == "user"
+        import pb_client
 
-    def test_message_saved_to_conversation(self, mock_supabase):
+        result = pb_client.get_all("messages", filter='conversation_id="conv-123"', sort="created")
+
+        assert len(result) == 2
+        assert result[0]["role"] == "user"
+
+    def test_message_saved_to_conversation(self, mock_pb_patched):
         """Test that new messages are saved to conversation."""
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{"id": "msg-new", "content": "New message"}]
+        mock_pb, patches = mock_pb_patched
+
+        mock_pb.create_record.return_value = {"id": "msg-new", "content": "New message"}
+
+        import pb_client
+
+        result = pb_client.create_record(
+            "messages",
+            {"conversation_id": "conv-123", "role": "user", "content": "New message"},
         )
 
-        result = (
-            mock_supabase.table("messages")
-            .insert({"conversation_id": "conv-123", "role": "user", "content": "New message"})
-            .execute()
-        )
-
-        assert result.data[0]["content"] == "New message"
+        assert result["content"] == "New message"
 
 
 # ============================================================================
@@ -215,21 +196,18 @@ class TestConversationContext:
 class TestChatErrorHandling:
     """Tests for chat endpoint error handling."""
 
-    @patch("database.get_supabase")
     @patch("api.routes.chat.anthropic_client")
-    def test_anthropic_api_error_handled(self, mock_anthropic, mock_get_supabase, authenticated_client):
+    def test_anthropic_api_error_handled(self, mock_anthropic, authenticated_client):
         """Test handling of Anthropic API errors."""
         mock_anthropic.messages.stream.side_effect = Exception("API Error")
 
         # The error should be caught and handled gracefully
-        # Response should indicate error without exposing details
 
-    @patch("database.get_supabase")
-    def test_database_error_handled(self, mock_get_supabase, authenticated_client):
+    def test_database_error_handled(self, authenticated_client, mock_pb_patched):
         """Test handling of database errors during chat."""
-        mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.side_effect = Exception("DB Connection Error")
-        mock_get_supabase.return_value = mock_supabase
+        mock_pb, patches = mock_pb_patched
+
+        mock_pb.get_all.side_effect = Exception("DB Connection Error")
 
         # The error should be caught and handled
 
@@ -244,13 +222,10 @@ class TestChatRateLimiting:
 
     def test_rate_limit_header_present(self):
         """Test that rate limit is enforced."""
-        # Rate limit is 20/minute for chat endpoint
-        # This would require actual rate limit testing infrastructure
         pass
 
     def test_rate_limit_exceeded_returns_429(self):
         """Test that exceeding rate limit returns 429."""
-        # Would require making 21 requests in a minute
         pass
 
 
@@ -264,11 +239,7 @@ class TestImageGenerationDetection:
 
     def test_visual_suggestion_detection(self):
         """Test detection of messages that would benefit from images."""
-        # Messages that should trigger image suggestions
-
-        # Messages that should not trigger image suggestions
-
-        # The conversation service detects these patterns
+        pass
 
 
 # ============================================================================
@@ -281,8 +252,4 @@ class TestUseableOutputDetection:
 
     def test_output_artifact_detection(self):
         """Test detection of useable output in responses."""
-        # Response with clear deliverable
-
-        # Response without deliverable
-
-        # The detector analyzes these patterns
+        pass

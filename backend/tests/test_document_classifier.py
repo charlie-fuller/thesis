@@ -3,8 +3,12 @@
 Tests the hybrid keyword + LLM classification system for auto-tagging
 documents to relevant agents.
 
-Note: This test file uses direct module loading to avoid import chain issues
-with llama_index dependencies on Python 3.9.
+Note: This test file uses self-contained test implementations to avoid
+import chain issues. No database mocking needed -- classifier logic is
+tested in isolation.
+
+Updated for PocketBase migration: mock_supabase references replaced with
+generic mock objects (classifier tests are DB-agnostic).
 """
 
 import re

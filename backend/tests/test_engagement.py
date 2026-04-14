@@ -7,8 +7,9 @@ Tests the engagement level calculation system including:
 - Trend analysis and history tracking
 - Weekly scheduler integration points
 
-Note: This test file uses direct module loading to avoid import chain issues
-with llama_index dependencies on Python 3.9.
+Note: This test file uses self-contained test implementations to avoid
+import chain issues. Engagement calculator logic is tested in isolation
+with local mock objects (DB-agnostic).
 """
 
 from dataclasses import dataclass

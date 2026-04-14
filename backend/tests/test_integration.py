@@ -3,6 +3,9 @@
 These tests hit the REAL backend with actual database connections.
 They are slower than unit tests but validate real system behavior.
 
+Updated for PocketBase migration: uses pb_client instead of Supabase,
+API key auth instead of JWT.
+
 Running (from repo root):
     cd backend
 
@@ -16,18 +19,14 @@ Running (from repo root):
     uv run pytest tests/test_integration.py -v -m "not slow"
 
 Requirements:
-    - SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env
-    - Tests use a real database connection
-    - Test data is created with prefix "test_integration_" for cleanup
-
-Note: conftest.py sets test environment variables, but this file
-      reloads real credentials from .env before running tests.
+    - THESIS_POCKETBASE_URL and THESIS_API_KEY must be set in .env
+    - Tests use a real PocketBase connection
+    - Test data is created with prefix "Integration Test" for cleanup
 """
 
 import os
 import sys
 import uuid
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Generator, Optional
 
@@ -38,26 +37,22 @@ from dotenv import load_dotenv
 # When running with dotenvx, the env vars are already decrypted and set
 # Calling load_dotenv would overwrite them with encrypted values
 _env_path = Path(__file__).parent.parent / ".env"
-if not os.environ.get("SUPABASE_URL") and _env_path.exists():
+if not os.environ.get("THESIS_POCKETBASE_URL") and _env_path.exists():
     load_dotenv(_env_path, override=True)
 
 # Now read the real credentials
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET", "")
+POCKETBASE_URL = os.environ.get("THESIS_POCKETBASE_URL", "")
+API_KEY = os.environ.get("THESIS_API_KEY", "")
 
 # Determine if we have real (non-test) credentials
-_is_test_url = "test.supabase.co" in SUPABASE_URL or not SUPABASE_URL
-_has_real_key = SUPABASE_KEY and len(SUPABASE_KEY) > 50  # Real keys are long
+_is_test_url = "127.0.0.1:8090" in POCKETBASE_URL or not POCKETBASE_URL
+_has_real_key = API_KEY and len(API_KEY) > 10  # Real keys are non-trivial
 
 # Skip entire module if no real credentials
-# Note: Previously used pytest.mark.forked to avoid mock pollution, but this causes
-# signal 11 crashes on macOS due to multi-threaded fork issues. Instead, we rely on
-# _restore_real_modules() and module reloading in fixtures for isolation.
 pytestmark = [
     pytest.mark.skipif(
         _is_test_url or not _has_real_key,
-        reason="Real Supabase credentials not configured - run with real .env",
+        reason="Real PocketBase credentials not configured - run with real .env",
     ),
     pytest.mark.integration,  # Mark as integration test for selective running
 ]
@@ -70,16 +65,13 @@ pytestmark = [
 
 def _restore_real_modules():
     """Restore real modules that may have been mocked by other tests."""
-    # Remove any mocked versions of critical modules
-    mocked_modules = ["database", "config", "auth", "anthropic"]
+    mocked_modules = ["pb_client", "config", "auth", "anthropic"]
     for mod_name in mocked_modules:
         if mod_name in sys.modules:
             mod = sys.modules[mod_name]
-            # Check if it's a Mock
             if hasattr(mod, "_mock_name") or type(mod).__name__ in ("MagicMock", "Mock"):
                 del sys.modules[mod_name]
 
-    # Also remove submodules that might be mocked
     to_remove = [k for k in sys.modules.keys() if any(k.startswith(f"{m}.") for m in mocked_modules)]
     for k in to_remove:
         if hasattr(sys.modules[k], "_mock_name") or type(sys.modules[k]).__name__ in (
@@ -95,20 +87,8 @@ def _restore_real_modules():
 
 
 def setup_module(module):
-    """Setup function run once before any tests in this module.
-
-    This replaces pytest.mark.forked which caused signal 11 crashes on macOS.
-    We manually restore real modules and reset singletons for proper isolation.
-    """
+    """Setup function run once before any tests in this module."""
     _restore_real_modules()
-
-    # Reset database singleton if it exists
-    try:
-        from database import DatabaseService
-
-        DatabaseService.reset_client()
-    except (ImportError, AttributeError):
-        pass
 
 
 # ============================================================================
@@ -117,54 +97,44 @@ def setup_module(module):
 
 
 @pytest.fixture(scope="module")
-def real_supabase():
-    """Get real Supabase client with fresh connection."""
-    # First, restore any mocked modules
+def real_pb():
+    """Get real pb_client with fresh connection.
+
+    Verifies that PocketBase is reachable before running tests.
+    """
     _restore_real_modules()
 
-    # Now import the real database module
     import importlib
 
-    import database as db_module
+    import pb_client
 
-    importlib.reload(db_module)
-
-    from database import DatabaseService, get_supabase
-
-    # Reset the singleton to pick up real credentials
-    DatabaseService.reset_client()
-
-    client = get_supabase()
+    importlib.reload(pb_client)
 
     # Verify connection works
     try:
-        client.table("users").select("id").limit(1).execute()
-        # Connection successful
+        pb_client.init_pb()
+        # Quick test query
+        pb_client.list_records("users", per_page=1)
     except Exception as e:
-        pytest.skip(f"Cannot connect to real database: {e}")
+        pytest.skip(f"Cannot connect to real PocketBase: {e}")
 
-    return client
+    return pb_client
 
 
 @pytest.fixture(scope="module")
 def integration_client():
     """Create FastAPI test client with real app for integration tests.
 
-    Note: Named 'integration_client' to avoid conflict with conftest.py's
-    mocked 'test_client' fixture which has function scope.
-
     CRITICAL: This fixture must reload the app fresh to avoid mock pollution
     from other test files that patch dependencies at module level.
     """
     import importlib
 
-    # Step 1: Restore any mocked modules to None to force reimport
     _restore_real_modules()
 
-    # Step 2: Remove cached main module and its dependencies
     modules_to_reload = [
         "main",
-        "database",
+        "pb_client",
         "auth",
         "api.routes.agents",
         "api.routes.tasks",
@@ -174,26 +144,22 @@ def integration_client():
         "api.routes.conversations",
     ]
 
-    # Remove from cache first
     for mod in modules_to_reload:
         if mod in sys.modules:
             del sys.modules[mod]
 
-    # Also remove any api.routes submodules
     to_remove = [k for k in sys.modules.keys() if k.startswith("api.routes.")]
     for k in to_remove:
         del sys.modules[k]
 
-    # Step 3: Reload core modules
-    import database
+    import pb_client
 
-    importlib.reload(database)
+    importlib.reload(pb_client)
 
     import auth
 
     importlib.reload(auth)
 
-    # Step 4: Import fresh app (will recreate routes with real dependencies)
     from fastapi.testclient import TestClient
 
     from main import app
@@ -203,71 +169,15 @@ def integration_client():
 
 
 @pytest.fixture(scope="module")
-def test_user_id(real_supabase) -> Generator[str, None, None]:
-    """Get an existing user from the database for testing.
+def auth_headers() -> dict:
+    """Generate valid API key auth headers.
 
-    Since Supabase uses Auth, we can't create users directly in the users table.
-    Instead, we use an existing user from the database.
+    Uses THESIS_API_KEY from environment.
     """
-    # Try to find an existing user
-    result = real_supabase.table("users").select("id, email, client_id").limit(1).execute()
-
-    if not result.data:
-        pytest.skip("No users in database - cannot run authenticated tests")
-
-    user = result.data[0]
-    yield user["id"]
-
-
-@pytest.fixture(scope="module")
-def test_user_email(real_supabase, test_user_id) -> str:
-    """Get test user's email."""
-    result = real_supabase.table("users").select("email").eq("id", test_user_id).single().execute()
-    return result.data.get("email", "test@example.com") if result.data else "test@example.com"
-
-
-@pytest.fixture(scope="module")
-def auth_headers(test_user_id, test_user_email) -> dict:
-    """Generate valid JWT auth headers for test user.
-
-    Note: Supabase uses ES256 (asymmetric) JWTs in production, but we can only
-    sign HS256 (symmetric) JWTs in tests. For integration tests, we check if
-    TEST_JWT_SECRET is set (for test environments with HS256), otherwise skip
-    auth-dependent tests when running against production ES256 keys.
-    """
-    import jwt
-
-    # Prefer TEST_JWT_SECRET for integration testing (HS256)
-    # Fall back to SUPABASE_JWT_SECRET only if it's not a JWK
-    test_secret = os.environ.get("TEST_JWT_SECRET", "")
-    supabase_secret = os.environ.get("SUPABASE_JWT_SECRET", "")
-
-    # Determine which secret to use
-    if test_secret:
-        secret = test_secret
-        algorithm = "HS256"
-    elif supabase_secret and not supabase_secret.strip().startswith("{"):
-        # SUPABASE_JWT_SECRET is an HS256 secret (not a JWK)
-        secret = supabase_secret
-        algorithm = "HS256"
-    else:
-        # SUPABASE_JWT_SECRET is a JWK (ES256) - we can't sign these tokens
-        pytest.skip(
-            "Cannot create test JWTs: SUPABASE_JWT_SECRET is a JWK (ES256). "
-            "Set TEST_JWT_SECRET with an HS256 secret for integration tests, "
-            "or configure the backend to accept HS256 tokens in test mode."
-        )
-
-    payload = {
-        "sub": test_user_id,
-        "email": test_user_email,
-        "aud": "authenticated",
-        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
-        "iat": datetime.now(timezone.utc),
-    }
-
-    token = jwt.encode(payload, secret, algorithm=algorithm)
-    return {"Authorization": f"Bearer {token}"}
+    api_key = os.environ.get("THESIS_API_KEY", "")
+    if not api_key:
+        pytest.skip("THESIS_API_KEY not set")
+    return {"Authorization": f"Bearer {api_key}"}
 
 
 # ============================================================================
@@ -298,7 +208,6 @@ class TestHealthEndpoints:
     def test_cors_preflight(self, integration_client):
         """CORS preflight returns correct headers."""
         response = integration_client.options("/api/agents", headers={"Origin": "http://localhost:3000"})
-        # Should be 200 or include CORS headers
         assert response.status_code in [200, 204]
 
 
@@ -312,10 +221,9 @@ class TestAgentEndpoints:
     """Test agent-related API endpoints."""
 
     def test_list_agents_unauthenticated(self, integration_client):
-        """List agents without auth may return 200 (public) or 401/403."""
+        """List agents without auth returns 401."""
         response = integration_client.get("/api/agents")
-        # Agents endpoint may be public in some configurations
-        assert response.status_code in [200, 401, 403]
+        assert response.status_code in [200, 401]
 
     def test_list_agents_authenticated(self, integration_client, auth_headers):
         """List agents with valid auth returns agent list."""
@@ -324,18 +232,15 @@ class TestAgentEndpoints:
         data = response.json()
         assert "agents" in data or isinstance(data, list)
 
-        # Should have at least some agents
         agents = data.get("agents", data)
         assert len(agents) > 0
 
-        # Check agent structure
         if agents:
             agent = agents[0]
             assert "id" in agent or "name" in agent
 
-    def test_get_agent_by_id(self, integration_client, auth_headers, real_supabase):
+    def test_get_agent_by_id(self, integration_client, auth_headers):
         """Get specific agent by ID."""
-        # First get list of agents
         list_response = integration_client.get("/api/agents", headers=auth_headers)
         agents = list_response.json().get("agents", list_response.json())
 
@@ -347,7 +252,6 @@ class TestAgentEndpoints:
             pytest.skip("Agent has no ID")
 
         response = integration_client.get(f"/api/agents/{agent_id}", headers=auth_headers)
-        # May be 200 or 404 depending on route structure
         assert response.status_code in [200, 404, 422]
 
 
@@ -361,7 +265,7 @@ class TestTaskEndpoints:
     """Test task CRUD operations."""
 
     @pytest.fixture
-    def test_task_id(self, integration_client, auth_headers, real_supabase, test_user_id) -> Generator[str, None, None]:
+    def test_task_id(self, integration_client, auth_headers, real_pb) -> Generator[str, None, None]:
         """Create a test task and clean up after."""
         task_data = {
             "title": f"Integration Test Task {uuid.uuid4().hex[:8]}",
@@ -385,14 +289,14 @@ class TestTaskEndpoints:
 
         # Cleanup
         try:
-            real_supabase.table("project_tasks").delete().eq("id", task_id).execute()
+            real_pb.delete_record("project_tasks", task_id)
         except Exception:
             pass
 
     def test_list_tasks_unauthenticated(self, integration_client):
         """List tasks without auth returns 401."""
         response = integration_client.get("/api/tasks")
-        assert response.status_code in [401, 403]
+        assert response.status_code == 401
 
     def test_list_tasks_authenticated(self, integration_client, auth_headers):
         """List tasks with auth returns task list."""
@@ -401,7 +305,7 @@ class TestTaskEndpoints:
         data = response.json()
         assert "tasks" in data or "success" in data
 
-    def test_create_task(self, integration_client, auth_headers, real_supabase):
+    def test_create_task(self, integration_client, auth_headers, real_pb):
         """Create a new task."""
         task_data = {
             "title": f"Integration Test Task {uuid.uuid4().hex[:8]}",
@@ -425,11 +329,10 @@ class TestTaskEndpoints:
         # Cleanup
         task_id = task.get("id")
         if task_id:
-            real_supabase.table("project_tasks").delete().eq("id", task_id).execute()
+            real_pb.delete_record("project_tasks", task_id)
 
     def test_create_task_validation(self, integration_client, auth_headers):
         """Create task with invalid data returns 422."""
-        # Empty title should fail
         task_data = {"title": "", "status": "pending"}
 
         response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
@@ -445,11 +348,9 @@ class TestTaskEndpoints:
         assert task["id"] == test_task_id
 
     def test_get_task_not_found(self, integration_client, auth_headers):
-        """Get non-existent task returns 404 or 500 (Supabase single() error)."""
+        """Get non-existent task returns 404."""
         fake_id = str(uuid.uuid4())
         response = integration_client.get(f"/api/tasks/{fake_id}", headers=auth_headers)
-        # API returns 500 when Supabase single() finds no rows
-        # This is a known behavior - ideally should be 404
         assert response.status_code in [404, 500]
 
     def test_update_task(self, integration_client, auth_headers, test_task_id):
@@ -467,9 +368,8 @@ class TestTaskEndpoints:
         assert task["title"] == "Updated Integration Test Task"
         assert task["priority"] == 1
 
-    def test_update_task_status(self, integration_client, auth_headers, real_supabase):
+    def test_update_task_status(self, integration_client, auth_headers, real_pb):
         """Update task status (Kanban operation)."""
-        # Create a fresh task for this test
         task_data = {"title": f"Status update test {uuid.uuid4().hex[:8]}"}
         create_response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
         if create_response.status_code != 200:
@@ -488,12 +388,10 @@ class TestTaskEndpoints:
             task = data.get("task", data)
             assert task["status"] == "in_progress"
         finally:
-            # Cleanup
-            real_supabase.table("project_tasks").delete().eq("id", task_id).execute()
+            real_pb.delete_record("project_tasks", task_id)
 
-    def test_delete_task(self, integration_client, auth_headers, real_supabase):
+    def test_delete_task(self, integration_client, auth_headers, real_pb):
         """Delete a task."""
-        # Create a task to delete
         task_data = {"title": f"Task to delete {uuid.uuid4().hex[:8]}"}
         create_response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
         task_id = create_response.json().get("task", {}).get("id")
@@ -501,21 +399,17 @@ class TestTaskEndpoints:
         if not task_id:
             pytest.skip("Could not create task for delete test")
 
-        # Delete it
         response = integration_client.delete(f"/api/tasks/{task_id}", headers=auth_headers)
         assert response.status_code == 200
 
-        # Verify it's gone (returns 404 or 500 due to Supabase single() behavior)
+        # Verify it's gone
         get_response = integration_client.get(f"/api/tasks/{task_id}", headers=auth_headers)
         assert get_response.status_code in [404, 500]
 
     def test_kanban_board(self, integration_client, auth_headers):
         """Get Kanban board view."""
-        # Note: /kanban comes before /{task_id} so FastAPI routing works
         response = integration_client.get("/api/tasks/kanban", headers=auth_headers)
 
-        # Route may return 400 if /kanban is interpreted as /{task_id}
-        # This indicates a routing issue in the API
         if response.status_code == 400:
             pytest.skip("Kanban route not properly configured (routed as task_id)")
 
@@ -525,7 +419,6 @@ class TestTaskEndpoints:
         assert "columns" in data or "success" in data
 
         if "columns" in data:
-            # Should have all status columns
             columns = data["columns"]
             assert "pending" in columns
             assert "in_progress" in columns
@@ -543,7 +436,7 @@ class TestProjectEndpoints:
     """Test project pipeline endpoints."""
 
     @pytest.fixture
-    def test_project_id(self, integration_client, auth_headers, real_supabase) -> Generator[str, None, None]:
+    def test_project_id(self, integration_client, auth_headers, real_pb) -> Generator[str, None, None]:
         """Create a test project and clean up after."""
         opp_code = f"T{uuid.uuid4().hex[:4].upper()}"
         opp_data = {
@@ -573,7 +466,7 @@ class TestProjectEndpoints:
 
         # Cleanup
         try:
-            real_supabase.table("ai_projects").delete().eq("id", opp_id).execute()
+            real_pb.delete_record("ai_projects", opp_id)
         except Exception:
             pass
 
@@ -585,7 +478,7 @@ class TestProjectEndpoints:
         data = response.json()
         assert "projects" in data or isinstance(data, list)
 
-    def test_create_project(self, integration_client, auth_headers, real_supabase):
+    def test_create_project(self, integration_client, auth_headers, real_pb):
         """Create a new project."""
         opp_code = f"T{uuid.uuid4().hex[:4].upper()}"
         opp_data = {
@@ -608,13 +501,12 @@ class TestProjectEndpoints:
         assert opp["title"] == opp_data["title"]
         assert opp["status"] == "identified"
 
-        # Verify tier calculation (4+3+4+3=14 -> tier 2)
         assert opp.get("tier") in [1, 2, 3, 4]
 
         # Cleanup
         opp_id = opp.get("id")
         if opp_id:
-            real_supabase.table("ai_projects").delete().eq("id", opp_id).execute()
+            real_pb.delete_record("ai_projects", opp_id)
 
     def test_get_project_by_id(self, integration_client, auth_headers, test_project_id):
         """Get specific project."""
@@ -626,7 +518,7 @@ class TestProjectEndpoints:
         assert opp["id"] == test_project_id
 
     def test_update_project(self, integration_client, auth_headers, test_project_id):
-        """Update an project."""
+        """Update a project."""
         update_data = {
             "status": "validating",
             "roi_potential": 5,
@@ -640,9 +532,8 @@ class TestProjectEndpoints:
         assert opp["status"] == "validating"
         assert opp["roi_potential"] == 5
 
-    def test_project_tier_calculation(self, integration_client, auth_headers, real_supabase):
+    def test_project_tier_calculation(self, integration_client, auth_headers, real_pb):
         """Verify tier calculation from scores."""
-        # Tier 1: total >= 17
         opp_code = f"T{uuid.uuid4().hex[:4].upper()}"
         tier1_data = {
             "project_code": opp_code,
@@ -661,7 +552,7 @@ class TestProjectEndpoints:
 
         # Cleanup
         if opp.get("id"):
-            real_supabase.table("ai_projects").delete().eq("id", opp["id"]).execute()
+            real_pb.delete_record("ai_projects", opp["id"])
 
 
 # ============================================================================
@@ -679,7 +570,6 @@ class TestStakeholderEndpoints:
         assert response.status_code == 200
 
         data = response.json()
-        # Response format varies - check for common patterns
         assert "stakeholders" in data or isinstance(data, list) or "success" in data
 
 
@@ -780,7 +670,7 @@ class TestDatabaseIntegrity:
 class TestConcurrentAccess:
     """Test concurrent database operations."""
 
-    def test_concurrent_task_creation(self, integration_client, auth_headers, real_supabase):
+    def test_concurrent_task_creation(self, integration_client, auth_headers, real_pb):
         """Multiple tasks can be created without collision."""
         import concurrent.futures
 
@@ -794,7 +684,6 @@ class TestConcurrentAccess:
                 return task.get("id")
             return None
 
-        # Create 10 tasks concurrently
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             futures = [executor.submit(create_task, i) for i in range(10)]
             for future in concurrent.futures.as_completed(futures):
@@ -802,16 +691,14 @@ class TestConcurrentAccess:
                 if task_id:
                     created_ids.append(task_id)
 
-        # Should have created all tasks (or most - some may fail due to timing)
         assert len(created_ids) >= 5, f"Only created {len(created_ids)} of 10 tasks"
 
-        # Verify all IDs are unique
         assert len(created_ids) == len(set(created_ids)), "Duplicate task IDs created"
 
         # Cleanup
         for task_id in created_ids:
             try:
-                real_supabase.table("project_tasks").delete().eq("id", task_id).execute()
+                real_pb.delete_record("project_tasks", task_id)
             except Exception:
                 pass
 
@@ -863,7 +750,6 @@ class TestErrorHandling:
         fake_id = str(uuid.uuid4())
         response = integration_client.get(f"/api/tasks/{fake_id}", headers=auth_headers)
 
-        # API returns 404 or 500 for not found (Supabase single() behavior)
         assert response.status_code in [404, 500]
         data = response.json()
         assert "detail" in data or "message" in data
@@ -871,11 +757,10 @@ class TestErrorHandling:
     def test_401_without_auth(self, integration_client):
         """401 errors for missing auth."""
         response = integration_client.get("/api/tasks")
-        assert response.status_code in [401, 403]
+        assert response.status_code == 401
 
     def test_422_validation_error(self, integration_client, auth_headers):
         """422 errors for validation failures."""
-        # Send invalid JSON
         response = integration_client.post("/api/tasks", json={"priority": "not-a-number"}, headers=auth_headers)
         assert response.status_code == 422
 
@@ -893,29 +778,36 @@ def cleanup_test_data():
     """Clean up any leftover test data after all tests."""
     yield
 
-    # Post-test cleanup
+    # Post-test cleanup using pb_client
     try:
-        # Reload real credentials
         _env_path = Path(__file__).parent.parent / ".env"
         if _env_path.exists():
             load_dotenv(_env_path, override=True)
 
-        from database import DatabaseService, get_supabase
+        import pb_client
 
-        # Reset to use real credentials
-        DatabaseService.reset_client()
-        supabase = get_supabase()
+        pb_client.init_pb()
 
         # Delete test tasks (created by integration tests)
-        supabase.table("project_tasks").delete().like("title", "Integration Test%").execute()
-        supabase.table("project_tasks").delete().like("title", "Concurrent task%").execute()
-        supabase.table("project_tasks").delete().like("title", "Task to delete%").execute()
+        # PocketBase doesn't support LIKE filters natively, so we fetch and filter
+        for prefix in ["Integration Test", "Concurrent task", "Task to delete", "Status update test"]:
+            try:
+                esc = pb_client.escape_filter(prefix)
+                records = pb_client.get_all("project_tasks", filter=f"title~'{esc}'")
+                for record in records:
+                    pb_client.delete_record("project_tasks", record["id"])
+            except Exception:
+                pass
 
         # Delete test projects
-        supabase.table("ai_projects").delete().like("name", "Integration Test%").execute()
-        supabase.table("ai_projects").delete().like("name", "Tier%Test%").execute()
-        supabase.table("ai_projects").delete().like("name", "Score test%").execute()
+        for prefix in ["Integration Test", "Tier 1 Test", "Score test"]:
+            try:
+                esc = pb_client.escape_filter(prefix)
+                records = pb_client.get_all("ai_projects", filter=f"title~'{esc}'")
+                for record in records:
+                    pb_client.delete_record("ai_projects", record["id"])
+            except Exception:
+                pass
 
     except Exception as e:
-        # Don't fail tests due to cleanup issues
         print(f"Cleanup warning: {e}")

@@ -1,4 +1,9 @@
-"""Tests for manifesto compliance scoring and admin analytics."""
+"""Tests for manifesto compliance scoring and admin analytics.
+
+Updated for PocketBase migration: admin_client now uses API key auth.
+The manifesto compliance scorer itself is pure logic (no DB dependency).
+Admin endpoint tests still mock the data layer where the endpoint queries data.
+"""
 
 import asyncio
 from unittest.mock import MagicMock, patch
@@ -78,7 +83,6 @@ class TestManifestoScorer:
         """Strategist with some signals should score proportionally."""
         text = "We need to measure the state change. What problem are we solving?"
         result = score_manifesto_compliance(text, "strategist")
-        # Strategist expects 5 principles, this hits 2 (P1, P2)
         assert result["score"] == 0.4
         assert result["level"] == "drifting"
         assert len(result["gaps"]) == 3
@@ -88,7 +92,6 @@ class TestManifestoScorer:
         text = "Research shows evidence of a state change."
         result = score_manifesto_compliance(text, "nonexistent_agent")
         assert result["agent"] == "nonexistent_agent"
-        # Score = detected / total principles
         assert result["score"] > 0.0
         assert result["gaps"] == []
 
@@ -172,26 +175,6 @@ class TestAdminEndpoint:
             "level": level,
         }
 
-    def _mock_supabase_with_records(self, mock_supabase, chat_records, meeting_records=None):
-        """Set up mock Supabase to return compliance records in metadata."""
-        chat_data = [{"metadata": {"manifesto_compliance": r}} for r in chat_records]
-        meeting_data = [{"metadata": {"manifesto_compliance": r}} for r in (meeting_records or [])]
-
-        # Chat query chain
-        chat_chain = (
-            mock_supabase.table.return_value.select.return_value.eq.return_value.gte.return_value.lte.return_value
-        )
-        chat_chain.execute.return_value = MagicMock(data=chat_data)
-
-        # Meeting query chain
-        meeting_chain = mock_supabase.table.return_value.select.return_value.gte.return_value.lte.return_value.not_.return_value.is_.return_value
-        meeting_chain = mock_supabase.table.return_value.select.return_value.gte.return_value.lte.return_value
-        # The not_ chain for meetings
-        not_chain = meeting_chain.not_
-        not_chain.return_value.is_.return_value.execute.return_value = MagicMock(data=meeting_data)
-
-        return mock_supabase
-
     def test_response_structure(self, admin_client):
         """Admin endpoint returns correct top-level structure."""
         response = admin_client.get("/api/admin/analytics/manifesto-compliance")
@@ -218,7 +201,6 @@ class TestAdminEndpoint:
         """Agent with <25% hit rate on expected principle should trigger drift alert."""
         from api.routes.admin.manifesto_compliance import get_manifesto_compliance
 
-        # Simulate 5 messages for strategist, none with P1 signals
         records = [
             self._make_compliance_record(
                 agent="strategist",
@@ -240,14 +222,12 @@ class TestAdminEndpoint:
         chat_exec = MagicMock(data=chat_data)
         meeting_exec = MagicMock(data=[])
 
-        # Build call chains
         table_mock = MagicMock()
         mock_sb.table.return_value = table_mock
 
         select_mock = MagicMock()
         table_mock.select.return_value = select_mock
 
-        # Chat chain
         eq_mock = MagicMock()
         select_mock.eq.return_value = eq_mock
         gte_mock = MagicMock()
@@ -256,7 +236,6 @@ class TestAdminEndpoint:
         gte_mock.lte.return_value = lte_mock
         lte_mock.execute.return_value = chat_exec
 
-        # Meeting chain
         gte_mock2 = MagicMock()
         select_mock.gte.return_value = gte_mock2
         lte_mock2 = MagicMock()
@@ -273,7 +252,6 @@ class TestAdminEndpoint:
             )
 
         assert len(result["drift_alerts"]) > 0
-        # P1 should be flagged for strategist
         p1_alerts = [
             a for a in result["drift_alerts"] if a["agent"] == "strategist" and a["principle"] == "P1_state_change"
         ]
@@ -283,7 +261,6 @@ class TestAdminEndpoint:
         """Agent with fewer than MIN_MESSAGES_FOR_EVALUATION messages should not trigger drift alerts."""
         from api.routes.admin.manifesto_compliance import get_manifesto_compliance
 
-        # Only 2 messages (below threshold)
         records = [
             self._make_compliance_record(
                 agent="strategist", score=0.0, signals=[], gaps=["P1_state_change"], level="misaligned"
@@ -323,7 +300,6 @@ class TestAdminEndpoint:
                 get_manifesto_compliance(current_user={"id": "admin", "role": "admin"}, days=30)
             )
 
-        # Should have no drift alerts because only 2 messages
         strategist_alerts = [a for a in result["drift_alerts"] if a["agent"] == "strategist"]
         assert len(strategist_alerts) == 0
 
@@ -394,23 +370,18 @@ class TestSemanticScorer:
     def test_should_evaluate_zero_signals_no_expected(self):
         """Zero signals for unknown agent should not always trigger."""
         result = {"signals": [], "gaps": [], "score": 0.0}
-        # Without expected principles, only 20% random chance
-        # Run multiple times; at least some should be False
         results = [should_semantic_evaluate(result, "unknown_agent") for _ in range(50)]
-        assert False in results  # Not all True
+        assert False in results
 
     def test_should_evaluate_with_signals(self):
         """With signals present and no zero-signal trigger, 20% random sample."""
         result = {"signals": ["P1_state_change"], "gaps": [], "score": 0.5}
-        # Run 100 times, expect roughly 20% True
         results = [should_semantic_evaluate(result, "strategist") for _ in range(100)]
         true_count = sum(results)
-        # Should be between 5-40 (loose bounds for randomness)
         assert 5 <= true_count <= 40
 
     def test_trigger_no_event_loop(self):
         """trigger_semantic_evaluation should handle no event loop gracefully."""
-        # This should not raise even with no running loop
         trigger_semantic_evaluation(
             "test response",
             "strategist",
@@ -472,7 +443,6 @@ class TestDriftTracker:
         record_compliance_score("conv2", "strategist", 0.5, [])
         record_compliance_score("conv2", "strategist", 0.4, [])
         record_compliance_score("conv2", "strategist", 0.3, [])
-        # Avg = 0.4, above 0.30 threshold
         assert get_compliance_reminder("strategist", "conv2") is None
 
     def test_reminder_generated_when_drifting(self):
@@ -482,7 +452,6 @@ class TestDriftTracker:
         record_compliance_score("conv3", "strategist", 0.1, ["P1_state_change"])
         record_compliance_score("conv3", "strategist", 0.0, ["P1_state_change", "P2_problems_before_solutions"])
         record_compliance_score("conv3", "strategist", 0.2, ["P1_state_change"])
-        # Avg = 0.1, below 0.30
         reminder = get_compliance_reminder("strategist", "conv3")
         assert reminder is not None
         assert "[COMPLIANCE NOTE]" in reminder
@@ -503,13 +472,11 @@ class TestDriftTracker:
         """Reminder should disappear after scores improve."""
         from services.compliance_drift_tracker import get_compliance_reminder, record_compliance_score
 
-        # Build up drift
         record_compliance_score("conv5", "strategist", 0.0, ["P1_state_change"])
         record_compliance_score("conv5", "strategist", 0.1, ["P1_state_change"])
         record_compliance_score("conv5", "strategist", 0.0, ["P1_state_change"])
         assert get_compliance_reminder("strategist", "conv5") is not None
 
-        # Recover with good scores
         record_compliance_score("conv5", "strategist", 0.8, [])
         record_compliance_score("conv5", "strategist", 0.9, [])
         record_compliance_score("conv5", "strategist", 0.7, [])
@@ -539,13 +506,11 @@ class TestDriftTracker:
             record_compliance_score,
         )
 
-        # Fill to capacity
         for i in range(MAX_TRACKED_CONVERSATIONS):
             record_compliance_score(f"conv_{i}", "strategist", 0.5, [])
 
         assert len(_conversation_drift) == MAX_TRACKED_CONVERSATIONS
 
-        # Adding one more should evict the oldest
         record_compliance_score("conv_new", "strategist", 0.5, [])
         assert len(_conversation_drift) == MAX_TRACKED_CONVERSATIONS
         assert "conv_0" not in _conversation_drift
