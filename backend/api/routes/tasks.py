@@ -4,22 +4,20 @@ Handles task CRUD, Kanban board operations, and task extraction from transcripts
 """
 
 import asyncio
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
-from auth import get_current_user
-from config import get_default_client_id
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
+from repositories import tasks as tasks_repo
 from validation import validate_uuid
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
-supabase = get_supabase()
 
 
 # ============================================================================
@@ -193,14 +191,14 @@ class TaskCommentCreate(BaseModel):
 
 def serialize_task(task: dict) -> dict:
     """Convert task record to API response format."""
-    # Handle due_date - may be string (from Supabase) or date object
+    # Handle due_date - may be string (from PocketBase) or date object
     due_date = task.get("due_date")
     if due_date:
         due_date = due_date.isoformat() if hasattr(due_date, "isoformat") else str(due_date)
 
     return {
         "id": task["id"],
-        "client_id": task["client_id"],
+        "client_id": task.get("client_id"),
         "title": task["title"],
         "description": task.get("description"),
         "status": task["status"],
@@ -226,34 +224,88 @@ def serialize_task(task: dict) -> dict:
         "sequence_number": task.get("sequence_number"),
         "depends_on": task.get("depends_on") or [],
         "notes": task.get("notes"),
-        "created_at": task["created_at"],
-        "updated_at": task["updated_at"],
-        # Joined fields (from view or explicit joins)
+        "created_at": task.get("created_at", task.get("created", "")),
+        "updated_at": task.get("updated_at", task.get("updated", "")),
+        # Joined fields (from view or explicit joins -- may be None from PocketBase)
         "stakeholder_name": task.get("stakeholder_name"),
         "stakeholder_email": task.get("stakeholder_email"),
         "user_email": task.get("user_email"),
         "display_assignee": task.get("display_assignee") or task.get("assignee_name"),
-        # Project fields (from v_tasks_with_assignee view)
+        # Project fields (from v_tasks_with_assignee view -- may be None from PocketBase)
         "project_code": task.get("project_code"),
         "project_title": task.get("project_title"),
         "project_department": task.get("project_department"),
     }
 
 
-async def get_next_position(client_id: str, status: str) -> int:
+def get_next_position(status: str) -> int:
     """Get the next position for a task in a status column."""
-    result = await asyncio.to_thread(
-        lambda: supabase.table("project_tasks")
-        .select("position")
-        .eq("client_id", client_id)
-        .eq("status", status)
-        .order("position", desc=True)
-        .limit(1)
-        .execute()
+    result = pb.list_records(
+        "project_tasks",
+        filter=f"status='{pb.escape_filter(status)}'",
+        sort="-position",
+        per_page=1,
     )
-    if result.data:
-        return result.data[0]["position"] + 1
+    items = result.get("items", [])
+    if items:
+        return items[0].get("position", 0) + 1
     return 0
+
+
+def _build_task_filter(
+    *,
+    assignee_stakeholder_id: str | None = None,
+    assignee_user_id: str | None = None,
+    due_date_from: date | None = None,
+    due_date_to: date | None = None,
+    priority: list[int] | None = None,
+    source_type: list[str] | None = None,
+    category: str | None = None,
+    team: str | None = None,
+    linked_project_id: str | None = None,
+    include_completed: bool = True,
+    status: list[str] | None = None,
+) -> str:
+    """Build a PocketBase filter string from query parameters."""
+    parts: list[str] = []
+
+    if assignee_stakeholder_id:
+        parts.append(f"assignee_stakeholder_id='{pb.escape_filter(assignee_stakeholder_id)}'")
+
+    if assignee_user_id:
+        parts.append(f"assignee_user_id='{pb.escape_filter(assignee_user_id)}'")
+
+    if due_date_from:
+        parts.append(f"due_date>='{due_date_from.isoformat()}'")
+
+    if due_date_to:
+        parts.append(f"due_date<='{due_date_to.isoformat()}'")
+
+    if priority:
+        or_parts = " || ".join(f"priority={p}" for p in priority)
+        parts.append(f"({or_parts})")
+
+    if source_type:
+        or_parts = " || ".join(f"source_type='{pb.escape_filter(s)}'" for s in source_type)
+        parts.append(f"({or_parts})")
+
+    if category:
+        parts.append(f"category='{pb.escape_filter(category)}'")
+
+    if team:
+        parts.append(f"team='{pb.escape_filter(team)}'")
+
+    if linked_project_id:
+        parts.append(f"linked_project_id='{pb.escape_filter(linked_project_id)}'")
+
+    if not include_completed:
+        parts.append("status!='completed'")
+
+    if status:
+        or_parts = " || ".join(f"status='{pb.escape_filter(s)}'" for s in status)
+        parts.append(f"({or_parts})")
+
+    return " && ".join(parts)
 
 
 # ============================================================================
@@ -263,7 +315,6 @@ async def get_next_position(client_id: str, status: str) -> int:
 
 @router.get("/kanban")
 async def get_kanban_board(
-    current_user: dict = Depends(get_current_user),
     assignee_stakeholder_id: Optional[str] = Query(None),
     assignee_user_id: Optional[str] = Query(None),
     due_date_from: Optional[date] = Query(None),
@@ -278,51 +329,28 @@ async def get_kanban_board(
 ):
     """Get tasks grouped by status for Kanban board display."""
     try:
-        client_id = current_user.get("client_id") or get_default_client_id()
-
-        # Build query using view for joined data
-        query = supabase.table("v_tasks_with_assignee").select("*").eq("client_id", client_id)
-
-        # Apply filters
+        # Validate UUIDs
         if assignee_stakeholder_id:
             validate_uuid(assignee_stakeholder_id, "assignee_stakeholder_id")
-            query = query.eq("assignee_stakeholder_id", assignee_stakeholder_id)
-
         if assignee_user_id:
             validate_uuid(assignee_user_id, "assignee_user_id")
-            query = query.eq("assignee_user_id", assignee_user_id)
-
-        if due_date_from:
-            query = query.gte("due_date", due_date_from.isoformat())
-
-        if due_date_to:
-            query = query.lte("due_date", due_date_to.isoformat())
-
-        if priority:
-            query = query.in_("priority", priority)
-
-        if source_type:
-            query = query.in_("source_type", source_type)
-
-        if category:
-            query = query.eq("category", category)
-
-        if team:
-            query = query.eq("team", team)
-
         if linked_project_id:
             validate_uuid(linked_project_id, "linked_project_id")
-            query = query.eq("linked_project_id", linked_project_id)
 
-        if not include_completed:
-            query = query.neq("status", "completed")
+        filter_str = _build_task_filter(
+            assignee_stakeholder_id=assignee_stakeholder_id,
+            assignee_user_id=assignee_user_id,
+            due_date_from=due_date_from,
+            due_date_to=due_date_to,
+            priority=priority,
+            source_type=source_type,
+            category=category,
+            team=team,
+            linked_project_id=linked_project_id,
+            include_completed=include_completed,
+        )
 
-        # Order by position within status
-        query = query.order("status").order("position")
-
-        result = await asyncio.to_thread(lambda: query.execute())
-
-        tasks = result.data or []
+        tasks = pb.get_all("project_tasks", filter=filter_str, sort="status,position")
 
         # Filter by search term (client-side for flexibility)
         if search:
@@ -382,7 +410,7 @@ async def get_kanban_board(
 
 
 @router.post("/bulk")
-async def create_tasks_bulk(request: BulkTaskRequest, current_user: dict = Depends(get_current_user)):
+async def create_tasks_bulk(request: BulkTaskRequest):
     """Create multiple tasks in a single request with dependency mapping.
 
     Used by Taskmaster to create sequenced task plans from chat conversations.
@@ -390,9 +418,6 @@ async def create_tasks_bulk(request: BulkTaskRequest, current_user: dict = Depen
     which are resolved to actual task UUIDs after creation.
     """
     try:
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
-
         if not request.tasks:
             raise HTTPException(status_code=400, detail="No tasks provided")
 
@@ -409,21 +434,15 @@ async def create_tasks_bulk(request: BulkTaskRequest, current_user: dict = Depen
         project_department = None
         if request.linked_project_id:
             try:
-                proj_result = await asyncio.to_thread(
-                    lambda: supabase.table("ai_projects")
-                    .select("department")
-                    .eq("id", request.linked_project_id)
-                    .single()
-                    .execute()
-                )
-                if proj_result.data:
-                    project_department = proj_result.data.get("department")
+                proj = pb.get_record("ai_projects", request.linked_project_id)
+                if proj:
+                    project_department = proj.get("department")
             except Exception:
                 pass
 
         for idx, item in enumerate(request.tasks):
             # Get next position
-            position = await get_next_position(client_id, "pending")
+            position = get_next_position("pending")
 
             # Resolve depends_on_indices to actual task UUIDs
             depends_on_uuids = []
@@ -438,7 +457,6 @@ async def create_tasks_bulk(request: BulkTaskRequest, current_user: dict = Depen
             task_team = item.team or project_department
 
             task_record = {
-                "client_id": client_id,
                 "title": item.title.strip()[:500],
                 "description": item.description,
                 "status": "pending",
@@ -451,23 +469,14 @@ async def create_tasks_bulk(request: BulkTaskRequest, current_user: dict = Depen
                 "source_type": "conversation",
                 "source_conversation_id": request.source_conversation_id,
                 "linked_project_id": request.linked_project_id,
-                "created_by": user_id,
-                "updated_by": user_id,
                 "position": position,
                 "sequence_number": item.sequence_number,
                 "depends_on": depends_on_uuids,
             }
 
-            result = await asyncio.to_thread(
-                lambda rec=task_record: supabase.table("project_tasks").insert(rec).execute()
-            )
-
-            if result.data:
-                task = result.data[0]
-                created_ids.append(task["id"])
-                created_tasks.append(serialize_task(task))
-            else:
-                created_ids.append(None)
+            task = tasks_repo.create_task(task_record)
+            created_ids.append(task["id"])
+            created_tasks.append(serialize_task(task))
 
         logger.info(f"Bulk created {len(created_tasks)} tasks for project {request.linked_project_id}")
 
@@ -486,12 +495,9 @@ async def create_tasks_bulk(request: BulkTaskRequest, current_user: dict = Depen
 
 
 @router.post("/reorder")
-async def reorder_tasks(request: TaskBulkReorderRequest, current_user: dict = Depends(get_current_user)):
+async def reorder_tasks(request: TaskBulkReorderRequest):
     """Bulk reorder tasks (for Kanban drag-drop reordering within columns)."""
     try:
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
-
         updated_count = 0
         errors = []
 
@@ -499,18 +505,11 @@ async def reorder_tasks(request: TaskBulkReorderRequest, current_user: dict = De
             try:
                 validate_uuid(item.task_id, "task_id")
 
-                result = await asyncio.to_thread(
-                    lambda tid=item.task_id, s=item.status.value, p=item.position: supabase.table("project_tasks")
-                    .update({"status": s, "position": p, "updated_by": user_id})
-                    .eq("id", tid)
-                    .eq("client_id", client_id)
-                    .execute()
-                )
-
-                if result.data:
-                    updated_count += 1
-                else:
-                    errors.append({"task_id": item.task_id, "error": "Task not found"})
+                tasks_repo.update_task(item.task_id, {
+                    "status": item.status.value,
+                    "position": item.position,
+                })
+                updated_count += 1
 
             except Exception as e:
                 errors.append({"task_id": item.task_id, "error": str(e)})
@@ -528,30 +527,16 @@ async def reorder_tasks(request: TaskBulkReorderRequest, current_user: dict = De
 
 
 @router.post("/extract/transcript/{transcript_id}")
-async def extract_tasks_from_transcript(transcript_id: str, current_user: dict = Depends(get_current_user)):
+async def extract_tasks_from_transcript(transcript_id: str):
     """Extract tasks from a meeting transcript's action_items."""
     try:
         validate_uuid(transcript_id, "transcript_id")
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
 
         # Get transcript with action_items
-        transcript_result = await asyncio.to_thread(
-            lambda: supabase.table("meeting_transcripts")
-            .select("id, title, action_items, client_id")
-            .eq("id", transcript_id)
-            .single()
-            .execute()
-        )
+        transcript = pb.get_record("meeting_transcripts", transcript_id)
 
-        if not transcript_result.data:
+        if not transcript:
             raise HTTPException(status_code=404, detail="Transcript not found")
-
-        transcript = transcript_result.data
-
-        # Verify client access
-        if transcript["client_id"] != client_id:
-            raise HTTPException(status_code=403, detail="Not authorized to access this transcript")
 
         action_items = transcript.get("action_items") or []
 
@@ -574,17 +559,14 @@ async def extract_tasks_from_transcript(transcript_id: str, current_user: dict =
                 continue
 
             # Check for duplicate by source_text
-            existing = await asyncio.to_thread(
-                lambda desc=description: supabase.table("project_tasks")
-                .select("id")
-                .eq("client_id", client_id)
-                .eq("source_transcript_id", transcript_id)
-                .eq("source_text", desc)
-                .limit(1)
-                .execute()
+            esc_desc = pb.escape_filter(description)
+            esc_tid = pb.escape_filter(transcript_id)
+            existing = pb.get_first(
+                "project_tasks",
+                f"source_transcript_id='{esc_tid}' && source_text='{esc_desc}'",
             )
 
-            if existing.data:
+            if existing:
                 tasks_skipped += 1
                 continue
 
@@ -598,10 +580,9 @@ async def extract_tasks_from_transcript(transcript_id: str, current_user: dict =
                     pass
 
             # Get next position
-            position = await get_next_position(client_id, "pending")
+            position = get_next_position("pending")
 
             task_record = {
-                "client_id": client_id,
                 "title": description[:500],  # Truncate to max length
                 "description": f"Extracted from: {transcript.get('title', 'Meeting')}",
                 "status": "pending",
@@ -613,18 +594,12 @@ async def extract_tasks_from_transcript(transcript_id: str, current_user: dict =
                 "source_text": description,
                 "source_extracted_at": datetime.now(timezone.utc).isoformat(),
                 "category": "meeting_action",
-                "created_by": user_id,
-                "updated_by": user_id,
                 "position": position,
             }
 
-            result = await asyncio.to_thread(
-                lambda rec=task_record: supabase.table("project_tasks").insert(rec).execute()
-            )
-
-            if result.data:
-                tasks_created += 1
-                created_tasks.append(serialize_task(result.data[0]))
+            task = tasks_repo.create_task(task_record)
+            tasks_created += 1
+            created_tasks.append(serialize_task(task))
 
         logger.info(f"Extracted {tasks_created} tasks from transcript {transcript_id}")
 
@@ -650,7 +625,6 @@ async def extract_tasks_from_transcript(transcript_id: str, current_user: dict =
 
 @router.get("")
 async def list_tasks(
-    current_user: dict = Depends(get_current_user),
     status: Optional[List[str]] = Query(None),
     assignee_stakeholder_id: Optional[str] = Query(None),
     assignee_user_id: Optional[str] = Query(None),
@@ -669,44 +643,26 @@ async def list_tasks(
 ):
     """List tasks with filtering, pagination, and sorting."""
     try:
-        client_id = current_user.get("client_id") or get_default_client_id()
-
-        # Build query
-        query = supabase.table("v_tasks_with_assignee").select("*", count="exact").eq("client_id", client_id)
-
-        # Apply filters
-        if status:
-            query = query.in_("status", status)
-
+        # Validate UUIDs
         if assignee_stakeholder_id:
             validate_uuid(assignee_stakeholder_id, "assignee_stakeholder_id")
-            query = query.eq("assignee_stakeholder_id", assignee_stakeholder_id)
-
         if assignee_user_id:
             validate_uuid(assignee_user_id, "assignee_user_id")
-            query = query.eq("assignee_user_id", assignee_user_id)
-
-        if due_date_from:
-            query = query.gte("due_date", due_date_from.isoformat())
-
-        if due_date_to:
-            query = query.lte("due_date", due_date_to.isoformat())
-
-        if priority:
-            query = query.in_("priority", priority)
-
-        if source_type:
-            query = query.in_("source_type", source_type)
-
-        if category:
-            query = query.eq("category", category)
-
-        if team:
-            query = query.eq("team", team)
-
         if linked_project_id:
             validate_uuid(linked_project_id, "linked_project_id")
-            query = query.eq("linked_project_id", linked_project_id)
+
+        filter_str = _build_task_filter(
+            assignee_stakeholder_id=assignee_stakeholder_id,
+            assignee_user_id=assignee_user_id,
+            due_date_from=due_date_from,
+            due_date_to=due_date_to,
+            priority=priority,
+            source_type=source_type,
+            category=category,
+            team=team,
+            linked_project_id=linked_project_id,
+            status=status,
+        )
 
         # Apply ordering
         valid_order_fields = [
@@ -719,16 +675,22 @@ async def list_tasks(
         ]
         if order_by not in valid_order_fields:
             order_by = "created_at"
-        desc = order_dir.lower() == "desc"
-        query = query.order(order_by, desc=desc)
 
-        # Apply pagination
-        query = query.limit(limit).offset(offset)
+        # PocketBase sort: prefix with - for descending
+        sort_str = f"-{order_by}" if order_dir.lower() == "desc" else order_by
 
-        result = await asyncio.to_thread(lambda: query.execute())
+        # Fetch with pagination
+        page = (offset // limit) + 1 if limit else 1
+        result = pb.list_records(
+            "project_tasks",
+            filter=filter_str,
+            sort=sort_str,
+            page=page,
+            per_page=limit,
+        )
 
-        tasks = result.data or []
-        total = result.count or len(tasks)
+        tasks = result.get("items", [])
+        total = result.get("totalItems", len(tasks))
 
         # Filter by search term (client-side)
         if search:
@@ -774,12 +736,9 @@ async def list_tasks(
 
 
 @router.post("")
-async def create_task(request: TaskCreate, current_user: dict = Depends(get_current_user)):
+async def create_task(request: TaskCreate):
     """Create a new task."""
     try:
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
-
         # Validate foreign keys if provided
         if request.assignee_stakeholder_id:
             validate_uuid(request.assignee_stakeholder_id, "assignee_stakeholder_id")
@@ -795,11 +754,10 @@ async def create_task(request: TaskCreate, current_user: dict = Depends(get_curr
             validate_uuid(request.source_conversation_id, "source_conversation_id")
 
         # Get next position in the status column
-        position = await get_next_position(client_id, request.status.value)
+        position = get_next_position(request.status.value)
 
         # Build task record
         task_record = {
-            "client_id": client_id,
             "title": request.title,
             "description": request.description,
             "status": request.status.value,
@@ -823,17 +781,13 @@ async def create_task(request: TaskCreate, current_user: dict = Depends(get_curr
             "source_extracted_at": datetime.now(timezone.utc).isoformat() if request.source_text else None,
             "blocker_reason": request.blocker_reason if request.status == TaskStatus.BLOCKED else None,
             "blocked_at": datetime.now(timezone.utc).isoformat() if request.status == TaskStatus.BLOCKED else None,
-            "created_by": user_id,
-            "updated_by": user_id,
             "position": position,
             "sequence_number": request.sequence_number,
             "depends_on": request.depends_on or [],
             "notes": request.notes,
         }
 
-        result = await asyncio.to_thread(lambda: supabase.table("project_tasks").insert(task_record).execute())
-
-        task = result.data[0]
+        task = tasks_repo.create_task(task_record)
         logger.info(f"Task created: {task['id']}")
 
         return {
@@ -877,7 +831,6 @@ class BulkCandidateAction(BaseModel):
 
 @router.get("/candidates")
 async def get_task_candidates(
-    current_user=Depends(get_current_user),
     limit: int = Query(default=20, le=50),
     status: str = Query(default="pending", pattern="^(pending|accepted|rejected|all)$"),
 ):
@@ -887,32 +840,47 @@ async def get_task_candidates(
     Users can accept or reject them.
     """
     try:
-        client_id = current_user.get("client_id") or get_default_client_id()
-
-        query = supabase.table("task_candidates").select("*, documents(filename, title)").eq("client_id", client_id)
-
-        if status != "all":
-            query = query.eq("status", status)
-
-        result = await asyncio.to_thread(lambda: query.order("created_at", desc=True).limit(limit).execute())
+        if status == "all":
+            # Fetch all statuses
+            result = pb.list_records(
+                "task_candidates",
+                sort="-created",
+                per_page=limit,
+            )
+        else:
+            result = pb.list_records(
+                "task_candidates",
+                filter=f"status='{pb.escape_filter(status)}'",
+                sort="-created",
+                per_page=limit,
+            )
 
         candidates = []
-        for c in result.data or []:
-            doc = c.get("documents", {}) or {}
+        for c in result.get("items", []):
+            # Try to get source document name
+            source_doc_name = c.get("source_document_name")
+            if not source_doc_name and c.get("source_document_id"):
+                try:
+                    doc = pb.get_record("documents", c["source_document_id"])
+                    if doc:
+                        source_doc_name = doc.get("title") or doc.get("filename")
+                except Exception:
+                    pass
+
             candidates.append(
                 {
                     "id": c["id"],
                     "title": c["title"],
-                    "suggested_priority": c["suggested_priority"],
-                    "suggested_due_date": c["suggested_due_date"],
-                    "due_date_text": c["due_date_text"],
-                    "assignee_name": c["assignee_name"],
-                    "source_document_id": c["source_document_id"],
-                    "source_document_name": doc.get("title") or doc.get("filename") or c.get("source_document_name"),
-                    "source_text": c["source_text"],
-                    "confidence": c["confidence"],
-                    "status": c["status"],
-                    "created_at": c["created_at"],
+                    "suggested_priority": c.get("suggested_priority"),
+                    "suggested_due_date": c.get("suggested_due_date"),
+                    "due_date_text": c.get("due_date_text"),
+                    "assignee_name": c.get("assignee_name"),
+                    "source_document_id": c.get("source_document_id"),
+                    "source_document_name": source_doc_name,
+                    "source_text": c.get("source_text"),
+                    "confidence": c.get("confidence"),
+                    "status": c.get("status"),
+                    "created_at": c.get("created_at", c.get("created", "")),
                     # Rich context fields (from migration 029)
                     "description": c.get("description"),
                     "meeting_context": c.get("meeting_context"),
@@ -932,20 +900,11 @@ async def get_task_candidates(
 
 
 @router.get("/candidates/count")
-async def get_candidate_count(current_user=Depends(get_current_user)):
+async def get_candidate_count():
     """Get count of pending task candidates (for badge display)."""
     try:
-        client_id = current_user.get("client_id") or get_default_client_id()
-
-        result = await asyncio.to_thread(
-            lambda: supabase.table("task_candidates")
-            .select("id", count="exact")
-            .eq("client_id", client_id)
-            .eq("status", "pending")
-            .execute()
-        )
-
-        return {"success": True, "pending_count": result.count or 0}
+        pending_count = tasks_repo.count_pending_task_candidates()
+        return {"success": True, "pending_count": pending_count}
 
     except Exception as e:
         logger.error(f"Error fetching candidate count: {str(e)}")
@@ -955,22 +914,20 @@ async def get_candidate_count(current_user=Depends(get_current_user)):
 @router.delete("/candidates/clear")
 async def clear_task_candidates(
     status: Optional[str] = Query(None, description="Filter by status: pending, accepted, rejected, or all"),
-    current_user=Depends(get_current_user),
 ):
     """Clear task candidates. By default clears pending candidates only.
 
     Use status=all to clear all candidates.
     """
     try:
-        client_id = current_user.get("client_id") or get_default_client_id()
-
-        query = supabase.table("task_candidates").delete().eq("client_id", client_id)
-
+        filter_str = ""
         if status and status != "all":
-            query = query.eq("status", status)
+            filter_str = f"status='{pb.escape_filter(status)}'"
 
-        result = query.execute()
-        deleted_count = len(result.data) if result.data else 0
+        candidates = pb.get_all("task_candidates", filter=filter_str)
+        for c in candidates:
+            pb.delete_record("task_candidates", c["id"])
+        deleted_count = len(candidates)
 
         return {
             "success": True,
@@ -987,7 +944,6 @@ async def clear_task_candidates(
 async def accept_task_candidate(
     candidate_id: str,
     body: Optional[CandidateAction] = None,
-    current_user=Depends(get_current_user),
 ):
     """Accept a task candidate and create an actual task.
 
@@ -1000,8 +956,7 @@ async def accept_task_candidate(
 
         result = await do_accept(
             candidate_id=candidate_id,
-            user_id=current_user["id"],
-            supabase=supabase,
+            user_id="",
             overrides=body.overrides if body else None,
         )
 
@@ -1021,7 +976,6 @@ async def accept_task_candidate(
 async def reject_task_candidate(
     candidate_id: str,
     body: Optional[CandidateAction] = None,
-    current_user=Depends(get_current_user),
 ):
     """Reject a task candidate."""
     try:
@@ -1031,8 +985,7 @@ async def reject_task_candidate(
 
         result = await do_reject(
             candidate_id=candidate_id,
-            user_id=current_user["id"],
-            supabase=supabase,
+            user_id="",
             reason=body.reason if body else None,
         )
 
@@ -1049,7 +1002,7 @@ async def reject_task_candidate(
 
 
 @router.post("/candidates/{candidate_id}/link")
-async def link_task_candidate(candidate_id: str, body: LinkCandidateRequest, current_user=Depends(get_current_user)):
+async def link_task_candidate(candidate_id: str, body: LinkCandidateRequest):
     """Link a task candidate to an existing task instead of creating a new one.
 
     This is used when a duplicate is detected and the user wants to associate
@@ -1058,38 +1011,18 @@ async def link_task_candidate(candidate_id: str, body: LinkCandidateRequest, cur
     try:
         validate_uuid(candidate_id, "candidate_id")
         validate_uuid(body.task_id, "task_id")
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
 
         # Get the candidate
-        candidate_result = await asyncio.to_thread(
-            lambda: supabase.table("task_candidates")
-            .select("*")
-            .eq("id", candidate_id)
-            .eq("client_id", client_id)
-            .single()
-            .execute()
-        )
+        candidate = tasks_repo.get_task_candidate(candidate_id)
 
-        if not candidate_result.data:
+        if not candidate:
             raise HTTPException(status_code=404, detail="Task candidate not found")
 
-        candidate = candidate_result.data
-
         # Verify target task exists
-        task_result = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks")
-            .select("id, title, description")
-            .eq("id", body.task_id)
-            .eq("client_id", client_id)
-            .single()
-            .execute()
-        )
+        task = tasks_repo.get_task(body.task_id)
 
-        if not task_result.data:
+        if not task:
             raise HTTPException(status_code=404, detail="Target task not found")
-
-        task = task_result.data
 
         # Append candidate context to the existing task's description
         existing_desc = task.get("description") or ""
@@ -1102,26 +1035,16 @@ async def link_task_candidate(candidate_id: str, body: LinkCandidateRequest, cur
                 linked_note += f"\nContext: {candidate_context}"
             new_description = existing_desc + linked_note
 
-            await asyncio.to_thread(
-                lambda: supabase.table("project_tasks")
-                .update({"description": new_description, "updated_by": user_id})
-                .eq("id", body.task_id)
-                .execute()
-            )
+            tasks_repo.update_task(body.task_id, {"description": new_description})
 
         # Mark candidate as accepted with reference to the linked task
-        await asyncio.to_thread(
-            lambda: supabase.table("task_candidates")
-            .update(
-                {
-                    "status": "accepted",
-                    "created_task_id": body.task_id,
-                    "reviewed_at": datetime.now(timezone.utc).isoformat(),
-                    "reviewed_by": user_id,
-                }
-            )
-            .eq("id", candidate_id)
-            .execute()
+        tasks_repo.update_task_candidate(
+            candidate_id,
+            {
+                "status": "accepted",
+                "created_task_id": body.task_id,
+                "reviewed_at": datetime.now(timezone.utc).isoformat(),
+            },
         )
 
         logger.info(f"Task candidate {candidate_id} linked to existing task {body.task_id}")
@@ -1141,7 +1064,7 @@ async def link_task_candidate(candidate_id: str, body: LinkCandidateRequest, cur
 
 
 @router.post("/candidates/bulk")
-async def bulk_action_candidates(body: BulkCandidateAction, current_user=Depends(get_current_user)):
+async def bulk_action_candidates(body: BulkCandidateAction):
     """Accept or reject multiple task candidates at once."""
     try:
         for cid in body.candidate_ids:
@@ -1152,8 +1075,7 @@ async def bulk_action_candidates(body: BulkCandidateAction, current_user=Depends
         result = await do_bulk(
             candidate_ids=body.candidate_ids,
             action=body.action,
-            user_id=current_user["id"],
-            supabase=supabase,
+            user_id="",
         )
 
         return {
@@ -1176,54 +1098,31 @@ async def bulk_action_candidates(body: BulkCandidateAction, current_user=Depends
 
 
 @router.get("/scan-stats")
-async def get_scan_stats(current_user=Depends(get_current_user)):
+async def get_scan_stats():
     """Get scan statistics including last scan time, document counts, and pending candidates."""
     try:
-        client_id = current_user.get("client_id") or get_default_client_id()
-
         # Get total document count
-        docs_result = supabase.table("documents").select("id", count="exact").eq("client_id", client_id).execute()
-        total_docs = docs_result.count or 0
+        total_docs = pb.count("documents")
 
-        # Get documents with original_date (scannable)
-        from datetime import datetime, timedelta, timezone
-
+        # Get documents with original_date (scannable) in last 30 days
         thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).date().isoformat()
-        recent_docs_result = (
-            supabase.table("documents")
-            .select("id", count="exact")
-            .eq("client_id", client_id)
-            .gte("original_date", thirty_days_ago)
-            .execute()
-        )
-        recent_docs = recent_docs_result.count or 0
+        recent_docs = pb.count("documents", filter=f"original_date>='{thirty_days_ago}'")
 
         # Get pending candidate count
-        candidates_result = (
-            supabase.table("task_candidates")
-            .select("id", count="exact")
-            .eq("client_id", client_id)
-            .eq("status", "pending")
-            .execute()
-        )
-        pending_candidates = candidates_result.count or 0
+        pending_candidates = tasks_repo.count_pending_task_candidates()
 
         # Get last scan time (most recent candidate created_at)
-        last_scan_result = (
-            supabase.table("task_candidates")
-            .select("created_at")
-            .eq("client_id", client_id)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
+        last_scan_result = pb.list_records(
+            "task_candidates",
+            sort="-created",
+            per_page=1,
         )
-        last_scan = last_scan_result.data[0]["created_at"] if last_scan_result.data else None
+        last_scan_items = last_scan_result.get("items", [])
+        last_scan = last_scan_items[0].get("created_at", last_scan_items[0].get("created")) if last_scan_items else None
 
         # Get documents that have been scanned (have candidates)
-        scanned_docs_result = (
-            supabase.table("task_candidates").select("source_document_id").eq("client_id", client_id).execute()
-        )
-        scanned_doc_ids = {c["source_document_id"] for c in (scanned_docs_result.data or [])}
+        all_candidates = pb.get_all("task_candidates", filter="")
+        scanned_doc_ids = {c.get("source_document_id") for c in all_candidates if c.get("source_document_id")}
 
         return {
             "total_documents": total_docs,
@@ -1248,7 +1147,6 @@ async def scan_documents_for_tasks(
     limit: int = Query(5, ge=1, le=50, description="Number of recent documents to scan (max 50)"),
     since_days: int = Query(7, ge=1, le=365, description="Only scan documents with original_date in the last N days"),
     force_rescan: bool = Query(False, description="Rescan documents even if already scanned"),
-    current_user=Depends(get_current_user),
 ):
     """Scan meeting summary documents for potential tasks.
 
@@ -1264,42 +1162,29 @@ async def scan_documents_for_tasks(
         force_rescan: If true, rescan even previously scanned documents
     """
     try:
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
-
-        # Get user's name for task filtering
-        user_result = supabase.table("users").select("*").eq("id", user_id).single().execute()
-
-        user_name = None
-        if user_result.data:
-            user_name = (
-                user_result.data.get("full_name")
-                or user_result.data.get("name")
-                or user_result.data.get("email", "").split("@")[0]
-            )
-
-        # Build query for meeting summary documents only
-        query = (
-            supabase.table("documents")
-            .select("id, filename, title, original_date, uploaded_at, obsidian_file_path")
-            .eq("client_id", client_id)
-            .like("obsidian_file_path", f"{MEETING_SUMMARIES_FOLDER}/%")
-        )
+        # Build filter for meeting summary documents only
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=since_days)).date().isoformat()
+        filter_parts = [
+            f"obsidian_file_path~'{pb.escape_filter(MEETING_SUMMARIES_FOLDER)}/'",
+            f"original_date>='{cutoff}'",
+        ]
 
         # Only scan unscanned docs unless force_rescan is enabled
         if not force_rescan:
-            query = query.is_("tasks_scanned_at", "null")
+            filter_parts.append("tasks_scanned_at=''")
 
-        # Filter by original_date (defaults to last 7 days)
-        from datetime import datetime, timedelta, timezone
+        filter_str = " && ".join(filter_parts)
 
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=since_days)).date().isoformat()
-        query = query.gte("original_date", cutoff)
+        docs_result = pb.list_records(
+            "documents",
+            filter=filter_str,
+            sort="-original_date",
+            per_page=limit,
+        )
 
-        # Order by original_date (falls back to uploaded_at for docs without original_date)
-        docs_result = query.order("original_date", desc=True, nullsfirst=False).limit(limit).execute()
+        docs = docs_result.get("items", [])
 
-        if not docs_result.data:
+        if not docs:
             return {
                 "success": True,
                 "documents_scanned": 0,
@@ -1315,8 +1200,7 @@ async def scan_documents_for_tasks(
             try:
                 result = await extract_tasks_from_document(
                     document_id=doc["id"],
-                    supabase=supabase,
-                    user_name=user_name,
+                    user_name=None,
                     auto_store=True,
                     use_fast_model=False,  # Use Sonnet for quality
                 )
@@ -1345,7 +1229,7 @@ async def scan_documents_for_tasks(
                 return await process_doc(doc)
 
         all_results = await asyncio.gather(
-            *[process_with_semaphore(doc) for doc in docs_result.data], return_exceptions=True
+            *[process_with_semaphore(doc) for doc in docs], return_exceptions=True
         )
 
         # Aggregate results
@@ -1367,11 +1251,11 @@ async def scan_documents_for_tasks(
 
         return {
             "success": True,
-            "documents_scanned": len(docs_result.data),
+            "documents_scanned": len(docs),
             "total_tasks_found": total_found,
             "total_tasks_stored": total_stored,
             "results": results,
-            "message": f"Scanned {len(docs_result.data)} documents, found {total_found} potential tasks",
+            "message": f"Scanned {len(docs)} documents, found {total_found} potential tasks",
         }
 
     except HTTPException:
@@ -1385,7 +1269,6 @@ async def scan_documents_for_tasks(
 async def scan_single_document_for_tasks(
     document_id: str,
     force_rescan: bool = Query(False, description="Rescan even if already scanned"),
-    current_user=Depends(get_current_user),
 ):
     """Scan a single document for potential tasks.
 
@@ -1394,23 +1277,13 @@ async def scan_single_document_for_tasks(
     """
     try:
         validate_uuid(document_id, "document_id")
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
 
-        # Verify document exists and belongs to user's client
-        doc_result = (
-            supabase.table("documents")
-            .select("id, filename, title, tasks_scanned_at")
-            .eq("id", document_id)
-            .eq("client_id", client_id)
-            .single()
-            .execute()
-        )
+        # Verify document exists
+        doc = pb.get_record("documents", document_id)
 
-        if not doc_result.data:
+        if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        doc = doc_result.data
         doc_name = doc.get("title") or doc.get("filename", "Unknown")
 
         # Check if already scanned
@@ -1423,24 +1296,12 @@ async def scan_single_document_for_tasks(
                 "message": f'Document "{doc_name}" was already scanned. Use force_rescan=true to rescan.',
             }
 
-        # Get user's name for task filtering
-        user_result = supabase.table("users").select("*").eq("id", user_id).single().execute()
-
-        user_name = None
-        if user_result.data:
-            user_name = (
-                user_result.data.get("full_name")
-                or user_result.data.get("name")
-                or user_result.data.get("email", "").split("@")[0]
-            )
-
         # Extract tasks
         from services.task_auto_extractor import extract_tasks_from_document
 
         result = await extract_tasks_from_document(
             document_id=document_id,
-            supabase=supabase,
-            user_name=user_name,
+            user_name=None,
             auto_store=True,
             use_fast_model=False,  # Use Sonnet for quality
         )
@@ -1477,18 +1338,16 @@ class KrakenSingleTaskExecuteRequest(BaseModel):
 
 
 @router.post("/{task_id}/kraken/evaluate")
-async def kraken_evaluate_single_task(task_id: str, current_user: dict = Depends(get_current_user)):
+async def kraken_evaluate_single_task(task_id: str):
     """Evaluate a single task for AI workability via Kraken. Returns SSE stream."""
     from fastapi.responses import StreamingResponse
 
     validate_uuid(task_id, "task_id")
-    client_id = current_user.get("client_id") or get_default_client_id()
-    user_id = current_user["id"]
 
     from services.task_kraken import evaluate_single_task
 
     async def event_stream():
-        async for event in evaluate_single_task(task_id, client_id, user_id, supabase):
+        async for event in evaluate_single_task(task_id, "", "", None):
             import json
 
             event_type = event.get("type", "status")
@@ -1502,19 +1361,17 @@ async def kraken_evaluate_single_task(task_id: str, current_user: dict = Depends
 
 @router.post("/{task_id}/kraken/execute")
 async def kraken_execute_single_task(
-    task_id: str, request: KrakenSingleTaskExecuteRequest, current_user: dict = Depends(get_current_user)
+    task_id: str, request: KrakenSingleTaskExecuteRequest
 ):
     """Execute a single task via Kraken after evaluation approval. Returns SSE stream."""
     from fastapi.responses import StreamingResponse
 
     validate_uuid(task_id, "task_id")
-    client_id = current_user.get("client_id") or get_default_client_id()
-    user_id = current_user["id"]
 
     from services.task_kraken import execute_single_task
 
     async def event_stream():
-        async for event in execute_single_task(task_id, request.evaluation_notes, client_id, user_id, supabase):
+        async for event in execute_single_task(task_id, request.evaluation_notes, "", "", None):
             import json
 
             event_type = event.get("type", "status")
@@ -1532,26 +1389,17 @@ async def kraken_execute_single_task(
 
 
 @router.get("/{task_id}")
-async def get_task(task_id: str, current_user: dict = Depends(get_current_user)):
+async def get_task(task_id: str):
     """Get a single task with details."""
     try:
         validate_uuid(task_id, "task_id")
-        client_id = current_user.get("client_id") or get_default_client_id()
 
-        # Use view for joined data
-        result = await asyncio.to_thread(
-            lambda: supabase.table("v_tasks_with_assignee")
-            .select("*")
-            .eq("id", task_id)
-            .eq("client_id", client_id)
-            .single()
-            .execute()
-        )
+        task = tasks_repo.get_task(task_id)
 
-        if not result.data:
+        if not task:
             raise HTTPException(status_code=404, detail="Task not found")
 
-        return {"success": True, "task": serialize_task(result.data)}
+        return {"success": True, "task": serialize_task(task)}
 
     except HTTPException:
         raise
@@ -1561,29 +1409,20 @@ async def get_task(task_id: str, current_user: dict = Depends(get_current_user))
 
 
 @router.patch("/{task_id}")
-async def update_task(task_id: str, request: TaskUpdate, current_user: dict = Depends(get_current_user)):
+async def update_task(task_id: str, request: TaskUpdate):
     """Update a task."""
     try:
         validate_uuid(task_id, "task_id")
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
 
-        # Verify task exists and belongs to client
-        existing = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks")
-            .select("id")
-            .eq("id", task_id)
-            .eq("client_id", client_id)
-            .single()
-            .execute()
-        )
+        # Verify task exists
+        existing = tasks_repo.get_task(task_id)
 
-        if not existing.data:
+        if not existing:
             raise HTTPException(status_code=404, detail="Task not found")
 
         # Build update record - use model_fields_set to distinguish
         # "not provided" from "explicitly set to null" for clearable fields
-        update_record = {"updated_by": user_id}
+        update_record = {}
         fields_set = request.model_fields_set
 
         if "title" in fields_set:
@@ -1629,11 +1468,7 @@ async def update_task(task_id: str, request: TaskUpdate, current_user: dict = De
         if "notes" in fields_set:
             update_record["notes"] = request.notes or None
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks").update(update_record).eq("id", task_id).execute()
-        )
-
-        task = result.data[0]
+        task = tasks_repo.update_task(task_id, update_record)
         logger.info(f"Task updated: {task_id}")
 
         return {
@@ -1650,27 +1485,19 @@ async def update_task(task_id: str, request: TaskUpdate, current_user: dict = De
 
 
 @router.delete("/{task_id}")
-async def delete_task(task_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_task(task_id: str):
     """Delete a task."""
     try:
         validate_uuid(task_id, "task_id")
-        client_id = current_user.get("client_id") or get_default_client_id()
 
-        # Verify task exists and belongs to client
-        existing = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks")
-            .select("id")
-            .eq("id", task_id)
-            .eq("client_id", client_id)
-            .single()
-            .execute()
-        )
+        # Verify task exists
+        existing = tasks_repo.get_task(task_id)
 
-        if not existing.data:
+        if not existing:
             raise HTTPException(status_code=404, detail="Task not found")
 
-        # Delete task (cascade will handle comments and history)
-        await asyncio.to_thread(lambda: supabase.table("project_tasks").delete().eq("id", task_id).execute())
+        # Delete task
+        tasks_repo.delete_task(task_id)
 
         logger.info(f"Task deleted: {task_id}")
 
@@ -1684,24 +1511,15 @@ async def delete_task(task_id: str, current_user: dict = Depends(get_current_use
 
 
 @router.patch("/{task_id}/status")
-async def update_task_status(task_id: str, request: TaskStatusUpdate, current_user: dict = Depends(get_current_user)):
+async def update_task_status(task_id: str, request: TaskStatusUpdate):
     """Update task status (optimized for Kanban drag-drop)."""
     try:
         validate_uuid(task_id, "task_id")
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
 
-        # Verify task exists and belongs to client
-        existing = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks")
-            .select("id, status, position")
-            .eq("id", task_id)
-            .eq("client_id", client_id)
-            .single()
-            .execute()
-        )
+        # Verify task exists
+        existing = tasks_repo.get_task(task_id)
 
-        if not existing.data:
+        if not existing:
             raise HTTPException(status_code=404, detail="Task not found")
 
         # Validate blocker reason if moving to blocked
@@ -1713,22 +1531,17 @@ async def update_task_status(task_id: str, request: TaskStatusUpdate, current_us
         position = request.position
         if position is None:
             # Get next position in new status column
-            position = await get_next_position(client_id, request.status.value)
+            position = get_next_position(request.status.value)
 
         update_record = {
             "status": request.status.value,
             "position": position,
-            "updated_by": user_id,
         }
 
         if request.status == TaskStatus.BLOCKED:
             update_record["blocker_reason"] = request.blocker_reason
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks").update(update_record).eq("id", task_id).execute()
-        )
-
-        task = result.data[0]
+        task = tasks_repo.update_task(task_id, update_record)
         logger.info(f"Task {task_id} status updated to {request.status.value}")
 
         return {
@@ -1750,45 +1563,31 @@ async def update_task_status(task_id: str, request: TaskStatusUpdate, current_us
 
 
 @router.get("/{task_id}/comments")
-async def list_task_comments(task_id: str, current_user: dict = Depends(get_current_user)):
+async def list_task_comments(task_id: str):
     """List comments on a task."""
     try:
         validate_uuid(task_id, "task_id")
-        client_id = current_user.get("client_id") or get_default_client_id()
 
-        # Verify task exists and belongs to client
-        task_check = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks")
-            .select("id")
-            .eq("id", task_id)
-            .eq("client_id", client_id)
-            .single()
-            .execute()
-        )
+        # Verify task exists
+        task_check = tasks_repo.get_task(task_id)
 
-        if not task_check.data:
+        if not task_check:
             raise HTTPException(status_code=404, detail="Task not found")
 
-        # Get comments with user info
-        result = await asyncio.to_thread(
-            lambda: supabase.table("task_comments")
-            .select("*, users(email)")
-            .eq("task_id", task_id)
-            .order("created_at")
-            .execute()
-        )
+        # Get comments
+        raw_comments = tasks_repo.get_task_comments(task_id)
 
         comments = []
-        for comment in result.data or []:
+        for comment in raw_comments:
             comments.append(
                 {
                     "id": comment["id"],
-                    "task_id": comment["task_id"],
+                    "task_id": comment.get("task_id"),
                     "user_id": comment.get("user_id"),
-                    "user_email": comment.get("users", {}).get("email") if comment.get("users") else None,
-                    "content": comment["content"],
-                    "created_at": comment["created_at"],
-                    "updated_at": comment["updated_at"],
+                    "user_email": comment.get("user_email"),
+                    "content": comment.get("content"),
+                    "created_at": comment.get("created_at", comment.get("created", "")),
+                    "updated_at": comment.get("updated_at", comment.get("updated", "")),
                 }
             )
 
@@ -1802,46 +1601,34 @@ async def list_task_comments(task_id: str, current_user: dict = Depends(get_curr
 
 
 @router.post("/{task_id}/comments")
-async def create_task_comment(task_id: str, request: TaskCommentCreate, current_user: dict = Depends(get_current_user)):
+async def create_task_comment(task_id: str, request: TaskCommentCreate):
     """Add a comment to a task."""
     try:
         validate_uuid(task_id, "task_id")
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
 
-        # Verify task exists and belongs to client
-        task_check = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks")
-            .select("id")
-            .eq("id", task_id)
-            .eq("client_id", client_id)
-            .single()
-            .execute()
-        )
+        # Verify task exists
+        task_check = tasks_repo.get_task(task_id)
 
-        if not task_check.data:
+        if not task_check:
             raise HTTPException(status_code=404, detail="Task not found")
 
         # Create comment
         comment_record = {
             "task_id": task_id,
-            "user_id": user_id,
             "content": request.content,
         }
 
-        result = await asyncio.to_thread(lambda: supabase.table("task_comments").insert(comment_record).execute())
-
-        comment = result.data[0]
+        comment = tasks_repo.create_task_comment(comment_record)
         logger.info(f"Comment added to task {task_id}")
 
         return {
             "success": True,
             "comment": {
                 "id": comment["id"],
-                "task_id": comment["task_id"],
-                "user_id": comment["user_id"],
-                "content": comment["content"],
-                "created_at": comment["created_at"],
+                "task_id": comment.get("task_id"),
+                "user_id": comment.get("user_id"),
+                "content": comment.get("content"),
+                "created_at": comment.get("created_at", comment.get("created", "")),
             },
             "message": "Comment added successfully",
         }
@@ -1861,49 +1648,36 @@ async def create_task_comment(task_id: str, request: TaskCommentCreate, current_
 @router.get("/{task_id}/history")
 async def get_task_history(
     task_id: str,
-    current_user: dict = Depends(get_current_user),
     limit: int = Query(50, ge=1, le=200),
 ):
     """Get change history for a task."""
     try:
         validate_uuid(task_id, "task_id")
-        client_id = current_user.get("client_id") or get_default_client_id()
 
-        # Verify task exists and belongs to client
-        task_check = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks")
-            .select("id")
-            .eq("id", task_id)
-            .eq("client_id", client_id)
-            .single()
-            .execute()
-        )
+        # Verify task exists
+        task_check = tasks_repo.get_task(task_id)
 
-        if not task_check.data:
+        if not task_check:
             raise HTTPException(status_code=404, detail="Task not found")
 
-        # Get history with user info
-        result = await asyncio.to_thread(
-            lambda: supabase.table("task_history")
-            .select("*, users(email)")
-            .eq("task_id", task_id)
-            .order("created_at", desc=True)
-            .limit(limit)
-            .execute()
-        )
+        # Get history
+        raw_history = tasks_repo.get_task_history(task_id)
+
+        # Apply limit (repo returns all, we limit here)
+        raw_history = raw_history[:limit]
 
         history = []
-        for entry in result.data or []:
+        for entry in raw_history:
             history.append(
                 {
                     "id": entry["id"],
-                    "task_id": entry["task_id"],
+                    "task_id": entry.get("task_id"),
                     "user_id": entry.get("user_id"),
-                    "user_email": entry.get("users", {}).get("email") if entry.get("users") else None,
-                    "field_name": entry["field_name"],
-                    "old_value": entry["old_value"],
-                    "new_value": entry["new_value"],
-                    "created_at": entry["created_at"],
+                    "user_email": entry.get("user_email"),
+                    "field_name": entry.get("field_name"),
+                    "old_value": entry.get("old_value"),
+                    "new_value": entry.get("new_value"),
+                    "created_at": entry.get("created_at", entry.get("created", "")),
                 }
             )
 
