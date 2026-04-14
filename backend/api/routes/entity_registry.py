@@ -9,11 +9,9 @@ Created: 2026-01-23
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from auth import get_current_user
-from database import get_supabase
 from services.entity_registry_manager import EntityRegistryManager
 
 logger = logging.getLogger(__name__)
@@ -58,25 +56,24 @@ class BootstrapResponse(BaseModel):
     organizations_skipped: int
 
 
+def _get_manager() -> EntityRegistryManager:
+    """Get EntityRegistryManager instance.
+
+    TODO: EntityRegistryManager still takes supabase -- needs service-level migration.
+    """
+    return EntityRegistryManager(None)
+
+
 # =============================================================================
 # Organization Endpoints
 # =============================================================================
 
 
 @router.get("/organizations")
-async def list_organizations(
-    limit: int = 100,
-    offset: int = 0,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
-):
+async def list_organizations(limit: int = 100, offset: int = 0):
     """List organizations in the registry."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        raise HTTPException(status_code=400, detail="Client ID required")
-
-    manager = EntityRegistryManager(supabase)
-    entries = await manager.list_organizations(client_id, limit, offset)
+    manager = _get_manager()
+    entries = await manager.list_organizations(None, limit, offset)
 
     return {
         "organizations": [
@@ -97,19 +94,11 @@ async def list_organizations(
 
 
 @router.post("/organizations")
-async def create_organization(
-    request: CreateOrganizationRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
-):
+async def create_organization(request: CreateOrganizationRequest):
     """Add an organization to the registry."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        raise HTTPException(status_code=400, detail="Client ID required")
-
-    manager = EntityRegistryManager(supabase)
+    manager = _get_manager()
     entry_id = await manager.add_organization(
-        client_id=client_id,
+        client_id=None,
         canonical_name=request.canonical_name,
         aliases=request.aliases,
         domain=request.domain,
@@ -124,14 +113,10 @@ async def create_organization(
 
 
 @router.get("/organizations/{org_id}")
-async def get_organization(org_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
+async def get_organization(org_id: str):
     """Get a specific organization."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        raise HTTPException(status_code=400, detail="Client ID required")
-
-    manager = EntityRegistryManager(supabase)
-    entry = await manager.get_organization(client_id, org_id=org_id)
+    manager = _get_manager()
+    entry = await manager.get_organization(None, org_id=org_id)
 
     if not entry:
         raise HTTPException(status_code=404, detail="Organization not found")
@@ -149,21 +134,12 @@ async def get_organization(org_id: str, current_user: dict = Depends(get_current
 
 
 @router.post("/organizations/{org_id}/aliases")
-async def add_organization_alias(
-    org_id: str,
-    request: AddAliasRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
-):
+async def add_organization_alias(org_id: str, request: AddAliasRequest):
     """Add an alias to an organization."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        raise HTTPException(status_code=400, detail="Client ID required")
-
-    manager = EntityRegistryManager(supabase)
+    manager = _get_manager()
 
     # Verify organization exists
-    entry = await manager.get_organization(client_id, org_id=org_id)
+    entry = await manager.get_organization(None, org_id=org_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Organization not found")
 
@@ -180,19 +156,10 @@ async def add_organization_alias(
 
 
 @router.get("/persons")
-async def list_persons(
-    limit: int = 100,
-    offset: int = 0,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
-):
+async def list_persons(limit: int = 100, offset: int = 0):
     """List persons in the registry."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        raise HTTPException(status_code=400, detail="Client ID required")
-
-    manager = EntityRegistryManager(supabase)
-    entries = await manager.list_persons(client_id, limit, offset)
+    manager = _get_manager()
+    entries = await manager.list_persons(None, limit, offset)
 
     return {
         "persons": [
@@ -214,19 +181,11 @@ async def list_persons(
 
 
 @router.post("/persons")
-async def create_person(
-    request: CreatePersonRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
-):
+async def create_person(request: CreatePersonRequest):
     """Add a person to the registry."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        raise HTTPException(status_code=400, detail="Client ID required")
-
-    manager = EntityRegistryManager(supabase)
+    manager = _get_manager()
     entry_id = await manager.add_person(
-        client_id=client_id,
+        client_id=None,
         canonical_name=request.canonical_name,
         aliases=request.aliases,
         stakeholder_id=request.stakeholder_id,
@@ -240,14 +199,10 @@ async def create_person(
 
 
 @router.get("/persons/{person_id}")
-async def get_person(person_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
+async def get_person(person_id: str):
     """Get a specific person."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        raise HTTPException(status_code=400, detail="Client ID required")
-
-    manager = EntityRegistryManager(supabase)
-    entry = await manager.get_person(client_id, person_id=person_id)
+    manager = _get_manager()
+    entry = await manager.get_person(None, person_id=person_id)
 
     if not entry:
         raise HTTPException(status_code=404, detail="Person not found")
@@ -266,21 +221,12 @@ async def get_person(person_id: str, current_user: dict = Depends(get_current_us
 
 
 @router.post("/persons/{person_id}/aliases")
-async def add_person_alias(
-    person_id: str,
-    request: AddAliasRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
-):
+async def add_person_alias(person_id: str, request: AddAliasRequest):
     """Add an alias to a person."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        raise HTTPException(status_code=400, detail="Client ID required")
-
-    manager = EntityRegistryManager(supabase)
+    manager = _get_manager()
 
     # Verify person exists
-    entry = await manager.get_person(client_id, person_id=person_id)
+    entry = await manager.get_person(None, person_id=person_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Person not found")
 
@@ -297,17 +243,13 @@ async def add_person_alias(
 
 
 @router.post("/bootstrap", response_model=BootstrapResponse)
-async def bootstrap_registry(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
+async def bootstrap_registry():
     """Populate registries from existing stakeholder data.
 
     Creates person entries for all stakeholders and organization entries
     for unique organizations.
     """
-    client_id = current_user.get("client_id")
-    if not client_id:
-        raise HTTPException(status_code=400, detail="Client ID required")
-
-    manager = EntityRegistryManager(supabase)
-    stats = await manager.bootstrap_from_stakeholders(client_id)
+    manager = _get_manager()
+    stats = await manager.bootstrap_from_stakeholders(None)
 
     return BootstrapResponse(**stats)

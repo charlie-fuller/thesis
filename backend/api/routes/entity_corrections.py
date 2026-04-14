@@ -9,11 +9,10 @@ Created: 2026-01-23
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from auth import get_current_user
-from database import get_supabase
+import pb_client as pb
 from services.entity_registry_manager import EntityRegistryManager
 
 logger = logging.getLogger(__name__)
@@ -57,34 +56,25 @@ class CorrectionHistoryResponse(BaseModel):
 
 
 @router.post("")
-async def record_correction(
-    request: RecordCorrectionRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
-):
+async def record_correction(request: RecordCorrectionRequest):
     """Record a correction and learn from it.
 
     The original value will be added as an alias to the corrected entry.
     If the corrected entry doesn't exist, it will be created.
     """
-    client_id = current_user.get("client_id")
-    user_id = current_user.get("id")
-
-    if not client_id:
-        raise HTTPException(status_code=400, detail="Client ID required")
-
     if request.entity_type not in ("person", "organization"):
         raise HTTPException(status_code=400, detail="entity_type must be 'person' or 'organization'")
 
-    manager = EntityRegistryManager(supabase)
+    # TODO: EntityRegistryManager still takes supabase -- needs service-level migration
+    manager = EntityRegistryManager(None)
     success = await manager.learn_from_correction(
-        client_id=client_id,
+        client_id=None,
         entity_type=request.entity_type,
         original_value=request.original_value,
         corrected_value=request.corrected_value,
         source_document_id=request.source_document_id,
         source_candidate_id=request.source_candidate_id,
-        corrected_by=user_id,
+        corrected_by=None,
         context=request.context,
     )
 
@@ -98,19 +88,14 @@ async def record_correction(
 async def get_correction_history(
     entity_type: Optional[str] = None,
     limit: int = 50,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get recent correction history."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        raise HTTPException(status_code=400, detail="Client ID required")
-
     if entity_type and entity_type not in ("person", "organization"):
         raise HTTPException(status_code=400, detail="entity_type must be 'person' or 'organization'")
 
-    manager = EntityRegistryManager(supabase)
-    corrections = await manager.get_correction_history(client_id, entity_type, limit)
+    # TODO: EntityRegistryManager still takes supabase -- needs service-level migration
+    manager = EntityRegistryManager(None)
+    corrections = await manager.get_correction_history(None, entity_type, limit)
 
     return CorrectionHistoryResponse(
         corrections=[
@@ -136,55 +121,51 @@ async def batch_apply_corrections(
     entity_type: str,
     original_value: str,
     corrected_value: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Apply a correction to all historical instances.
 
     This updates existing stakeholders/opportunities that have the
     original (incorrect) value.
     """
-    client_id = current_user.get("client_id")
-    if not client_id:
-        raise HTTPException(status_code=400, detail="Client ID required")
-
     if entity_type not in ("person", "organization"):
         raise HTTPException(status_code=400, detail="entity_type must be 'person' or 'organization'")
 
     updated_count = 0
 
     try:
+        safe_original = pb.escape_filter(original_value)
+
         if entity_type == "person":
             # Update stakeholder names
-            result = (
-                supabase.table("stakeholders")
-                .update({"name": corrected_value})
-                .eq("client_id", client_id)
-                .eq("name", original_value)
-                .execute()
+            records = pb.get_all(
+                "stakeholders",
+                filter=f"name='{safe_original}'",
+                fields="id",
             )
-            updated_count = len(result.data) if result.data else 0
+            for r in records:
+                pb.update_record("stakeholders", r["id"], {"name": corrected_value})
+            updated_count = len(records)
 
         elif entity_type == "organization":
             # Update stakeholder organizations
-            result = (
-                supabase.table("stakeholders")
-                .update({"organization": corrected_value})
-                .eq("client_id", client_id)
-                .eq("organization", original_value)
-                .execute()
+            records = pb.get_all(
+                "stakeholders",
+                filter=f"organization='{safe_original}'",
+                fields="id",
             )
-            updated_count = len(result.data) if result.data else 0
+            for r in records:
+                pb.update_record("stakeholders", r["id"], {"organization": corrected_value})
+            updated_count = len(records)
 
             # Also update opportunities department if applicable
-            opp_result = (
-                supabase.table("ai_projects")
-                .update({"department": corrected_value})
-                .eq("client_id", client_id)
-                .eq("department", original_value)
-                .execute()
+            opp_records = pb.get_all(
+                "ai_projects",
+                filter=f"department='{safe_original}'",
+                fields="id",
             )
-            updated_count += len(opp_result.data) if opp_result.data else 0
+            for r in opp_records:
+                pb.update_record("ai_projects", r["id"], {"department": corrected_value})
+            updated_count += len(opp_records)
 
         return {
             "success": True,

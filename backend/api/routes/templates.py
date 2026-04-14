@@ -5,9 +5,8 @@ Exposes the ADDIE prompt library as browsable templates.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 
-from auth import get_current_user
 from logger_config import get_logger
 from services.quick_prompt_generator import ADDIE_PROMPT_LIBRARY
 
@@ -20,7 +19,6 @@ async def get_templates(
     phase: Optional[str] = Query(None, description="Filter by ADDIE phase"),
     category: Optional[str] = Query(None, description="Filter by category"),
     search: Optional[str] = Query(None, description="Search in prompt text"),
-    current_user: dict = Depends(get_current_user),
 ):
     """Get all templates from the ADDIE prompt library.
 
@@ -88,7 +86,7 @@ async def get_templates(
 
 
 @router.get("/by-phase")
-async def get_templates_by_phase(current_user: dict = Depends(get_current_user)):
+async def get_templates_by_phase():
     """Get templates organized by ADDIE phase for easy browsing."""
     try:
         result = {"success": True, "phases": {}}
@@ -146,7 +144,7 @@ async def get_templates_by_phase(current_user: dict = Depends(get_current_user))
 
 
 @router.get("/categories")
-async def get_template_categories(current_user: dict = Depends(get_current_user)):
+async def get_template_categories():
     """Get all unique categories across all phases."""
     try:
         categories = set()

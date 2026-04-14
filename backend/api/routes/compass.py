@@ -9,10 +9,9 @@ import logging
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from auth import get_current_user
 from services.career_status_report import (
     DEFAULT_RUBRIC,
     generate_career_status_report,
@@ -99,28 +98,17 @@ class ReportResponse(BaseModel):
 
 
 @router.post("/status-report/generate", response_model=ReportResponse)
-async def generate_report(
-    request: GenerateReportRequest = GenerateReportRequest(),
-    current_user: dict = Depends(get_current_user),
-):
+async def generate_report(request: GenerateReportRequest = GenerateReportRequest()):
     """Generate a new career status report.
 
     Analyzes KB documents tagged for Compass and any available memories
     to produce a 5-dimension assessment with justifications.
     """
-    user_id = current_user.get("id")
-    client_id = current_user.get("client_id")
-
-    logger.info(f"Generate report: user_id={user_id}, client_id={client_id}")
-
-    if not user_id or not client_id:
-        logger.error(f"Auth failed: user_id={user_id}, client_id={client_id}")
-        raise HTTPException(status_code=401, detail="User not authenticated")
-
+    # Single-tenant: no user_id/client_id needed
     try:
         report = await generate_career_status_report(
-            user_id=user_id,
-            client_id=client_id,
+            user_id=None,
+            client_id=None,
             period_start=request.period_start,
             period_end=request.period_end,
         )
@@ -131,19 +119,10 @@ async def generate_report(
 
 
 @router.get("/status-report/latest", response_model=Optional[ReportResponse])
-async def get_latest(current_user: dict = Depends(get_current_user)):
-    """Get the most recent career status report.
-
-    Returns null if no reports exist yet.
-    """
-    user_id = current_user.get("id")
-    client_id = current_user.get("client_id")
-
-    if not user_id or not client_id:
-        raise HTTPException(status_code=401, detail="User not authenticated")
-
+async def get_latest():
+    """Get the most recent career status report."""
     try:
-        report = await get_latest_report(user_id, client_id)
+        report = await get_latest_report(None, None)
         return report
     except Exception as e:
         logger.error(f"Failed to get latest report: {e}")
@@ -151,22 +130,10 @@ async def get_latest(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/status-reports", response_model=list[ReportSummary])
-async def list_all_reports(
-    limit: int = Query(10, ge=1, le=50),
-    current_user: dict = Depends(get_current_user),
-):
-    """List historical career status reports.
-
-    Returns summaries sorted by date descending (newest first).
-    """
-    user_id = current_user.get("id")
-    client_id = current_user.get("client_id")
-
-    if not user_id or not client_id:
-        raise HTTPException(status_code=401, detail="User not authenticated")
-
+async def list_all_reports(limit: int = Query(10, ge=1, le=50)):
+    """List historical career status reports."""
     try:
-        reports = await list_reports(user_id, client_id, limit)
+        reports = await list_reports(None, None, limit)
         return reports
     except Exception as e:
         logger.error(f"Failed to list reports: {e}")
@@ -174,19 +141,10 @@ async def list_all_reports(
 
 
 @router.get("/status-reports/{report_id}", response_model=ReportResponse)
-async def get_report(
-    report_id: str,
-    current_user: dict = Depends(get_current_user),
-):
+async def get_report(report_id: str):
     """Get a specific career status report by ID."""
-    user_id = current_user.get("id")
-    client_id = current_user.get("client_id")
-
-    if not user_id or not client_id:
-        raise HTTPException(status_code=401, detail="User not authenticated")
-
     try:
-        report = await get_report_by_id(report_id, user_id, client_id)
+        report = await get_report_by_id(report_id, None, None)
         if not report:
             raise HTTPException(status_code=404, detail="Report not found")
         return report
@@ -199,11 +157,7 @@ async def get_report(
 
 @router.get("/rubric")
 async def get_rubric():
-    """Get the career assessment rubric definitions.
-
-    Returns the 5 dimensions with their weights and level descriptors.
-    This can be used by the frontend to display what each score level means.
-    """
+    """Get the career assessment rubric definitions."""
     return {
         "dimensions": [
             {

@@ -3,21 +3,17 @@
 Endpoints for managing application theme/styling settings.
 """
 
-import asyncio
-import os
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
-from auth import get_current_user
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
 
 router = APIRouter(tags=["Theme"])
 logger = get_logger(__name__)
-supabase = get_supabase()
 
 
 class ThemeSettings(BaseModel):
@@ -79,20 +75,17 @@ class ThemeSettings(BaseModel):
 
 
 @router.get("/api/theme")
-async def get_theme_settings(current_user: dict = Depends(get_current_user)):
-    """Get theme settings for the current user's client."""
+async def get_theme_settings():
+    """Get theme settings for the application."""
     try:
-        client_id = current_user.get("client_id")
+        # Single-tenant: get the first (only) theme record
+        result = pb.get_first("theme_settings")
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("theme_settings").select("*").eq("client_id", client_id).single().execute()
-        )
-
-        if not result.data:
+        if not result:
             # Return default theme if none exists
             return {"success": True, "theme": get_default_theme()}
 
-        return {"success": True, "theme": result.data}
+        return {"success": True, "theme": result}
 
     except Exception as e:
         logger.error(f"Error fetching theme settings: {e}")
@@ -101,15 +94,9 @@ async def get_theme_settings(current_user: dict = Depends(get_current_user)):
 
 
 @router.put("/api/theme")
-async def update_theme_settings(settings: ThemeSettings, current_user: dict = Depends(get_current_user)):
-    """Update theme settings (admin only)."""
+async def update_theme_settings(settings: ThemeSettings):
+    """Update theme settings."""
     try:
-        # Check admin role
-        if current_user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Admin access required")
-
-        client_id = current_user.get("client_id")
-
         # Build update data, excluding None values
         update_data = {k: v for k, v in settings.dict().items() if v is not None}
 
@@ -117,26 +104,21 @@ async def update_theme_settings(settings: ThemeSettings, current_user: dict = De
             raise HTTPException(status_code=400, detail="No settings provided")
 
         # Check if theme settings exist
-        existing = await asyncio.to_thread(
-            lambda: supabase.table("theme_settings").select("id").eq("client_id", client_id).single().execute()
-        )
+        existing = pb.get_first("theme_settings", fields="id")
 
-        if existing.data:
+        if existing:
             # Update existing
-            result = await asyncio.to_thread(
-                lambda: supabase.table("theme_settings").update(update_data).eq("client_id", client_id).execute()
-            )
+            result = pb.update_record("theme_settings", existing["id"], update_data)
         else:
             # Insert new
-            update_data["client_id"] = client_id
-            result = await asyncio.to_thread(lambda: supabase.table("theme_settings").insert(update_data).execute())
+            result = pb.create_record("theme_settings", update_data)
 
-        logger.info(f"Theme settings updated for client {client_id}")
+        logger.info("Theme settings updated")
 
         return {
             "success": True,
             "message": "Theme settings updated",
-            "theme": result.data[0] if result.data else update_data,
+            "theme": result if result else update_data,
         }
 
     except HTTPException:
@@ -147,31 +129,30 @@ async def update_theme_settings(settings: ThemeSettings, current_user: dict = De
 
 
 @router.post("/api/theme/reset")
-async def reset_theme_settings(current_user: dict = Depends(get_current_user)):
-    """Reset theme settings to defaults (admin only)."""
+async def reset_theme_settings():
+    """Reset theme settings to defaults."""
     try:
-        if current_user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Admin access required")
-
-        client_id = current_user.get("client_id")
         default_theme = get_default_theme()
 
         # Remove non-column fields
         default_theme.pop("id", None)
-        default_theme.pop("created_at", None)
-        default_theme.pop("updated_at", None)
-        default_theme["client_id"] = client_id
+        default_theme.pop("created", None)
+        default_theme.pop("updated", None)
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("theme_settings").upsert(default_theme, on_conflict="client_id").execute()
-        )
+        # Try update existing, else create
+        existing = pb.get_first("theme_settings", fields="id")
 
-        logger.info(f"Theme settings reset for client {client_id}")
+        if existing:
+            result = pb.update_record("theme_settings", existing["id"], default_theme)
+        else:
+            result = pb.create_record("theme_settings", default_theme)
+
+        logger.info("Theme settings reset")
 
         return {
             "success": True,
             "message": "Theme settings reset to defaults",
-            "theme": result.data[0] if result.data else default_theme,
+            "theme": result if result else default_theme,
         }
 
     except HTTPException:
@@ -181,18 +162,18 @@ async def reset_theme_settings(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
 ALLOWED_LOGO_TYPES = ["image/png", "image/jpeg", "image/gif", "image/svg+xml", "image/webp"]
 MAX_LOGO_SIZE = 2 * 1024 * 1024  # 2MB
 
 
 @router.post("/api/theme/logo")
-async def upload_logo(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
-    """Upload a logo image (admin only)."""
-    try:
-        if current_user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Admin access required")
+async def upload_logo(file: UploadFile = File(...)):
+    """Upload a logo image.
 
+    TODO: PocketBase file upload -- needs PB file API integration.
+    Currently stores metadata only.
+    """
+    try:
         # Validate file type
         if file.content_type not in ALLOWED_LOGO_TYPES:
             raise HTTPException(status_code=400, detail="Invalid file type. Allowed: PNG, JPEG, GIF, SVG, WebP")
@@ -202,45 +183,23 @@ async def upload_logo(file: UploadFile = File(...), current_user: dict = Depends
         if len(file_content) > MAX_LOGO_SIZE:
             raise HTTPException(status_code=400, detail="Logo file too large. Maximum size is 2MB")
 
-        client_id = current_user.get("client_id")
-
         # Generate unique filename
         file_ext = file.filename.split(".")[-1] if "." in file.filename else "png"
-        unique_filename = f"logo_{client_id}_{uuid.uuid4()}.{file_ext}"
-        storage_path = f"logos/{unique_filename}"
+        unique_filename = f"logo_{uuid.uuid4()}.{file_ext}"
 
-        # Upload to Supabase Storage (using documents bucket or create a separate one)
-        logger.info(f"Uploading logo to storage: {storage_path}")
-
-        await asyncio.to_thread(
-            lambda: supabase.storage.from_("documents").upload(
-                storage_path, file_content, file_options={"content-type": file.content_type}
-            )
-        )
-
-        # Get public URL
-        logo_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
+        # TODO: Upload to PocketBase file storage
+        # For now, store a placeholder URL
+        logo_url = f"/api/files/logos/{unique_filename}"
 
         # Update theme settings with new logo URL
-        existing = await asyncio.to_thread(
-            lambda: supabase.table("theme_settings").select("id").eq("client_id", client_id).single().execute()
-        )
+        existing = pb.get_first("theme_settings", fields="id")
 
-        if existing.data:
-            await asyncio.to_thread(
-                lambda: supabase.table("theme_settings")
-                .update({"header_logo_url": logo_url})
-                .eq("client_id", client_id)
-                .execute()
-            )
+        if existing:
+            pb.update_record("theme_settings", existing["id"], {"header_logo_url": logo_url})
         else:
-            await asyncio.to_thread(
-                lambda: supabase.table("theme_settings")
-                .insert({"client_id": client_id, "header_logo_url": logo_url})
-                .execute()
-            )
+            pb.create_record("theme_settings", {"header_logo_url": logo_url})
 
-        logger.info(f"Logo uploaded successfully for client {client_id}")
+        logger.info("Logo uploaded successfully")
 
         return {"success": True, "message": "Logo uploaded successfully", "logo_url": logo_url}
 
@@ -252,23 +211,16 @@ async def upload_logo(file: UploadFile = File(...), current_user: dict = Depends
 
 
 @router.delete("/api/theme/logo")
-async def delete_logo(current_user: dict = Depends(get_current_user)):
-    """Remove the logo (admin only)."""
+async def delete_logo():
+    """Remove the logo."""
     try:
-        if current_user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Admin access required")
-
-        client_id = current_user.get("client_id")
-
         # Set logo URL to null
-        await asyncio.to_thread(
-            lambda: supabase.table("theme_settings")
-            .update({"header_logo_url": None})
-            .eq("client_id", client_id)
-            .execute()
-        )
+        existing = pb.get_first("theme_settings", fields="id")
 
-        logger.info(f"Logo removed for client {client_id}")
+        if existing:
+            pb.update_record("theme_settings", existing["id"], {"header_logo_url": None})
+
+        logger.info("Logo removed")
 
         return {"success": True, "message": "Logo removed successfully"}
 

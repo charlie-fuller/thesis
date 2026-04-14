@@ -1,13 +1,11 @@
 """Admin stats routes - basic platform statistics."""
 
-import asyncio
+from fastapi import APIRouter, HTTPException, Request
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-
-from auth import require_admin
+import pb_client as pb
 from logger_config import get_logger
 
-from ._shared import limiter, supabase
+from ._shared import limiter
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -15,41 +13,21 @@ router = APIRouter()
 
 @router.get("/stats")
 @limiter.limit("60/minute")
-async def get_admin_stats(
-    request: Request,
-    current_user: dict = Depends(require_admin),
-):
-    """Get overall platform statistics.
-
-    Args:
-        request: FastAPI request object for rate limiting.
-        current_user: Injected by FastAPI dependency.
-    """
+async def get_admin_stats(request: Request):
+    """Get overall platform statistics."""
     try:
-        users_result = await asyncio.to_thread(lambda: supabase.table("users").select("id", count="exact").execute())
-        total_users = users_result.count or 0
-
-        convos_result = await asyncio.to_thread(
-            lambda: supabase.table("conversations").select("id", count="exact").execute()
-        )
-        total_conversations = convos_result.count or 0
-
-        docs_result = await asyncio.to_thread(lambda: supabase.table("documents").select("id", count="exact").execute())
-        total_documents = docs_result.count or 0
-
-        messages_result = await asyncio.to_thread(
-            lambda: supabase.table("messages").select("id", count="exact").execute()
-        )
-        total_messages = messages_result.count or 0
+        total_conversations = pb.count("conversations")
+        total_documents = pb.count("documents")
+        total_messages = pb.count("messages")
 
         logger.info(
-            f"Stats: {total_users} users, {total_conversations} conversations, "
+            f"Stats: {total_conversations} conversations, "
             f"{total_documents} documents, {total_messages} messages"
         )
 
         return {
             "success": True,
-            "total_users": total_users,
+            "total_users": 1,  # single-tenant
             "total_conversations": total_conversations,
             "total_documents": total_documents,
             "total_messages": total_messages,

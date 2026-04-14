@@ -1,14 +1,13 @@
 """Admin help docs routes - help documentation management and analytics."""
 
-import asyncio
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
-from auth import require_admin
+import pb_client as pb
 from logger_config import get_logger
 
-from ._shared import limiter, supabase
+from ._shared import limiter
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -71,33 +70,20 @@ def _chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> list[s
 
 
 @router.get("/help-documents/{document_id}")
-async def get_help_document(
-    document_id: str,
-    current_user: dict = Depends(require_admin),
-):
-    """Get a single help document with its full content for editing.
-
-    Args:
-        document_id: UUID of the help document.
-        current_user: Injected by FastAPI dependency.
-    """
+async def get_help_document(document_id: str):
+    """Get a single help document with its full content for editing."""
     try:
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("help_documents")
-            .select("id, title, file_path, category, content, created_at, updated_at")
-            .eq("id", document_id)
-            .execute()
+        safe_id = pb.escape_filter(document_id)
+        doc = pb.get_first(
+            "help_documents",
+            filter=f"id='{safe_id}'",
+            fields="id,title,file_path,category,content,created,updated",
         )
 
-        if not doc_result.data:
+        if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        doc = doc_result.data[0]
-
-        chunk_result = await asyncio.to_thread(
-            lambda: supabase.table("help_chunks").select("id", count="exact").eq("document_id", document_id).execute()
-        )
-        doc["chunk_count"] = chunk_result.count or 0
+        doc["chunk_count"] = pb.count("help_chunks", filter=f"document_id='{safe_id}'")
 
         return {"success": True, "document": doc}
     except HTTPException:
@@ -108,32 +94,18 @@ async def get_help_document(
 
 
 @router.get("/help-documents")
-async def get_help_documents(current_user: dict = Depends(require_admin)):
-    """Get all help documents with their metadata.
-
-    Returns documents grouped by category (user/admin).
-
-    Args:
-        current_user: Injected by FastAPI dependency.
-    """
+async def get_help_documents():
+    """Get all help documents with their metadata."""
     try:
-        docs_result = await asyncio.to_thread(
-            lambda: supabase.table("help_documents")
-            .select("id, title, file_path, category, created_at, updated_at")
-            .order("category")
-            .order("title")
-            .execute()
+        documents = pb.get_all(
+            "help_documents",
+            fields="id,title,file_path,category,created,updated",
+            sort="category,title",
         )
-        documents = docs_result.data or []
 
         for doc in documents:
-            chunk_result = await asyncio.to_thread(
-                lambda doc_id=doc["id"]: supabase.table("help_chunks")
-                .select("id", count="exact")
-                .eq("document_id", doc_id)
-                .execute()
-            )
-            doc["chunk_count"] = chunk_result.count or 0
+            safe_id = pb.escape_filter(doc["id"])
+            doc["chunk_count"] = pb.count("help_chunks", filter=f"document_id='{safe_id}'")
 
         user_docs = [d for d in documents if d.get("category") == "user"]
         admin_docs = [d for d in documents if d.get("category") == "admin"]
@@ -150,57 +122,49 @@ async def get_help_documents(current_user: dict = Depends(require_admin)):
 
 @router.post("/help-documents/{document_id}/reindex")
 @limiter.limit("10/minute")
-async def reindex_help_document(
-    request: Request,
-    document_id: str,
-    current_user: dict = Depends(require_admin),
-):
+async def reindex_help_document(request: Request, document_id: str):
     """Reindex a single help document by its ID.
 
     Deletes existing chunks and recreates them with fresh embeddings.
-
-    Args:
-        request: FastAPI request object for rate limiting.
-        document_id: UUID of the help document.
-        current_user: Injected by FastAPI dependency.
     """
     try:
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("help_documents")
-            .select("id, title, file_path, category")
-            .eq("id", document_id)
-            .execute()
+        safe_id = pb.escape_filter(document_id)
+        doc = pb.get_first(
+            "help_documents",
+            filter=f"id='{safe_id}'",
+            fields="id,title,file_path,category",
         )
 
-        if not doc_result.data:
+        if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        doc = doc_result.data[0]
         title = doc["title"]
         category = doc["category"]
 
         logger.info(f"Reindexing document: {title}")
 
         # Delete old vectors from Pinecone before deleting chunks
-        old_chunks = await asyncio.to_thread(
-            lambda: supabase.table("help_chunks").select("id").eq("document_id", document_id).execute()
-        )
-        if old_chunks.data:
-            old_ids = [str(c["id"]) for c in old_chunks.data]
+        old_chunks = pb.get_all("help_chunks", filter=f"document_id='{safe_id}'", fields="id")
+        if old_chunks:
+            old_ids = [str(c["id"]) for c in old_chunks]
             from services.pinecone_service import delete_vectors
 
-            await asyncio.to_thread(lambda: delete_vectors(ids=old_ids, namespace="help_chunks"))
+            delete_vectors(ids=old_ids, namespace="help_chunks")
 
-        await asyncio.to_thread(lambda: supabase.table("help_chunks").delete().eq("document_id", document_id).execute())
+        # Delete old chunks
+        for chunk in old_chunks:
+            pb.delete_record("help_chunks", chunk["id"])
 
-        content_result = await asyncio.to_thread(
-            lambda: supabase.table("help_documents").select("content").eq("id", document_id).execute()
+        content_doc = pb.get_first(
+            "help_documents",
+            filter=f"id='{safe_id}'",
+            fields="content",
         )
 
-        if not content_result.data or not content_result.data[0].get("content"):
+        if not content_doc or not content_doc.get("content"):
             raise HTTPException(status_code=400, detail="Document has no content to index")
 
-        content = content_result.data[0]["content"]
+        content = content_doc["content"]
 
         from services.embeddings import create_embedding
 
@@ -220,27 +184,22 @@ async def reindex_help_document(
                     embedding_content = f"{title} - {heading}\n\n{chunk_text_content}"
                     embedding = create_embedding(embedding_content, input_type="document")
 
-                    insert_result = await asyncio.to_thread(
-                        lambda emb=embedding, idx=chunk_index, head=heading, chunk=chunk_text_content: supabase.table(
-                            "help_chunks"
-                        )
-                        .insert(
-                            {
-                                "document_id": document_id,
-                                "content": chunk,
-                                "embedding": emb,
-                                "chunk_index": idx,
-                                "heading_context": head,
-                                "role_access": ROLE_ACCESS_MAP.get(category, ["admin", "user"]),
-                                "metadata": {"category": category, "title": title, "section": head},
-                            }
-                        )
-                        .execute()
+                    insert_result = pb.create_record(
+                        "help_chunks",
+                        {
+                            "document_id": document_id,
+                            "content": chunk_text_content,
+                            "embedding": embedding,
+                            "chunk_index": chunk_index,
+                            "heading_context": heading,
+                            "role_access": ROLE_ACCESS_MAP.get(category, ["admin", "user"]),
+                            "metadata": {"category": category, "title": title, "section": heading},
+                        },
                     )
 
                     # Collect for Pinecone upsert
-                    if insert_result.data:
-                        chunk_id = insert_result.data[0]["id"]
+                    if insert_result:
+                        chunk_id = insert_result["id"]
                         role_access = ROLE_ACCESS_MAP.get(category, ["admin", "user"])
                         pinecone_vectors.append({
                             "id": str(chunk_id),
@@ -265,15 +224,12 @@ async def reindex_help_document(
         if pinecone_vectors:
             from services.pinecone_service import upsert_vectors
 
-            await asyncio.to_thread(
-                lambda: upsert_vectors(vectors=pinecone_vectors, namespace="help_chunks")
-            )
+            upsert_vectors(vectors=pinecone_vectors, namespace="help_chunks")
 
-        await asyncio.to_thread(
-            lambda: supabase.table("help_documents")
-            .update({"updated_at": datetime.now(timezone.utc).isoformat()})
-            .eq("id", document_id)
-            .execute()
+        pb.update_record(
+            "help_documents",
+            document_id,
+            {"updated": datetime.now(timezone.utc).isoformat()},
         )
 
         logger.info(f"Reindexed {title}: {chunks_created} chunks created")
@@ -293,19 +249,10 @@ async def reindex_help_document(
 
 
 @router.put("/help-documents/{document_id}")
-async def update_help_document(
-    document_id: str,
-    request: Request,
-    current_user: dict = Depends(require_admin),
-):
+async def update_help_document(document_id: str, request: Request):
     """Update a help document's title and/or content.
 
     Automatically triggers reindexing after update.
-
-    Args:
-        document_id: UUID of the help document.
-        request: FastAPI request object containing update data.
-        current_user: Injected by FastAPI dependency.
     """
     try:
         body = await request.json()
@@ -315,17 +262,16 @@ async def update_help_document(
         if not title and not content:
             raise HTTPException(status_code=400, detail="Must provide title or content to update")
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("help_documents")
-            .select("id, title, file_path, category, content")
-            .eq("id", document_id)
-            .execute()
+        safe_id = pb.escape_filter(document_id)
+        doc = pb.get_first(
+            "help_documents",
+            filter=f"id='{safe_id}'",
+            fields="id,title,file_path,category,content",
         )
 
-        if not doc_result.data:
+        if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        doc = doc_result.data[0]
         new_title = title if title else doc["title"]
         new_content = content if content else doc["content"]
         category = doc["category"]
@@ -338,33 +284,28 @@ async def update_help_document(
 
         word_count = len(new_content.split())
 
-        await asyncio.to_thread(
-            lambda: supabase.table("help_documents")
-            .update(
-                {
-                    "title": new_title.strip(),
-                    "content": new_content,
-                    "word_count": word_count,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                }
-            )
-            .eq("id", document_id)
-            .execute()
+        pb.update_record(
+            "help_documents",
+            document_id,
+            {
+                "title": new_title.strip(),
+                "content": new_content,
+                "word_count": word_count,
+            },
         )
 
-        logger.info(f"Updated help document: {new_title} by admin {current_user['id']}")
+        logger.info(f"Updated help document: {new_title}")
 
         # Delete old vectors from Pinecone before deleting chunks
-        old_chunks_upd = await asyncio.to_thread(
-            lambda: supabase.table("help_chunks").select("id").eq("document_id", document_id).execute()
-        )
-        if old_chunks_upd.data:
-            old_ids_upd = [str(c["id"]) for c in old_chunks_upd.data]
+        old_chunks_upd = pb.get_all("help_chunks", filter=f"document_id='{safe_id}'", fields="id")
+        if old_chunks_upd:
+            old_ids_upd = [str(c["id"]) for c in old_chunks_upd]
             from services.pinecone_service import delete_vectors as _del_vecs
 
-            await asyncio.to_thread(lambda: _del_vecs(ids=old_ids_upd, namespace="help_chunks"))
+            _del_vecs(ids=old_ids_upd, namespace="help_chunks")
 
-        await asyncio.to_thread(lambda: supabase.table("help_chunks").delete().eq("document_id", document_id).execute())
+        for chunk in old_chunks_upd:
+            pb.delete_record("help_chunks", chunk["id"])
 
         from services.embeddings import create_embedding
 
@@ -384,31 +325,26 @@ async def update_help_document(
                     embedding_content = f"{new_title} - {heading}\n\n{chunk_text_content}"
                     embedding = create_embedding(embedding_content, input_type="document")
 
-                    insert_result = await asyncio.to_thread(
-                        lambda emb=embedding, idx=chunk_index, head=heading, chunk=chunk_text_content: supabase.table(
-                            "help_chunks"
-                        )
-                        .insert(
-                            {
-                                "document_id": document_id,
-                                "content": chunk,
-                                "embedding": emb,
-                                "chunk_index": idx,
-                                "heading_context": head,
-                                "role_access": ROLE_ACCESS_MAP.get(category, ["admin", "user"]),
-                                "metadata": {
-                                    "category": category,
-                                    "title": new_title,
-                                    "section": head,
-                                },
-                            }
-                        )
-                        .execute()
+                    insert_result = pb.create_record(
+                        "help_chunks",
+                        {
+                            "document_id": document_id,
+                            "content": chunk_text_content,
+                            "embedding": embedding,
+                            "chunk_index": chunk_index,
+                            "heading_context": heading,
+                            "role_access": ROLE_ACCESS_MAP.get(category, ["admin", "user"]),
+                            "metadata": {
+                                "category": category,
+                                "title": new_title,
+                                "section": heading,
+                            },
+                        },
                     )
 
                     # Collect for Pinecone upsert
-                    if insert_result.data:
-                        chunk_id = insert_result.data[0]["id"]
+                    if insert_result:
+                        chunk_id = insert_result["id"]
                         role_access = ROLE_ACCESS_MAP.get(category, ["admin", "user"])
                         pinecone_vectors_update.append({
                             "id": str(chunk_id),
@@ -433,9 +369,7 @@ async def update_help_document(
         if pinecone_vectors_update:
             from services.pinecone_service import upsert_vectors
 
-            await asyncio.to_thread(
-                lambda: upsert_vectors(vectors=pinecone_vectors_update, namespace="help_chunks")
-            )
+            upsert_vectors(vectors=pinecone_vectors_update, namespace="help_chunks")
 
         logger.info(f"Reindexed {new_title} after update: {chunks_created} chunks created")
 
@@ -456,37 +390,26 @@ async def update_help_document(
 
 @router.get("/help-analytics")
 async def get_help_analytics(
-    current_user: dict = Depends(require_admin),
     days: int = Query(30, ge=1, le=90, description="Number of days to analyze"),
 ):
-    """Get analytics for the help system.
-
-    Returns questions asked, low confidence responses, and feedback breakdown.
-
-    Args:
-        current_user: Injected by FastAPI dependency.
-        days: Number of days to analyze.
-    """
+    """Get analytics for the help system."""
     try:
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
-        messages_result = await asyncio.to_thread(
-            lambda: supabase.table("help_messages")
-            .select("id, conversation_id, role, content, sources, feedback, feedback_timestamp, timestamp")
-            .gte("timestamp", start_date.isoformat())
-            .order("timestamp", desc=True)
-            .execute()
+        messages = pb.get_all(
+            "help_messages",
+            filter=f"timestamp>='{start_date.isoformat()}'",
+            fields="id,conversation_id,role,content,sources,feedback,feedback_timestamp,timestamp",
+            sort="-timestamp",
         )
-        messages = messages_result.data or []
 
-        conversations_result = await asyncio.to_thread(
-            lambda: supabase.table("help_conversations")
-            .select("id, user_id, title, created_at, help_type")
-            .gte("created_at", start_date.isoformat())
-            .execute()
+        conversations_list = pb.get_all(
+            "help_conversations",
+            filter=f"created>='{start_date.isoformat()}'",
+            fields="id,user_id,title,created,help_type",
         )
-        conversations = {c["id"]: c for c in (conversations_result.data or [])}
+        conversations = {c["id"]: c for c in conversations_list}
 
         user_questions = []
         low_confidence_responses = []
@@ -507,7 +430,7 @@ async def get_help_analytics(
                 )
             elif msg.get("role") == "assistant":
                 total_responses += 1
-                sources = msg.get("sources") or []
+                sources = pb.parse_json_field(msg, "sources", [])
 
                 if sources:
                     similarities = [s.get("similarity", 0) for s in sources if s.get("similarity")]
@@ -600,55 +523,53 @@ async def get_help_analytics(
 
 @router.get("/help-conversations/export")
 async def export_help_conversations(
-    current_user: dict = Depends(require_admin),
     days: int = Query(30, ge=1, le=365, description="Number of days to export"),
     format: str = Query("json", description="Export format: json or csv"),
 ):
-    """Export all help conversations with messages for analysis.
-
-    Returns conversations with their full message history.
-
-    Args:
-        current_user: Injected by FastAPI dependency.
-        days: Number of days to export.
-        format: Export format.
-    """
+    """Export all help conversations with messages for analysis."""
     try:
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
-        conversations_result = await asyncio.to_thread(
-            lambda: supabase.table("help_conversations")
-            .select("id, user_id, title, help_type, created_at, updated_at")
-            .gte("created_at", start_date.isoformat())
-            .order("created_at", desc=True)
-            .execute()
+        conversations = pb.get_all(
+            "help_conversations",
+            filter=f"created>='{start_date.isoformat()}'",
+            fields="id,user_id,title,help_type,created,updated",
+            sort="-created",
         )
-        conversations = conversations_result.data or []
 
         if not conversations:
             return {"success": True, "count": 0, "conversations": [], "period_days": days}
 
         conversation_ids = [c["id"] for c in conversations]
-        messages_result = await asyncio.to_thread(
-            lambda: supabase.table("help_messages")
-            .select("id, conversation_id, role, content, sources, feedback, timestamp")
-            .in_("conversation_id", conversation_ids)
-            .order("timestamp")
-            .execute()
-        )
-        messages = messages_result.data or []
 
-        user_ids = list({c["user_id"] for c in conversations if c.get("user_id")})
-        users_result = (
-            await asyncio.to_thread(
-                lambda: supabase.table("users").select("id, email, name").in_("id", user_ids).execute()
+        # Build filter for messages belonging to these conversations
+        if len(conversation_ids) <= 30:
+            conv_filter_parts = []
+            for cid in conversation_ids:
+                safe_cid = pb.escape_filter(cid)
+                conv_filter_parts.append(f"conversation_id='{safe_cid}'")
+            conv_filter = " || ".join(conv_filter_parts)
+        else:
+            conv_filter = None
+
+        if conv_filter:
+            messages = pb.get_all(
+                "help_messages",
+                filter=conv_filter,
+                fields="id,conversation_id,role,content,sources,feedback,timestamp",
+                sort="timestamp",
             )
-            if user_ids
-            else type("obj", (object,), {"data": []})()
-        )
-        users = {u["id"]: u for u in (users_result.data or [])}
+        else:
+            # Fallback: fetch all messages in the date range
+            messages = pb.get_all(
+                "help_messages",
+                filter=f"timestamp>='{start_date.isoformat()}'",
+                fields="id,conversation_id,role,content,sources,feedback,timestamp",
+                sort="timestamp",
+            )
 
+        # Single-tenant: no user lookup needed
         messages_by_conv = {}
         for msg in messages:
             conv_id = msg["conversation_id"]
@@ -659,7 +580,7 @@ async def export_help_conversations(
                     "id": msg["id"],
                     "role": msg["role"],
                     "content": msg["content"],
-                    "sources": msg.get("sources"),
+                    "sources": pb.parse_json_field(msg, "sources", None),
                     "feedback": msg.get("feedback"),
                     "timestamp": msg["timestamp"],
                 }
@@ -667,21 +588,20 @@ async def export_help_conversations(
 
         export_data = []
         for conv in conversations:
-            user = users.get(conv.get("user_id"), {})
             export_data.append(
                 {
                     "id": conv["id"],
                     "title": conv.get("title", "Help Chat"),
                     "help_type": conv.get("help_type", "user"),
-                    "user_email": user.get("email", "Unknown"),
-                    "user_name": user.get("name", "Unknown"),
-                    "created_at": conv["created_at"],
+                    "user_email": "owner",
+                    "user_name": "owner",
+                    "created_at": conv["created"],
                     "message_count": len(messages_by_conv.get(conv["id"], [])),
                     "messages": messages_by_conv.get(conv["id"], []),
                 }
             )
 
-        logger.info(f"Exported {len(export_data)} help conversations for admin {current_user['id']}")
+        logger.info(f"Exported {len(export_data)} help conversations")
 
         return {
             "success": True,

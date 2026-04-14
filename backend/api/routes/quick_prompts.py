@@ -7,11 +7,10 @@ Created: November 21, 2025
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from auth import get_current_user, require_admin
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
 from services.quick_prompt_generator import (
     delete_quick_prompt,
@@ -29,7 +28,6 @@ from validation import validate_uuid
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/quick-prompts", tags=["quick_prompts"])
-supabase = get_supabase()
 
 
 # ============================================================================
@@ -84,15 +82,15 @@ class QuickPromptResponse(BaseModel):
 
 
 @router.post("/generate")
-async def generate_prompts_for_user(request: GeneratePromptsRequest, current_user: dict = Depends(get_current_user)):
+async def generate_prompts_for_user(request: GeneratePromptsRequest):
     """Auto-generate quick prompts based on selected functions from Solomon Stage 2.
 
     This endpoint is typically called automatically after system instructions are deployed.
     Generates 10 quick prompts (2 per function) for the 5 selected functions.
     """
     try:
-        user_id = current_user["id"]
-        client_id = current_user.get("client_id")
+        user_id = "owner"
+        client_id = None  # single-tenant
 
         logger.info(f"[Quick Prompts API] Generating prompts for user {user_id}")
 
@@ -132,7 +130,6 @@ async def generate_prompts_for_user(request: GeneratePromptsRequest, current_use
 async def get_quick_prompts(
     active_only: bool = True,
     addie_phase: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
 ):
     """Get all quick prompts for the current user.
 
@@ -141,7 +138,7 @@ async def get_quick_prompts(
     - addie_phase: Optional ADDIE phase filter (Analysis, Design, Development, Implementation, Evaluation, General)
     """
     try:
-        user_id = current_user["id"]
+        user_id = "owner"
 
         logger.info(
             f"[Quick Prompts API] Fetching prompts for user {user_id} (active_only={active_only}, phase={addie_phase})"
@@ -160,14 +157,14 @@ async def get_quick_prompts(
 
 
 @router.post("/")
-async def create_custom_prompt(request: CreatePromptRequest, current_user: dict = Depends(get_current_user)):
+async def create_custom_prompt(request: CreatePromptRequest):
     """Create a new custom quick prompt.
 
     Users can add their own prompts beyond the auto-generated ones.
     """
     try:
-        user_id = current_user["id"]
-        client_id = current_user.get("client_id")
+        user_id = "owner"
+        client_id = None  # single-tenant
 
         logger.info(f"[Quick Prompts API] Creating custom prompt for user {user_id}")
 
@@ -181,7 +178,7 @@ async def create_custom_prompt(request: CreatePromptRequest, current_user: dict 
             "client_id": client_id,
             "prompt_text": request.prompt_text,
             "function_name": request.function_name,
-            "system_generated": False,  # User-created
+            "system_generated": False,
             "editable": True,
             "active": True,
             "display_order": max_order + 1,
@@ -189,14 +186,14 @@ async def create_custom_prompt(request: CreatePromptRequest, current_user: dict 
         }
 
         # Insert into database
-        result = supabase.table("user_quick_prompts").insert(prompt_data).execute()
+        record = pb.create_record("user_quick_prompts", prompt_data)
 
-        if len(result.data) == 0:
+        if not record:
             raise HTTPException(status_code=500, detail="Failed to create prompt")
 
         logger.info("[Quick Prompts API] Successfully created custom prompt")
 
-        return {"success": True, "prompt": result.data[0]}
+        return {"success": True, "prompt": record}
 
     except HTTPException:
         raise
@@ -206,14 +203,14 @@ async def create_custom_prompt(request: CreatePromptRequest, current_user: dict 
 
 
 @router.put("/{prompt_id}")
-async def update_prompt(prompt_id: str, request: UpdatePromptRequest, current_user: dict = Depends(get_current_user)):
+async def update_prompt(prompt_id: str, request: UpdatePromptRequest):
     """Update a quick prompt (edit text, toggle active, change order).
 
     Users can edit any prompt marked as editable=true.
     """
     try:
         validate_uuid(prompt_id)
-        user_id = current_user["id"]
+        user_id = "owner"
 
         logger.info(f"[Quick Prompts API] Updating prompt {prompt_id} for user {user_id}")
 
@@ -247,14 +244,14 @@ async def update_prompt(prompt_id: str, request: UpdatePromptRequest, current_us
 
 
 @router.delete("/{prompt_id}")
-async def delete_prompt(prompt_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_prompt(prompt_id: str):
     """Delete a quick prompt.
 
     Users can delete any prompt they own.
     """
     try:
         validate_uuid(prompt_id)
-        user_id = current_user["id"]
+        user_id = "owner"
 
         logger.info(f"[Quick Prompts API] Deleting prompt {prompt_id} for user {user_id}")
 
@@ -276,7 +273,7 @@ async def delete_prompt(prompt_id: str, current_user: dict = Depends(get_current
 
 
 @router.post("/{prompt_id}/use")
-async def track_prompt_usage(prompt_id: str, current_user: dict = Depends(get_current_user)):
+async def track_prompt_usage(prompt_id: str):
     """Track usage of a quick prompt (increment usage_count).
 
     Call this endpoint when a user clicks/uses a quick prompt.
@@ -308,11 +305,8 @@ async def track_prompt_usage(prompt_id: str, current_user: dict = Depends(get_cu
 
 
 @router.get("/admin/users/{user_id}")
-async def admin_get_user_prompts(user_id: str, active_only: bool = False, current_user: dict = Depends(require_admin)):
-    """Admin endpoint to view quick prompts for any user.
-
-    Requires admin authentication.
-    """
+async def admin_get_user_prompts(user_id: str, active_only: bool = False):
+    """Admin endpoint to view quick prompts for any user."""
     try:
         validate_uuid(user_id)
 
@@ -330,7 +324,7 @@ async def admin_get_user_prompts(user_id: str, active_only: bool = False, curren
 
 
 @router.get("/admin/stats")
-async def admin_get_prompt_stats(current_user: dict = Depends(require_admin)):
+async def admin_get_prompt_stats():
     """Admin endpoint to get quick prompt usage statistics.
 
     Returns analytics on prompt usage across all users.
@@ -339,27 +333,22 @@ async def admin_get_prompt_stats(current_user: dict = Depends(require_admin)):
         logger.info("[Quick Prompts API] Admin fetching prompt stats")
 
         # Get total prompts count
-        total_result = supabase.table("user_quick_prompts").select("id", count="exact").execute()
-        total_prompts = total_result.count
+        total_prompts = pb.count("user_quick_prompts")
 
         # Get active prompts count
-        active_result = supabase.table("user_quick_prompts").select("id", count="exact").eq("active", True).execute()
-        active_prompts = active_result.count
+        active_prompts = pb.count("user_quick_prompts", filter="active=true")
 
         # Get system-generated vs user-created
-        system_result = (
-            supabase.table("user_quick_prompts").select("id", count="exact").eq("system_generated", True).execute()
-        )
-        system_generated = system_result.count
+        system_generated = pb.count("user_quick_prompts", filter="system_generated=true")
 
         # Get most used prompts
-        popular_result = (
-            supabase.table("user_quick_prompts")
-            .select("prompt_text, function_name, usage_count")
-            .order("usage_count", desc=True)
-            .limit(10)
-            .execute()
+        popular_result = pb.list_records(
+            "user_quick_prompts",
+            sort="-usage_count",
+            per_page=10,
+            fields="prompt_text,function_name,usage_count",
         )
+        popular = popular_result.get("items", [])
 
         return {
             "success": True,
@@ -370,7 +359,7 @@ async def admin_get_prompt_stats(current_user: dict = Depends(require_admin)):
                 "system_generated": system_generated,
                 "user_created": total_prompts - system_generated,
             },
-            "most_used_prompts": popular_result.data,
+            "most_used_prompts": popular,
         }
 
     except Exception as e:
@@ -399,17 +388,15 @@ class ContextualPromptsRequest(BaseModel):
 
 
 @router.post("/generate-addie")
-async def generate_addie_prompts_endpoint(
-    request: GenerateADDIEPromptsRequest, current_user: dict = Depends(get_current_user)
-):
+async def generate_addie_prompts_endpoint(request: GenerateADDIEPromptsRequest):
     """Generate ADDIE-based quick prompts for L&D workflows.
 
     This endpoint generates prompts organized by ADDIE phases:
     - Analysis, Design, Development, Implementation, Evaluation, General
     """
     try:
-        user_id = current_user["id"]
-        client_id = current_user.get("client_id")
+        user_id = "owner"
+        client_id = None  # single-tenant
 
         logger.info(f"[Quick Prompts API] Generating ADDIE prompts for user {user_id}")
 
@@ -439,16 +426,14 @@ async def generate_addie_prompts_endpoint(
 
 
 @router.post("/contextual")
-async def get_contextual_prompts_endpoint(
-    request: ContextualPromptsRequest, current_user: dict = Depends(get_current_user)
-):
+async def get_contextual_prompts_endpoint(request: ContextualPromptsRequest):
     """Get contextually relevant prompts based on conversation content.
 
     Analyzes the conversation text and returns prompts that match keywords
     and context, sorted by relevance score.
     """
     try:
-        user_id = current_user["id"]
+        user_id = "owner"
 
         logger.info(f"[Quick Prompts API] Fetching contextual prompts for user {user_id}")
 
@@ -467,7 +452,7 @@ async def get_contextual_prompts_endpoint(
 
 
 @router.post("/detect-phase")
-async def detect_phase_endpoint(request: ContextualPromptsRequest, current_user: dict = Depends(get_current_user)):
+async def detect_phase_endpoint(request: ContextualPromptsRequest):
     """Detect the most likely ADDIE phase from conversation text.
 
     Useful for auto-selecting the appropriate prompt category.

@@ -3,11 +3,10 @@
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from auth import get_current_user
-from database import DatabaseService
+import pb_client as pb
 from services.image_generation import get_image_generation_service
 from services.storage_service import get_storage_service
 
@@ -49,51 +48,33 @@ class BatchImageGenerationResponse(BaseModel):
 
 
 @router.post("/generate", response_model=ImageGenerationResponse)
-async def generate_image(request: ImageGenerationRequest, current_user: dict = Depends(get_current_user)):
-    """Generate a single image from a text prompt.
-
-    Requires authentication.
-    """
+async def generate_image(request: ImageGenerationRequest):
+    """Generate a single image from a text prompt."""
     try:
-        logger.info(f"User {current_user.get('id')} requesting image generation")
-
         service = get_image_generation_service()
         result = await service.generate_image(prompt=request.prompt, model=request.model)
-
         return ImageGenerationResponse(**result)
-
     except Exception as e:
         logger.error(f"Image generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/generate-batch", response_model=BatchImageGenerationResponse)
-async def generate_images_batch(request: BatchImageGenerationRequest, current_user: dict = Depends(get_current_user)):
-    """Generate multiple images from a list of prompts.
-
-    Requires authentication. Maximum 5 prompts per request.
-    """
+async def generate_images_batch(request: BatchImageGenerationRequest):
+    """Generate multiple images from a list of prompts. Maximum 5 prompts per request."""
     try:
-        logger.info(f"User {current_user.get('id')} requesting batch image generation ({len(request.prompts)} images)")
-
         service = get_image_generation_service()
         results = await service.generate_multiple_images(prompts=request.prompts, model=request.model)
-
         successful = sum(1 for r in results if r.get("success", False))
-
         return BatchImageGenerationResponse(results=results, total=len(request.prompts), successful=successful)
-
     except Exception as e:
         logger.error(f"Batch image generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/models")
-async def list_available_models(current_user: dict = Depends(get_current_user)):
-    """List available image generation models and aspect ratios.
-
-    Requires authentication.
-    """
+async def list_available_models():
+    """List available image generation models and aspect ratios."""
     service = get_image_generation_service()
     model_info = service.get_model_info()
 
@@ -134,36 +115,30 @@ class ConversationImageResponse(BaseModel):
 
 
 @router.post("/generate-in-conversation", response_model=ConversationImageResponse)
-async def generate_image_in_conversation(
-    request: ConversationImageRequest, current_user: dict = Depends(get_current_user)
-):
+async def generate_image_in_conversation(request: ConversationImageRequest):
     """Generate an image and store it in conversation context.
 
     - Generates image with specified aspect ratio and model
-    - Uploads to Supabase Storage
     - Stores metadata in conversation_images table
     - Enforces 20 image per conversation limit
-
-    Requires authentication.
     """
     try:
-        user_id = current_user.get("id")
-        logger.info(f"User {user_id} generating image for conversation {request.conversation_id}")
+        safe_conv_id = pb.escape_filter(request.conversation_id)
 
-        db = DatabaseService.get_client()
-
-        # Verify conversation belongs to user
-        conversation = (
-            db.table("conversations").select("id,user_id").eq("id", request.conversation_id).single().execute()
+        # Verify conversation exists
+        conversation = pb.get_first(
+            "conversations",
+            filter=f"id='{safe_conv_id}'",
+            fields="id",
         )
-        if not conversation.data or conversation.data["user_id"] != user_id:
+        if not conversation:
             raise HTTPException(status_code=403, detail="Conversation not found or access denied")
 
         # Check image count limit (20 per conversation)
-        image_count_result = db.rpc(
-            "count_conversation_images", {"p_conversation_id": request.conversation_id}
-        ).execute()
-        current_image_count = image_count_result.data if image_count_result.data else 0
+        current_image_count = pb.count(
+            "conversation_images",
+            filter=f"conversation_id='{safe_conv_id}'",
+        )
 
         if current_image_count >= 20:
             raise HTTPException(
@@ -180,14 +155,14 @@ async def generate_image_in_conversation(
         if not result.get("success"):
             raise Exception("Image generation failed")
 
-        # Upload to Supabase Storage
+        # Upload to storage
         storage_service = get_storage_service()
         mime_type = result["mime_type"]
         file_ext = mime_type.split("/")[-1] if "/" in mime_type else "png"
 
         upload_result = storage_service.upload_image(
             image_data=result["image_data"],
-            user_id=user_id,
+            user_id="owner",
             conversation_id=request.conversation_id,
             file_extension=file_ext,
         )
@@ -196,40 +171,39 @@ async def generate_image_in_conversation(
             raise Exception("Failed to upload image to storage")
 
         # Store in database
-        image_record = {
-            "conversation_id": request.conversation_id,
-            "message_id": request.message_id,
-            "prompt": request.prompt,
-            "aspect_ratio": request.aspect_ratio,
-            "model": result["model"],
-            "storage_url": upload_result["storage_url"],
-            "storage_path": upload_result["storage_path"],
-            "mime_type": upload_result["content_type"],
-            "file_size": upload_result["file_size"],
-            "metadata": {
-                "model_key": result.get("model_key"),
-                "enhanced_prompt": result.get("enhanced_prompt"),
+        image_record = pb.create_record(
+            "conversation_images",
+            {
+                "conversation_id": request.conversation_id,
+                "message_id": request.message_id,
+                "prompt": request.prompt,
+                "aspect_ratio": request.aspect_ratio,
+                "model": result["model"],
+                "storage_url": upload_result["storage_url"],
+                "storage_path": upload_result["storage_path"],
+                "mime_type": upload_result["content_type"],
+                "file_size": upload_result["file_size"],
+                "metadata": {
+                    "model_key": result.get("model_key"),
+                    "enhanced_prompt": result.get("enhanced_prompt"),
+                },
             },
-        }
+        )
 
-        insert_result = db.table("conversation_images").insert(image_record).execute()
-
-        if not insert_result.data:
+        if not image_record:
             raise Exception("Failed to store image metadata")
 
-        stored_image = insert_result.data[0]
-
-        logger.info(f"Image {stored_image['id']} generated and stored successfully")
+        logger.info(f"Image {image_record['id']} generated and stored successfully")
 
         return ConversationImageResponse(
-            id=stored_image["id"],
-            storage_url=stored_image["storage_url"],
-            prompt=stored_image["prompt"],
-            aspect_ratio=stored_image["aspect_ratio"],
-            model=stored_image["model"],
-            mime_type=stored_image["mime_type"],
-            file_size=stored_image["file_size"],
-            generated_at=stored_image["generated_at"],
+            id=image_record["id"],
+            storage_url=image_record["storage_url"],
+            prompt=image_record["prompt"],
+            aspect_ratio=image_record["aspect_ratio"],
+            model=image_record["model"],
+            mime_type=image_record["mime_type"],
+            file_size=image_record["file_size"],
+            generated_at=image_record.get("generated_at") or image_record.get("created", ""),
             success=True,
         )
 
@@ -241,40 +215,31 @@ async def generate_image_in_conversation(
 
 
 @router.get("/conversations/{conversation_id}")
-async def get_conversation_images(conversation_id: str, current_user: dict = Depends(get_current_user)):
-    """Get all images for a conversation.
-
-    Returns list of images with metadata.
-    Requires authentication and conversation ownership.
-    """
+async def get_conversation_images(conversation_id: str):
+    """Get all images for a conversation."""
     try:
-        user_id = current_user.get("id")
-        db = DatabaseService.get_client()
+        safe_conv_id = pb.escape_filter(conversation_id)
 
-        # Verify conversation exists and check ownership
-        conversation = db.table("conversations").select("id,user_id").eq("id", conversation_id).single().execute()
-        if not conversation.data:
+        # Verify conversation exists
+        conversation = pb.get_first(
+            "conversations",
+            filter=f"id='{safe_conv_id}'",
+            fields="id",
+        )
+        if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
-        # Log ownership mismatch for debugging but allow access (for development)
-        if conversation.data["user_id"] != user_id:
-            logger.warning(
-                f"User {user_id} accessing conversation {conversation_id} owned by {conversation.data['user_id']}"
-            )
-
         # Get all images
-        images = (
-            db.table("conversation_images")
-            .select("*")
-            .eq("conversation_id", conversation_id)
-            .order("generated_at", desc=True)
-            .execute()
+        images = pb.get_all(
+            "conversation_images",
+            filter=f"conversation_id='{safe_conv_id}'",
+            sort="-generated_at",
         )
 
         return {
             "conversation_id": conversation_id,
-            "images": images.data or [],
-            "total": len(images.data) if images.data else 0,
+            "images": images,
+            "total": len(images),
         }
 
     except HTTPException:
@@ -285,29 +250,19 @@ async def get_conversation_images(conversation_id: str, current_user: dict = Dep
 
 
 @router.delete("/{image_id}")
-async def delete_conversation_image(image_id: str, current_user: dict = Depends(get_current_user)):
-    """Delete a conversation image.
-
-    Removes from storage and database.
-    Requires authentication and conversation ownership.
-    """
+async def delete_conversation_image(image_id: str):
+    """Delete a conversation image. Removes from storage and database."""
     try:
-        user_id = current_user.get("id")
-        db = DatabaseService.get_client()
-
-        # Get image and verify ownership through conversation
-        image = (
-            db.table("conversation_images").select("*, conversations(user_id)").eq("id", image_id).single().execute()
+        safe_id = pb.escape_filter(image_id)
+        image = pb.get_first(
+            "conversation_images",
+            filter=f"id='{safe_id}'",
         )
 
-        if not image.data:
+        if not image:
             raise HTTPException(status_code=404, detail="Image not found")
 
-        # Check ownership (RLS should handle this, but double check)
-        if image.data["conversations"]["user_id"] != user_id:
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        storage_path = image.data.get("storage_path")
+        storage_path = image.get("storage_path")
 
         # Delete from storage
         if storage_path:
@@ -315,9 +270,9 @@ async def delete_conversation_image(image_id: str, current_user: dict = Depends(
             storage_service.delete_image(storage_path)
 
         # Delete from database
-        db.table("conversation_images").delete().eq("id", image_id).execute()
+        pb.delete_record("conversation_images", image_id)
 
-        logger.info(f"Image {image_id} deleted by user {user_id}")
+        logger.info(f"Image {image_id} deleted")
 
         return {"success": True, "message": "Image deleted successfully"}
 
@@ -350,39 +305,29 @@ class VisualSuggestionResponse(BaseModel):
 
 
 @router.post("/suggest-visual-content", response_model=VisualSuggestionResponse)
-async def suggest_visual_content(request: VisualSuggestionRequest, current_user: dict = Depends(get_current_user)):
-    """Analyze conversation context and suggest content for a visual.
-
-    - Reads recent messages from the conversation
-    - Uses LLM to analyze what would be most useful to visualize
-    - Returns a suggested content description and full prompt
-
-    Requires authentication.
-    """
+async def suggest_visual_content(request: VisualSuggestionRequest):
+    """Analyze conversation context and suggest content for a visual."""
     try:
-        user_id = current_user.get("id")
-        logger.info(f"User {user_id} requesting visual suggestion for conversation {request.conversation_id}")
+        safe_conv_id = pb.escape_filter(request.conversation_id)
 
-        db = DatabaseService.get_client()
-
-        # Verify conversation belongs to user
-        conversation = (
-            db.table("conversations").select("id,user_id").eq("id", request.conversation_id).single().execute()
+        # Verify conversation exists
+        conversation = pb.get_first(
+            "conversations",
+            filter=f"id='{safe_conv_id}'",
+            fields="id",
         )
-        if not conversation.data or conversation.data["user_id"] != user_id:
+        if not conversation:
             raise HTTPException(status_code=403, detail="Conversation not found or access denied")
 
         # Get recent messages from the conversation (last 10 messages for context)
-        messages_result = (
-            db.table("messages")
-            .select("role,content,created_at")
-            .eq("conversation_id", request.conversation_id)
-            .order("created_at", desc=True)
-            .limit(10)
-            .execute()
+        messages_result = pb.list_records(
+            "messages",
+            filter=f"conversation_id='{safe_conv_id}'",
+            sort="-created",
+            per_page=10,
+            fields="role,content,created",
         )
-
-        messages = messages_result.data or []
+        messages = messages_result.get("items", [])
 
         # If no messages, return a generic suggestion
         if not messages:
@@ -400,7 +345,7 @@ async def suggest_visual_content(request: VisualSuggestionRequest, current_user:
         # Build context string from messages
         context_text = "\n".join(
             [
-                f"{msg['role'].upper()}: {msg['content'][:500]}"  # Limit each message
+                f"{msg['role'].upper()}: {msg['content'][:500]}"
                 for msg in messages
             ]
         )
@@ -444,7 +389,6 @@ Your response:"""
 
         # Create a brief context summary
         context_summary = f"Based on {len(messages)} recent messages discussing "
-        # Extract key topic from first assistant response or user message
         for msg in messages:
             if msg["content"]:
                 first_words = " ".join(msg["content"].split()[:10])

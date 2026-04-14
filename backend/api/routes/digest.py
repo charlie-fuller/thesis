@@ -5,11 +5,9 @@ Endpoints for generating task digest documents.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from auth import get_current_user
-from database import get_supabase
 from logger_config import get_logger
 
 logger = get_logger(__name__)
@@ -52,18 +50,15 @@ class DigestSaveResponse(BaseModel):
 
 
 @router.post("/preview", response_model=DigestPreviewResponse)
-async def preview_digest(user=Depends(get_current_user)):
-    """Generate a digest preview without saving it.
-
-    Returns the markdown content that would be saved to KB.
-    """
+async def preview_digest():
+    """Generate a digest preview without saving it."""
     from services.task_digest import TaskDigestService
 
     try:
-        supabase = get_supabase()
-        digest_service = TaskDigestService(supabase)
+        # TODO: TaskDigestService still takes supabase -- needs service-level migration
+        digest_service = TaskDigestService(None)
 
-        digest = await digest_service.generate_digest(user["id"])
+        digest = await digest_service.generate_digest(None)
 
         return DigestPreviewResponse(
             status="success",
@@ -82,7 +77,7 @@ async def preview_digest(user=Depends(get_current_user)):
 
 
 @router.post("/save", response_model=DigestSaveResponse)
-async def save_digest_to_kb(user=Depends(get_current_user)):
+async def save_digest_to_kb():
     """Generate and save a task digest to the Knowledge Base.
 
     Creates a new document or updates today's existing digest.
@@ -91,22 +86,14 @@ async def save_digest_to_kb(user=Depends(get_current_user)):
     from services.task_digest import TaskDigestService
 
     try:
-        supabase = get_supabase()
-        digest_service = TaskDigestService(supabase)
+        # TODO: TaskDigestService still takes supabase -- needs service-level migration
+        digest_service = TaskDigestService(None)
 
         # Generate digest
-        digest = await digest_service.generate_digest(user["id"])
+        digest = await digest_service.generate_digest(None)
 
-        # Get user's client_id
-        user_result = supabase.table("users").select("client_id").eq("id", user["id"]).single().execute()
-
-        if not user_result.data:
-            raise HTTPException(status_code=400, detail="User not found")
-
-        client_id = user_result.data["client_id"]
-
-        # Save to KB
-        result = await digest_service.save_digest_to_kb(digest, client_id)
+        # Save to KB (single-tenant: no client_id needed)
+        result = await digest_service.save_digest_to_kb(digest, None)
 
         if result["status"] == "error":
             raise HTTPException(status_code=500, detail=result.get("message"))

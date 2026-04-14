@@ -9,11 +9,10 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from database import get_supabase
-from supabase import Client
+import pb_client as pb
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/glean-connectors", tags=["Glean Connectors"])
@@ -27,7 +26,7 @@ router = APIRouter(prefix="/glean-connectors", tags=["Glean Connectors"])
 class ConnectorInfo(BaseModel):
     """Information about a Glean connector."""
 
-    id: UUID
+    id: str
     name: str
     display_name: str
     connector_type: str  # 'oob', 'custom', 'requested'
@@ -49,7 +48,7 @@ class ConnectorCheckResult(BaseModel):
 
     name: str
     available: bool
-    connector_type: Optional[str] = None  # 'oob' or 'custom' if available
+    connector_type: Optional[str] = None
     status: Optional[str] = None
     category: Optional[str] = None
     setup_complexity: Optional[str] = None
@@ -63,7 +62,7 @@ class ConnectorRequestInput(BaseModel):
     request_source: Optional[str] = None
     use_case: str
     business_justification: Optional[str] = None
-    priority: str = "medium"  # 'critical', 'high', 'medium', 'low'
+    priority: str = "medium"
 
 
 class ConnectorGap(BaseModel):
@@ -140,37 +139,39 @@ async def list_connectors(
     connector_type: Optional[str] = None,
     category: Optional[str] = None,
     status: Optional[str] = None,
-    supabase: Client = Depends(get_supabase),
 ):
-    """List all connectors, optionally filtered by type, category, or status.
-
-    - connector_type: 'oob', 'custom', or 'requested'
-    - category: 'productivity', 'engineering', 'hr', 'sales', etc.
-    - status: 'available', 'in_development', 'planned', 'requested'
-    """
+    """List all connectors, optionally filtered by type, category, or status."""
     try:
-        query = supabase.table("glean_connectors").select("*")
-
+        filters = []
         if connector_type:
-            query = query.eq("connector_type", connector_type)
+            safe_type = pb.escape_filter(connector_type)
+            filters.append(f"connector_type='{safe_type}'")
         if category:
-            query = query.eq("category", category)
+            safe_cat = pb.escape_filter(category)
+            filters.append(f"category='{safe_cat}'")
         if status:
-            query = query.eq("status", status)
+            safe_status = pb.escape_filter(status)
+            filters.append(f"status='{safe_status}'")
 
-        result = query.order("display_name").execute()
-        return result.data
+        filter_str = " && ".join(filters) if filters else ""
+
+        result = pb.get_all(
+            "glean_connectors",
+            filter=filter_str if filter_str else None,
+            sort="display_name",
+        )
+        return result
     except Exception as e:
         logger.error(f"Error listing connectors: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/categories")
-async def list_categories(supabase: Client = Depends(get_supabase)):
+async def list_categories():
     """Get all unique connector categories."""
     try:
-        result = supabase.table("glean_connectors").select("category").execute()
-        categories = {r["category"] for r in result.data if r.get("category")}
+        result = pb.get_all("glean_connectors", fields="category")
+        categories = {r["category"] for r in result if r.get("category")}
         return sorted(categories)
     except Exception as e:
         logger.error(f"Error listing categories: {e}")
@@ -178,29 +179,28 @@ async def list_categories(supabase: Client = Depends(get_supabase)):
 
 
 @router.post("/check", response_model=list[ConnectorCheckResult])
-async def check_connectors(request: ConnectorCheckRequest, supabase: Client = Depends(get_supabase)):
-    """Check availability of multiple connectors by name.
-
-    Returns availability status for each requested connector.
-    """
+async def check_connectors(request: ConnectorCheckRequest):
+    """Check availability of multiple connectors by name."""
     try:
         results = []
 
         for name in request.connector_names:
             # Normalize name for lookup
             normalized = name.lower().replace(" ", "_").replace("-", "_")
+            safe_normalized = pb.escape_filter(normalized)
+            safe_name = pb.escape_filter(name)
 
             # Check if connector exists (OOB or custom)
-            query = (
-                supabase.table("glean_connectors")
-                .select("*")
-                .or_(f"name.eq.{normalized},display_name.ilike.%{name}%")
-                .in_("connector_type", ["oob", "custom"])
-                .execute()
+            query_result = pb.get_all(
+                "glean_connectors",
+                filter=(
+                    f"(name='{safe_normalized}' || display_name~'{safe_name}') "
+                    f"&& (connector_type='oob' || connector_type='custom')"
+                ),
             )
 
-            if query.data:
-                connector = query.data[0]
+            if query_result:
+                connector = query_result[0]
                 results.append(
                     ConnectorCheckResult(
                         name=name,
@@ -221,28 +221,58 @@ async def check_connectors(request: ConnectorCheckRequest, supabase: Client = De
 
 
 @router.post("/request")
-async def log_connector_request(request: ConnectorRequestInput, supabase: Client = Depends(get_supabase)):
+async def log_connector_request(request: ConnectorRequestInput):
     """Log a connector request for gap tracking.
 
     Increments request_count if connector was already requested.
     """
     try:
-        # Call the stored function
-        result = supabase.rpc(
-            "log_connector_request",
-            {
-                "p_connector_name": request.connector_name,
-                "p_requested_by": request.requested_by,
-                "p_request_source": request.request_source,
-                "p_use_case": request.use_case,
-                "p_business_justification": request.business_justification,
-                "p_priority": request.priority,
-            },
-        ).execute()
+        safe_name = pb.escape_filter(request.connector_name)
+
+        # Check if connector gap already exists
+        existing = pb.get_first(
+            "glean_connector_gaps",
+            filter=f"connector_name='{safe_name}'",
+        )
+
+        if existing:
+            # Increment request count and update
+            new_count = (existing.get("request_count") or 0) + 1
+            update_data = {
+                "request_count": new_count,
+                "priority": request.priority,
+            }
+            if request.use_case:
+                existing_cases = existing.get("use_cases") or ""
+                if request.use_case not in existing_cases:
+                    sep = "; " if existing_cases else ""
+                    update_data["use_cases"] = existing_cases + sep + request.use_case
+            if request.requested_by:
+                existing_requesters = existing.get("requesters") or ""
+                if request.requested_by not in existing_requesters:
+                    sep = ", " if existing_requesters else ""
+                    update_data["requesters"] = existing_requesters + sep + request.requested_by
+
+            pb.update_record("glean_connector_gaps", existing["id"], update_data)
+            request_id = existing["id"]
+        else:
+            # Create new gap entry
+            new_record = pb.create_record(
+                "glean_connector_gaps",
+                {
+                    "connector_name": request.connector_name,
+                    "request_count": 1,
+                    "priority": request.priority,
+                    "status": "requested",
+                    "use_cases": request.use_case,
+                    "requesters": request.requested_by or "",
+                },
+            )
+            request_id = new_record["id"] if new_record else None
 
         return {
             "success": True,
-            "request_id": result.data,
+            "request_id": request_id,
             "message": f"Connector request logged for '{request.connector_name}'",
         }
     except Exception as e:
@@ -251,39 +281,35 @@ async def log_connector_request(request: ConnectorRequestInput, supabase: Client
 
 
 @router.get("/gaps", response_model=list[ConnectorGap])
-async def get_connector_gaps(priority: Optional[str] = None, limit: int = 20, supabase: Client = Depends(get_supabase)):
-    """Get prioritized list of connector gaps/requests.
-
-    Use this to understand what connectors are being requested most.
-    """
+async def get_connector_gaps(priority: Optional[str] = None, limit: int = 20):
+    """Get prioritized list of connector gaps/requests."""
     try:
-        query = supabase.table("glean_connector_gaps").select("*")
-
+        filter_str = None
         if priority:
-            query = query.eq("priority", priority)
+            safe_priority = pb.escape_filter(priority)
+            filter_str = f"priority='{safe_priority}'"
 
-        result = query.limit(limit).execute()
-        return result.data
+        result = pb.list_records(
+            "glean_connector_gaps",
+            filter=filter_str,
+            per_page=limit,
+        )
+        return result.get("items", [])
     except Exception as e:
         logger.error(f"Error getting connector gaps: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/search/{query}")
-async def search_connectors(query: str, supabase: Client = Depends(get_supabase)):
-    """Search connectors by name or display name.
-
-    Returns matching connectors across all types.
-    """
+async def search_connectors(query: str):
+    """Search connectors by name or display name."""
     try:
-        result = (
-            supabase.table("glean_connectors")
-            .select("*")
-            .or_(f"name.ilike.%{query}%,display_name.ilike.%{query}%")
-            .execute()
+        safe_query = pb.escape_filter(query)
+        result = pb.get_all(
+            "glean_connectors",
+            filter=f"name~'{safe_query}' || display_name~'{safe_query}'",
         )
-
-        return result.data
+        return result
     except Exception as e:
         logger.error(f"Error searching connectors: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -295,7 +321,7 @@ async def search_connectors(query: str, supabase: Client = Depends(get_supabase)
 
 
 @router.post("/disco/score", response_model=DiscoScoreResponse)
-async def calculate_disco_score(request: DiscoIntegrationRequest, supabase: Client = Depends(get_supabase)):
+async def calculate_disco_score(request: DiscoIntegrationRequest):
     """Calculate DISCO integration feasibility score for a list of integrations.
 
     Scoring:
@@ -305,54 +331,107 @@ async def calculate_disco_score(request: DiscoIntegrationRequest, supabase: Clie
     - 2 = BUILDING: Custom connector being developed
     - 1 = AVAILABLE: Glean has connector, needs approval process
     - 0 = CUSTOM: No connector exists, would need custom build
-
-    Returns detailed breakdown per integration plus overall summary.
     """
     try:
-        result = supabase.rpc(
-            "calculate_disco_integration_score", {"p_integration_names": request.integration_names}
-        ).execute()
-
-        data = result.data
-        if not data:
-            raise HTTPException(status_code=500, detail="Failed to calculate DISCO score")
-
-        # Parse the response
+        # Compute score locally since PocketBase has no RPC
         integrations = []
-        for item in data.get("integrations", []):
-            integrations.append(
-                DiscoIntegrationResult(
-                    integration_name=item.get("integration_name", ""),
-                    connector_found=item.get("connector_found", False),
-                    connector_name=item.get("connector_name"),
-                    display_name=item.get("display_name"),
-                    connector_type=item.get("connector_type"),
-                    contentful_status=item.get("contentful_status"),
-                    disco_score=item.get("disco_score", 0),
-                    feasibility_rating=item.get("feasibility_rating", "BLOCKER"),
-                    is_blocker=item.get("is_blocker", False),
-                    notes=item.get("notes", "No connector found"),
-                )
+        total_score = 0
+        max_score = len(request.integration_names) * 5
+        blockers = []
+
+        status_score_map = {
+            "enabled": 5,
+            "testing": 4,
+            "indexing": 4,
+            "approved": 3,
+            "in_progress": 2,
+            "pending_approval": 1,
+            "not_requested": 0,
+        }
+
+        feasibility_map = {
+            5: "READY",
+            4: "TESTING",
+            3: "APPROVED",
+            2: "BUILDING",
+            1: "AVAILABLE",
+            0: "CUSTOM",
+        }
+
+        for name in request.integration_names:
+            safe_name = pb.escape_filter(name)
+            normalized = name.lower().replace(" ", "_").replace("-", "_")
+            safe_normalized = pb.escape_filter(normalized)
+
+            connector = pb.get_first(
+                "glean_connectors",
+                filter=f"name='{safe_normalized}' || display_name~'{safe_name}'",
             )
 
-        summary_data = data.get("summary", {})
+            if connector:
+                cf_status = connector.get("contentful_status") or "not_requested"
+                score = status_score_map.get(cf_status, 0)
+                total_score += score
+                is_blocker = score == 0
+                if is_blocker:
+                    blockers.append(name)
+
+                integrations.append(
+                    DiscoIntegrationResult(
+                        integration_name=name,
+                        connector_found=True,
+                        connector_name=connector.get("name"),
+                        display_name=connector.get("display_name"),
+                        connector_type=connector.get("connector_type"),
+                        contentful_status=cf_status,
+                        disco_score=score,
+                        feasibility_rating=feasibility_map.get(score, "CUSTOM"),
+                        is_blocker=is_blocker,
+                        notes=f"Status: {cf_status}",
+                    )
+                )
+            else:
+                blockers.append(name)
+                integrations.append(
+                    DiscoIntegrationResult(
+                        integration_name=name,
+                        connector_found=False,
+                        disco_score=0,
+                        feasibility_rating="CUSTOM",
+                        is_blocker=True,
+                        notes="No connector found",
+                    )
+                )
+
+        ready_count = sum(1 for i in integrations if i.disco_score >= 4)
+        percentage = round((total_score / max_score * 100) if max_score > 0 else 0, 1)
+
+        if percentage >= 80:
+            overall = "HIGH"
+            action = "Most integrations ready. Address remaining gaps."
+        elif percentage >= 50:
+            overall = "MODERATE"
+            action = "Several integrations need work. Prioritize blockers."
+        else:
+            overall = "LOW"
+            action = "Significant integration gaps. Review feasibility."
+
         summary = DiscoScoreSummary(
-            total_integrations=summary_data.get("total_integrations", 0),
-            ready_integrations=summary_data.get("ready_integrations", 0),
-            blockers=summary_data.get("blockers", 0),
-            blocker_names=summary_data.get("blocker_names", []),
-            score=summary_data.get("score", 0),
-            max_score=summary_data.get("max_score", 0),
-            percentage=summary_data.get("percentage", 0),
-            overall_feasibility=summary_data.get("overall_feasibility", "UNKNOWN"),
-            action_required=summary_data.get("action_required", ""),
+            total_integrations=len(request.integration_names),
+            ready_integrations=ready_count,
+            blockers=len(blockers),
+            blocker_names=blockers,
+            score=total_score,
+            max_score=max_score,
+            percentage=percentage,
+            overall_feasibility=overall,
+            action_required=action,
         )
 
-        data_source_data = data.get("data_source", {})
         data_source = DiscoDataSource(
-            source=data_source_data.get("source", "AWC-Glean Data Source Connector Tracking"),
-            last_updated=data_source_data.get("last_updated", "2026-01-29"),
-            note=data_source_data.get("note", "Check with IT/AWC team for latest connector status."),
+            source="AWC-Glean Data Source Connector Tracking",
+            last_updated="2026-01-29",
+            note="Check with IT/AWC team for latest connector status.",
         )
 
         return DiscoScoreResponse(integrations=integrations, summary=summary, data_source=data_source)
@@ -367,40 +446,32 @@ async def calculate_disco_score(request: DiscoIntegrationRequest, supabase: Clie
 async def get_disco_matrix(
     min_score: Optional[int] = None,
     contentful_status: Optional[str] = None,
-    supabase: Client = Depends(get_supabase),
 ):
-    """Get the DISCO integration matrix showing all connectors with their.
-
+    """Get the DISCO integration matrix showing all connectors with their
     Contentful deployment status and feasibility scores.
-
-    Filter options:
-    - min_score: Only return connectors with disco_score >= this value
-    - contentful_status: 'enabled', 'testing', 'approved', 'in_progress', 'pending_approval', 'not_requested'
     """
     try:
-        query = supabase.table("glean_disco_integration_matrix").select("*")
-
+        filters = []
         if min_score is not None:
-            query = query.gte("disco_score", min_score)
+            filters.append(f"disco_score>={min_score}")
         if contentful_status:
-            query = query.eq("contentful_status", contentful_status)
+            safe_status = pb.escape_filter(contentful_status)
+            filters.append(f"contentful_status='{safe_status}'")
 
-        result = query.execute()
-        return result.data
+        filter_str = " && ".join(filters) if filters else None
+        result = pb.get_all("glean_disco_integration_matrix", filter=filter_str)
+        return result
     except Exception as e:
         logger.error(f"Error getting DISCO matrix: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/disco/summary")
-async def get_disco_summary(supabase: Client = Depends(get_supabase)):
-    """Get a summary of connectors grouped by Contentful status and DISCO score.
-
-    Useful for quick overview of integration capabilities.
-    """
+async def get_disco_summary():
+    """Get a summary of connectors grouped by Contentful status and DISCO score."""
     try:
-        result = supabase.table("glean_connector_summary").select("*").execute()
-        return result.data
+        result = pb.get_all("glean_connector_summary")
+        return result
     except Exception as e:
         logger.error(f"Error getting DISCO summary: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

@@ -10,17 +10,14 @@ Endpoints for managing Atlas proactive research:
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
-from auth import get_current_user
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/research", tags=["research"])
-
-supabase = get_supabase()
 
 
 # ============================================================================
@@ -116,7 +113,6 @@ async def list_research_tasks(
     focus_area: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
-    current_user: dict = Depends(get_current_user),
 ):
     """List research tasks.
 
@@ -125,21 +121,29 @@ async def list_research_tasks(
     - focus_area: strategic_planning, finance_roi, etc.
     """
     try:
-        query = (
-            supabase.table("research_tasks")
-            .select("*")
-            .order("created_at", desc=True)
-            .range(offset, offset + limit - 1)
+        filters = []
+        if status:
+            safe_status = pb.escape_filter(status)
+            filters.append(f"status='{safe_status}'")
+        if focus_area:
+            safe_area = pb.escape_filter(focus_area)
+            filters.append(f"focus_area='{safe_area}'")
+
+        filter_str = " && ".join(filters) if filters else None
+
+        # PocketBase uses page-based pagination
+        page = (offset // limit) + 1 if limit > 0 else 1
+
+        result = pb.list_records(
+            "research_tasks",
+            filter=filter_str,
+            sort="-created",
+            per_page=limit,
+            page=page,
         )
 
-        if status:
-            query = query.eq("status", status)
-        if focus_area:
-            query = query.eq("focus_area", focus_area)
-
-        result = query.execute()
-
-        return {"success": True, "tasks": result.data, "count": len(result.data)}
+        items = result.get("items", [])
+        return {"success": True, "tasks": items, "count": len(items)}
 
     except Exception as e:
         logger.error(f"Failed to list research tasks: {e}")
@@ -147,15 +151,16 @@ async def list_research_tasks(
 
 
 @router.get("/tasks/{task_id}")
-async def get_research_task(task_id: str, current_user: dict = Depends(get_current_user)):
+async def get_research_task(task_id: str):
     """Get details of a specific research task including full content."""
     try:
-        result = supabase.table("research_tasks").select("*").eq("id", task_id).single().execute()
+        safe_id = pb.escape_filter(task_id)
+        task = pb.get_first("research_tasks", filter=f"id='{safe_id}'")
 
-        if not result.data:
+        if not task:
             raise HTTPException(status_code=404, detail="Research task not found")
 
-        return {"success": True, "task": result.data}
+        return {"success": True, "task": task}
 
     except HTTPException:
         raise
@@ -168,7 +173,6 @@ async def get_research_task(task_id: str, current_user: dict = Depends(get_curre
 async def trigger_research(
     request: TriggerResearchRequest,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user),
 ):
     """Manually trigger a research task.
 
@@ -201,7 +205,8 @@ async def trigger_research(
         task_id = str(uuid4())
 
         # Create task record first
-        supabase.table("research_tasks").insert(
+        pb.create_record(
+            "research_tasks",
             {
                 "id": task_id,
                 "topic": request.focus_area or "Custom research",
@@ -211,8 +216,8 @@ async def trigger_research(
                 "status": "pending",
                 "priority": 8,
                 "client_id": request.client_id,
-            }
-        ).execute()
+            },
+        )
 
         background_tasks.add_task(run_research)
 
@@ -235,39 +240,34 @@ async def trigger_research(
 
 
 @router.get("/schedule")
-async def get_research_schedule(client_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+async def get_research_schedule(client_id: Optional[str] = None):
     """Get the research schedule.
 
     Returns both global schedule and client-specific schedule if client_id provided.
     """
     try:
-        # Get global schedule
-        global_result = (
-            supabase.table("research_schedule")
-            .select("*")
-            .is_("client_id", "null")
-            .order("day_of_week")
-            .order("priority", desc=True)
-            .execute()
+        # Get global schedule (client_id is empty/null)
+        global_items = pb.get_all(
+            "research_schedule",
+            filter="client_id=''",
+            sort="day_of_week,-priority",
         )
 
         schedules = []
-        for item in global_result.data or []:
+        for item in global_items:
             item["is_global"] = True
             schedules.append(item)
 
         # Get client-specific schedule
         if client_id:
-            client_result = (
-                supabase.table("research_schedule")
-                .select("*")
-                .eq("client_id", client_id)
-                .order("day_of_week")
-                .order("priority", desc=True)
-                .execute()
+            safe_client = pb.escape_filter(client_id)
+            client_items = pb.get_all(
+                "research_schedule",
+                filter=f"client_id='{safe_client}'",
+                sort="day_of_week,-priority",
             )
 
-            for item in client_result.data or []:
+            for item in client_items:
                 item["is_global"] = False
                 schedules.append(item)
 
@@ -275,7 +275,7 @@ async def get_research_schedule(client_id: Optional[str] = None, current_user: d
         by_day = {}
         day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
         for item in schedules:
-            day = item["day_of_week"]
+            day = item.get("day_of_week", 0)
             day_name = day_names[day] if 0 <= day <= 6 else f"Day {day}"
             if day_name not in by_day:
                 by_day[day_name] = []
@@ -289,12 +289,10 @@ async def get_research_schedule(client_id: Optional[str] = None, current_user: d
 
 
 @router.put("/schedule/{schedule_id}")
-async def update_schedule_item(
-    schedule_id: str, request: UpdateScheduleRequest, current_user: dict = Depends(get_current_user)
-):
+async def update_schedule_item(schedule_id: str, request: UpdateScheduleRequest):
     """Update a schedule item (enable/disable, change time, etc.)."""
     try:
-        update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
+        update_data = {}
 
         if request.is_active is not None:
             update_data["is_active"] = request.is_active
@@ -305,12 +303,15 @@ async def update_schedule_item(
         if request.priority is not None:
             update_data["priority"] = request.priority
 
-        result = supabase.table("research_schedule").update(update_data).eq("id", schedule_id).execute()
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
 
-        if not result.data:
+        result = pb.update_record("research_schedule", schedule_id, update_data)
+
+        if not result:
             raise HTTPException(status_code=404, detail="Schedule item not found")
 
-        return {"success": True, "schedule": result.data[0]}
+        return {"success": True, "schedule": result}
 
     except HTTPException:
         raise
@@ -325,23 +326,22 @@ async def update_schedule_item(
 
 
 @router.get("/gaps")
-async def list_knowledge_gaps(status: str = "open", limit: int = 20, current_user: dict = Depends(get_current_user)):
+async def list_knowledge_gaps(status: str = "open", limit: int = 20):
     """List knowledge gaps identified across agent conversations.
 
     These are questions/topics that agents couldn't fully answer.
     """
     try:
-        result = (
-            supabase.table("knowledge_gaps")
-            .select("*")
-            .eq("status", status)
-            .order("priority", desc=True)
-            .order("occurrence_count", desc=True)
-            .limit(limit)
-            .execute()
+        safe_status = pb.escape_filter(status)
+        result = pb.list_records(
+            "knowledge_gaps",
+            filter=f"status='{safe_status}'",
+            sort="-priority,-occurrence_count",
+            per_page=limit,
         )
 
-        return {"success": True, "gaps": result.data, "count": len(result.data)}
+        items = result.get("items", [])
+        return {"success": True, "gaps": items, "count": len(items)}
 
     except Exception as e:
         logger.error(f"Failed to list knowledge gaps: {e}")
@@ -349,19 +349,18 @@ async def list_knowledge_gaps(status: str = "open", limit: int = 20, current_use
 
 
 @router.post("/gaps/{gap_id}/research")
-async def research_gap(gap_id: str, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
+async def research_gap(gap_id: str, background_tasks: BackgroundTasks):
     """Trigger research to fill a specific knowledge gap."""
     try:
         # Get the gap
-        gap_result = supabase.table("knowledge_gaps").select("*").eq("id", gap_id).single().execute()
+        safe_id = pb.escape_filter(gap_id)
+        gap = pb.get_first("knowledge_gaps", filter=f"id='{safe_id}'")
 
-        if not gap_result.data:
+        if not gap:
             raise HTTPException(status_code=404, detail="Knowledge gap not found")
 
-        gap = gap_result.data
-
         # Update gap status
-        supabase.table("knowledge_gaps").update({"status": "researching"}).eq("id", gap_id).execute()
+        pb.update_record("knowledge_gaps", gap_id, {"status": "researching"})
 
         # Trigger research
         from services.research_scheduler import trigger_research_now
@@ -376,19 +375,21 @@ async def research_gap(gap_id: str, background_tasks: BackgroundTasks, current_u
 
                 # Update gap with resolution
                 if result.success:
-                    supabase.table("knowledge_gaps").update(
+                    pb.update_record(
+                        "knowledge_gaps",
+                        gap_id,
                         {
                             "status": "resolved",
                             "resolution_task_id": result.task_id,
                             "resolved_at": datetime.now(timezone.utc).isoformat(),
-                        }
-                    ).eq("id", gap_id).execute()
+                        },
+                    )
                 else:
-                    supabase.table("knowledge_gaps").update({"status": "open"}).eq("id", gap_id).execute()
+                    pb.update_record("knowledge_gaps", gap_id, {"status": "open"})
 
             except Exception as e:
                 logger.error(f"Gap research failed: {e}")
-                supabase.table("knowledge_gaps").update({"status": "open"}).eq("id", gap_id).execute()
+                pb.update_record("knowledge_gaps", gap_id, {"status": "open"})
 
         background_tasks.add_task(run_gap_research)
 
@@ -410,7 +411,6 @@ async def research_gap(gap_id: str, background_tasks: BackgroundTasks, current_u
 async def list_research_sources(
     tier: Optional[int] = None,
     source_type: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
 ):
     """List research sources with their credibility tiers.
 
@@ -420,27 +420,33 @@ async def list_research_sources(
     Tier 4: Blogs, vendor marketing
     """
     try:
-        query = supabase.table("research_sources").select("*").order("credibility_tier").order("times_cited", desc=True)
-
+        filters = []
         if tier:
-            query = query.eq("credibility_tier", tier)
+            filters.append(f"credibility_tier={tier}")
         if source_type:
-            query = query.eq("source_type", source_type)
+            safe_type = pb.escape_filter(source_type)
+            filters.append(f"source_type='{safe_type}'")
 
-        result = query.execute()
+        filter_str = " && ".join(filters) if filters else None
+
+        sources = pb.get_all(
+            "research_sources",
+            filter=filter_str,
+            sort="credibility_tier,-times_cited",
+        )
 
         # Group by tier
         by_tier = {1: [], 2: [], 3: [], 4: []}
-        for source in result.data or []:
+        for source in sources:
             tier_num = source.get("credibility_tier", 3)
             if tier_num in by_tier:
                 by_tier[tier_num].append(source)
 
         return {
             "success": True,
-            "sources": result.data,
+            "sources": sources,
             "by_tier": by_tier,
-            "count": len(result.data),
+            "count": len(sources),
         }
 
     except Exception as e:
@@ -454,26 +460,24 @@ async def list_research_sources(
 
 
 @router.get("/scheduler/status")
-async def get_scheduler_status(current_user: dict = Depends(get_current_user)):
+async def get_scheduler_status():
     """Get the current status of the research scheduler."""
     try:
         from services.research_scheduler import get_research_scheduler_status
 
         status = get_research_scheduler_status()
 
-        # Get recent task stats
-        recent_result = (
-            supabase.table("research_tasks")
-            .select("status")
-            .gte(
-                "created_at",
-                (datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)).isoformat(),
-            )
-            .execute()
+        # Get recent task stats (today)
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
+        recent_result = pb.list_records(
+            "research_tasks",
+            filter=f"created>='{today_start}'",
+            fields="status",
+            per_page=200,
         )
 
         task_stats = {"pending": 0, "running": 0, "completed": 0, "failed": 0}
-        for task in recent_result.data or []:
+        for task in recent_result.get("items", []):
             task_status = task.get("status", "unknown")
             if task_status in task_stats:
                 task_stats[task_status] += 1
@@ -491,23 +495,22 @@ async def get_scheduler_status(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/insights")
-async def get_recent_insights(limit: int = 10, current_user: dict = Depends(get_current_user)):
+async def get_recent_insights(limit: int = 10):
     """Get recent research insights (summaries of completed research).
 
     Returns the most recent completed research with their summaries.
     """
     try:
-        result = (
-            supabase.table("research_tasks")
-            .select("id, topic, focus_area, result_summary, completed_at, web_sources")
-            .eq("status", "completed")
-            .not_.is_("result_summary", "null")
-            .order("completed_at", desc=True)
-            .limit(limit)
-            .execute()
+        result = pb.list_records(
+            "research_tasks",
+            filter="status='completed' && result_summary!=''",
+            sort="-completed_at",
+            per_page=limit,
+            fields="id,topic,focus_area,result_summary,completed_at,web_sources",
         )
 
-        return {"success": True, "insights": result.data, "count": len(result.data)}
+        items = result.get("items", [])
+        return {"success": True, "insights": items, "count": len(items)}
 
     except Exception as e:
         logger.error(f"Failed to get insights: {e}")

@@ -11,7 +11,6 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from auth import get_current_user
 from services.graph import (
     GraphQueryService,
     GraphSyncService,
@@ -42,7 +41,6 @@ class SyncResponse(BaseModel):
     """Response from sync operation."""
 
     status: str
-    client_id: str
     results: dict
 
 
@@ -93,14 +91,14 @@ async def get_graph_query_service():
         raise HTTPException(status_code=503, detail="Graph service unavailable. Check Neo4j connection.") from None
 
 
-async def get_graph_sync_service(current_user: dict = Depends(get_current_user)):
-    """Get the graph sync service."""
-    try:
-        from database import get_supabase
+async def get_graph_sync_service():
+    """Get the graph sync service.
 
-        supabase = get_supabase()
+    TODO: GraphSyncService still takes supabase -- needs service-level migration.
+    """
+    try:
         connection = await get_neo4j_connection()
-        return GraphSyncService(supabase, connection)
+        return GraphSyncService(None, connection)
     except Exception as e:
         logger.error(f"Failed to get graph sync service: {e}")
         raise HTTPException(status_code=503, detail="Graph sync service unavailable.") from e
@@ -123,14 +121,8 @@ async def graph_health():
 
 
 @router.post("/schema/init")
-async def init_schema(current_user: dict = Depends(get_current_user)):
-    """Initialize the graph schema (constraints and indexes).
-
-    Requires admin privileges.
-    """
-    if current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-
+async def init_schema():
+    """Initialize the graph schema (constraints and indexes)."""
     try:
         connection = await get_neo4j_connection()
         result = await initialize_schema(connection)
@@ -141,7 +133,7 @@ async def init_schema(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/schema/verify")
-async def verify_graph_schema(current_user: dict = Depends(get_current_user)):
+async def verify_graph_schema():
     """Verify the current graph schema state."""
     try:
         connection = await get_neo4j_connection()
@@ -154,12 +146,11 @@ async def verify_graph_schema(current_user: dict = Depends(get_current_user)):
 
 @router.get("/stats")
 async def get_stats(
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
-    """Get graph statistics for the current user's client."""
+    """Get graph statistics."""
     try:
-        stats = await query_service.get_graph_stats(current_user["client_id"])
+        stats = await query_service.get_graph_stats(None)
         return GraphStatsResponse(**stats)
     except Exception as e:
         logger.error(f"Failed to get graph stats: {e}")
@@ -173,16 +164,12 @@ async def get_stats(
 
 @router.post("/sync/full", response_model=SyncResponse)
 async def full_sync(
-    current_user: dict = Depends(get_current_user),
     sync_service: GraphSyncService = Depends(get_graph_sync_service),
 ):
-    """Perform a full sync of all data to the graph.
-
-    This syncs stakeholders, meetings, insights, documents, and ROI opportunities.
-    """
+    """Perform a full sync of all data to the graph."""
     try:
-        result = await sync_service.full_sync(current_user["client_id"])
-        return SyncResponse(status="completed", client_id=current_user["client_id"], results=result)
+        result = await sync_service.full_sync(None)
+        return SyncResponse(status="completed", results=result)
     except Exception as e:
         logger.error(f"Full sync failed: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -191,16 +178,15 @@ async def full_sync(
 @router.post("/sync/incremental", response_model=SyncResponse)
 async def incremental_sync(
     request: SyncRequest,
-    current_user: dict = Depends(get_current_user),
     sync_service: GraphSyncService = Depends(get_graph_sync_service),
 ):
     """Perform an incremental sync for recently updated entities."""
     try:
         since = request.since or datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)
         result = await sync_service.incremental_sync(
-            current_user["client_id"], since=since, entity_types=request.entity_types
+            None, since=since, entity_types=request.entity_types
         )
-        return SyncResponse(status="completed", client_id=current_user["client_id"], results=result)
+        return SyncResponse(status="completed", results=result)
     except Exception as e:
         logger.error(f"Incremental sync failed: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -208,12 +194,11 @@ async def incremental_sync(
 
 @router.post("/sync/stakeholders")
 async def sync_stakeholders(
-    current_user: dict = Depends(get_current_user),
     sync_service: GraphSyncService = Depends(get_graph_sync_service),
 ):
     """Sync only stakeholders and their relationships."""
     try:
-        result = await sync_service.sync_stakeholders(current_user["client_id"])
+        result = await sync_service.sync_stakeholders(None)
         return {"status": "completed", "result": result}
     except Exception as e:
         logger.error(f"Stakeholder sync failed: {e}")
@@ -229,15 +214,9 @@ async def sync_stakeholders(
 async def get_stakeholder_network(
     stakeholder_id: str,
     depth: int = Query(default=2, ge=1, le=4),
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
-    """Get the network around a stakeholder.
-
-    Args:
-        stakeholder_id: The stakeholder ID
-        depth: How many hops to include (1-4)
-    """
+    """Get the network around a stakeholder."""
     try:
         network = await query_service.get_stakeholder_network(stakeholder_id, depth)
         return network
@@ -251,7 +230,6 @@ async def get_influence_path(
     from_id: str = Query(..., description="Source stakeholder ID"),
     to_id: str = Query(..., description="Target stakeholder ID"),
     max_depth: int = Query(default=5, ge=1, le=10),
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
     """Find the influence path between two stakeholders."""
@@ -266,12 +244,11 @@ async def get_influence_path(
 @router.get("/influence/key-influencers")
 async def get_key_influencers(
     limit: int = Query(default=10, ge=1, le=50),
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
     """Find the most influential stakeholders in the network."""
     try:
-        influencers = await query_service.find_key_influencers(current_user["client_id"], limit)
+        influencers = await query_service.find_key_influencers(None, limit)
         return {"influencers": influencers}
     except Exception as e:
         logger.error(f"Failed to find key influencers: {e}")
@@ -281,12 +258,11 @@ async def get_key_influencers(
 @router.get("/influence/chains/{target_id}")
 async def get_influence_chains(
     target_id: str,
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
     """Find all stakeholders who can influence a target through chains."""
     try:
-        chains = await query_service.find_influence_chains(current_user["client_id"], target_id)
+        chains = await query_service.find_influence_chains(None, target_id)
         return {"target_id": target_id, "influence_chains": chains}
     except Exception as e:
         logger.error(f"Failed to find influence chains: {e}")
@@ -301,7 +277,6 @@ async def get_influence_chains(
 @router.get("/roi/{opportunity_id}/analysis")
 async def get_roi_analysis(
     opportunity_id: str,
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
     """Get full analysis of an ROI opportunity including blockers and supporters."""
@@ -324,7 +299,6 @@ async def get_roi_analysis(
 @router.get("/roi/{opportunity_id}/blockers")
 async def get_roi_blockers(
     opportunity_id: str,
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
     """Get stakeholders blocking an ROI opportunity."""
@@ -339,7 +313,6 @@ async def get_roi_blockers(
 @router.get("/roi/{opportunity_id}/strategy")
 async def get_blocker_strategy(
     opportunity_id: str,
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
     """Get recommended strategy for addressing blockers."""
@@ -359,12 +332,11 @@ async def get_blocker_strategy(
 @router.get("/concerns/shared")
 async def get_shared_concerns(
     min_stakeholders: int = Query(default=2, ge=2),
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
     """Find concerns shared by multiple stakeholders."""
     try:
-        concerns = await query_service.find_shared_concerns(current_user["client_id"], min_stakeholders)
+        concerns = await query_service.find_shared_concerns(None, min_stakeholders)
         return {"shared_concerns": concerns}
     except Exception as e:
         logger.error(f"Failed to find shared concerns: {e}")
@@ -374,7 +346,6 @@ async def get_shared_concerns(
 @router.get("/stakeholder/{stakeholder_id}/concerns")
 async def get_stakeholder_concerns(
     stakeholder_id: str,
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
     """Get all concerns raised by a stakeholder."""
@@ -394,7 +365,6 @@ async def get_stakeholder_concerns(
 @router.get("/meeting/{meeting_id}/network")
 async def get_meeting_network(
     meeting_id: str,
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
     """Get the stakeholder network from a meeting."""
@@ -409,12 +379,11 @@ async def get_meeting_network(
 @router.get("/concepts/{concept_name}/advocates")
 async def get_concept_advocates(
     concept_name: str,
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
     """Find stakeholders who advocate for a concept."""
     try:
-        advocates = await query_service.find_concept_advocates(concept_name, current_user["client_id"])
+        advocates = await query_service.find_concept_advocates(concept_name, None)
         return {"concept": concept_name, "advocates": advocates}
     except Exception as e:
         logger.error(f"Failed to find concept advocates: {e}")
@@ -425,7 +394,6 @@ async def get_concept_advocates(
 async def get_aligned_stakeholders(
     stakeholder_id: str,
     min_shared_meetings: int = Query(default=2, ge=1),
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
     """Find stakeholders aligned with a given stakeholder."""
@@ -446,13 +414,9 @@ async def get_aligned_stakeholders(
 async def get_agent_routing_suggestion(
     question: str = Query(..., description="The user's question"),
     current_agent_id: Optional[str] = Query(default=None, description="Current agent ID"),
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
-    """Suggest the best agent to handle a question based on expertise.
-
-    Uses the agent expertise graph to match question topics to agent capabilities.
-    """
+    """Suggest the best agent to handle a question based on expertise."""
     try:
         suggestion = await query_service.suggest_agent_for_question(question, current_agent_id)
         return suggestion
@@ -464,7 +428,6 @@ async def get_agent_routing_suggestion(
 @router.get("/agents/{agent_id}/expertise")
 async def get_agent_expertise(
     agent_id: str,
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
     """Get the expertise areas for a specific agent."""
@@ -478,13 +441,9 @@ async def get_agent_expertise(
 
 @router.get("/agents/handoff-patterns")
 async def get_handoff_patterns(
-    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service),
 ):
-    """Get agent handoff patterns and frequencies.
-
-    Useful for understanding agent collaboration flows.
-    """
+    """Get agent handoff patterns and frequencies."""
     try:
         patterns = await query_service.get_agent_handoff_patterns()
         return {"patterns": patterns}
@@ -498,14 +457,14 @@ async def get_handoff_patterns(
 # =============================================================================
 
 
-async def get_relationship_extractor(current_user: dict = Depends(get_current_user)):
-    """Get the relationship extractor service."""
-    try:
-        from database import get_supabase
+async def get_relationship_extractor():
+    """Get the relationship extractor service.
 
-        supabase = get_supabase()
+    TODO: RelationshipExtractor still takes supabase -- needs service-level migration.
+    """
+    try:
         connection = await get_neo4j_connection()
-        return RelationshipExtractor(supabase, connection)
+        return RelationshipExtractor(None, connection)
     except Exception as e:
         logger.error(f"Failed to get relationship extractor: {e}")
         raise HTTPException(status_code=503, detail="Relationship extractor unavailable.") from e
@@ -513,17 +472,12 @@ async def get_relationship_extractor(current_user: dict = Depends(get_current_us
 
 @router.post("/infer/influences")
 async def infer_influences(
-    current_user: dict = Depends(get_current_user),
     extractor: RelationshipExtractor = Depends(get_relationship_extractor),
 ):
-    """Infer influence relationships from meeting co-attendance patterns.
-
-    Analyzes which stakeholders attend meetings together and their roles
-    to infer who influences whom.
-    """
+    """Infer influence relationships from meeting co-attendance patterns."""
     try:
-        result = await extractor.infer_influences(current_user["client_id"])
-        return {"status": "completed", "client_id": current_user["client_id"], "result": result}
+        result = await extractor.infer_influences(None)
+        return {"status": "completed", "result": result}
     except Exception as e:
         logger.error(f"Failed to infer influences: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -531,17 +485,12 @@ async def infer_influences(
 
 @router.post("/infer/concepts")
 async def extract_all_concepts(
-    current_user: dict = Depends(get_current_user),
     extractor: RelationshipExtractor = Depends(get_relationship_extractor),
 ):
-    """Extract concepts from all meeting transcripts.
-
-    Uses LLM to identify key topics discussed in each meeting and creates
-    DISCUSSES relationships between meetings and concepts.
-    """
+    """Extract concepts from all meeting transcripts."""
     try:
-        result = await extractor.extract_all_meeting_concepts(current_user["client_id"])
-        return {"status": "completed", "client_id": current_user["client_id"], "result": result}
+        result = await extractor.extract_all_meeting_concepts(None)
+        return {"status": "completed", "result": result}
     except Exception as e:
         logger.error(f"Failed to extract concepts: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -549,17 +498,12 @@ async def extract_all_concepts(
 
 @router.post("/infer/clusters")
 async def detect_stakeholder_clusters(
-    current_user: dict = Depends(get_current_user),
     extractor: RelationshipExtractor = Depends(get_relationship_extractor),
 ):
-    """Detect natural clusters of stakeholders.
-
-    Identifies groups of stakeholders who share concerns or frequently
-    attend meetings together.
-    """
+    """Detect natural clusters of stakeholders."""
     try:
-        result = await extractor.detect_stakeholder_clusters(current_user["client_id"])
-        return {"status": "completed", "client_id": current_user["client_id"], "result": result}
+        result = await extractor.detect_stakeholder_clusters(None)
+        return {"status": "completed", "result": result}
     except Exception as e:
         logger.error(f"Failed to detect clusters: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -568,7 +512,6 @@ async def detect_stakeholder_clusters(
 @router.post("/meetings/{meeting_id}/concepts")
 async def extract_meeting_concepts(
     meeting_id: str,
-    current_user: dict = Depends(get_current_user),
     extractor: RelationshipExtractor = Depends(get_relationship_extractor),
 ):
     """Extract concepts from a specific meeting transcript."""
@@ -586,7 +529,7 @@ async def extract_meeting_concepts(
 
 
 @router.get("/sync/scheduler-status")
-async def get_scheduler_status(current_user: dict = Depends(get_current_user)):
+async def get_scheduler_status():
     """Get the status of the graph sync scheduler."""
     try:
         from services.graph_sync_scheduler import get_graph_scheduler_status
@@ -599,11 +542,8 @@ async def get_scheduler_status(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/sync/trigger")
-async def trigger_sync(current_user: dict = Depends(get_current_user)):
-    """Trigger an immediate graph sync for the current user's client.
-
-    This runs asynchronously in the background.
-    """
+async def trigger_sync():
+    """Trigger an immediate graph sync."""
     try:
         from services.graph_sync_scheduler import trigger_manual_sync
 
@@ -620,27 +560,20 @@ async def trigger_sync(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/visualization")
-async def get_visualization_data(
-    limit: int = Query(default=500, ge=1, le=1000), current_user: dict = Depends(get_current_user)
-):
-    """Get graph data formatted for visualization (react-force-graph-2d).
-
-    Returns nodes and links arrays suitable for force-directed graph rendering.
-    """
+async def get_visualization_data(limit: int = Query(default=500, ge=1, le=1000)):
+    """Get graph data formatted for visualization (react-force-graph-2d)."""
     try:
         connection = await get_neo4j_connection()
-        client_id = current_user["client_id"]
 
-        # Query all nodes and relationships for this client
-        # Include global nodes (Agents, Expertise) and connected nodes (Chunks, Messages)
+        # Query all nodes and relationships
+        # Single-tenant: no client_id filter needed on client-specific nodes
         result = await connection.execute_query(
             """
-            // Get client-specific nodes and global nodes
+            // Get all nodes (single-tenant: no client_id filter)
             MATCH (n)
-            WHERE n.client_id = $client_id OR n:Agent OR n:Expertise
             WITH collect(DISTINCT n) as baseNodes
 
-            // Also get nodes connected to client nodes (like Chunks connected to Documents)
+            // Also get nodes connected to base nodes
             UNWIND baseNodes as bn
             OPTIONAL MATCH (connected)-[:PART_OF|BELONGS_TO|IN_CONVERSATION]->(bn)
             WITH baseNodes, collect(DISTINCT connected) as connectedNodes
@@ -682,7 +615,7 @@ async def get_visualization_data(
                        type: r.type
                    }] as links
         """,
-            {"client_id": client_id},
+            {},
         )
 
         if result and len(result) > 0:
@@ -693,7 +626,6 @@ async def get_visualization_data(
             # Apply limit to nodes if needed
             if len(nodes) > limit:
                 nodes = nodes[:limit]
-                # Filter links to only include those between limited nodes
                 node_ids = {n["id"] for n in nodes}
                 links = [link for link in links if link["source"] in node_ids and link["target"] in node_ids]
 

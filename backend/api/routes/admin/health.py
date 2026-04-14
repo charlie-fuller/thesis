@@ -1,30 +1,23 @@
 """Admin health routes - system health checks."""
 
-import asyncio
 import os
 import time
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
-from auth import require_admin
+import pb_client as pb
 from logger_config import get_logger
-
-from ._shared import supabase
 
 logger = get_logger(__name__)
 router = APIRouter()
 
 
 @router.get("/health")
-async def get_system_health(current_user: dict = Depends(require_admin)):
-    """Get real-time system health metrics for admin dashboard.
-
-    Args:
-        current_user: Injected by FastAPI dependency.
-    """
+async def get_system_health():
+    """Get real-time system health metrics for admin dashboard."""
     try:
         health_data = {
-            "supabase": {"status": "checking", "responseTime": 0},
+            "pocketbase": {"status": "checking", "responseTime": 0},
             "backend": {"status": "running"},
             "anthropic": {"status": "checking", "latency": 0},
             "voyageAI": {"status": "checking", "latency": 0},
@@ -33,15 +26,15 @@ async def get_system_health(current_user: dict = Depends(require_admin)):
 
         db_time = 0
 
-        # 1. Check Supabase (Database) Health
+        # 1. Check PocketBase Health
         try:
             db_start = time.time()
-            await asyncio.to_thread(lambda: supabase.table("users").select("id", count="exact").limit(1).execute())
+            pb.list_records("agents", per_page=1, fields="id")
             db_time = round((time.time() - db_start) * 1000)
-            health_data["supabase"] = {"status": "connected", "responseTime": db_time}
+            health_data["pocketbase"] = {"status": "connected", "responseTime": db_time}
         except Exception as e:
-            logger.error(f"Supabase health check failed: {str(e)}")
-            health_data["supabase"] = {"status": "error", "responseTime": 0}
+            logger.error(f"PocketBase health check failed: {str(e)}")
+            health_data["pocketbase"] = {"status": "error", "responseTime": 0}
 
         # 2. Backend API - If this endpoint is responding, the backend is running
         health_data["backend"] = {"status": "running", "uptime": True}
@@ -56,11 +49,9 @@ async def get_system_health(current_user: dict = Depends(require_admin)):
             else:
                 anthropic_start = time.time()
                 client = anthropic.Anthropic(api_key=api_key)
-                await asyncio.to_thread(
-                    lambda: client.messages.count_tokens(
-                        model="claude-sonnet-4-20250514",
-                        messages=[{"role": "user", "content": "health check"}],
-                    )
+                client.messages.count_tokens(
+                    model="claude-sonnet-4-20250514",
+                    messages=[{"role": "user", "content": "health check"}],
                 )
                 anthropic_latency = round(time.time() - anthropic_start, 2)
                 health_data["anthropic"] = {"status": "connected", "latency": anthropic_latency}
@@ -83,9 +74,7 @@ async def get_system_health(current_user: dict = Depends(require_admin)):
             else:
                 voyage_start = time.time()
                 vo = voyageai.Client(api_key=api_key)
-                await asyncio.to_thread(
-                    lambda: vo.embed(texts=["health check"], model="voyage-large-2", input_type="query")
-                )
+                vo.embed(texts=["health check"], model="voyage-large-2", input_type="query")
                 voyage_latency = round(time.time() - voyage_start, 2)
                 health_data["voyageAI"] = {"status": "connected", "latency": voyage_latency}
         except Exception as e:
@@ -125,7 +114,7 @@ async def get_system_health(current_user: dict = Depends(require_admin)):
             health_data["neo4j"] = {"status": "error", "responseTime": 0}
 
         logger.info(
-            f"Health check: Supabase {db_time}ms, Backend OK, "
+            f"Health check: PocketBase {db_time}ms, Backend OK, "
             f"Anthropic {health_data['anthropic']['status']}, "
             f"Voyage {health_data['voyageAI']['status']}, "
             f"Neo4j {health_data['neo4j']['status']} ({neo4j_time}ms)"

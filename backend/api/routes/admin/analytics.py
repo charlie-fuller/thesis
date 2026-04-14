@@ -1,41 +1,30 @@
 """Admin analytics routes - usage trends, health metrics, keyword analysis."""
 
-import asyncio
 import re
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 
-from auth import require_admin
+import pb_client as pb
 from logger_config import get_logger
 
-from ._shared import limiter, supabase
+from ._shared import limiter
 
 logger = get_logger(__name__)
 router = APIRouter()
 
 
 @router.get("/analytics/usage-trends")
-async def get_usage_trends(
-    current_user: dict = Depends(require_admin),
-    days: int = 30,
-):
-    """Get usage trends over time, grouped by agent.
-
-    Args:
-        current_user: Injected by FastAPI dependency.
-        days: Number of days to analyze.
-    """
+async def get_usage_trends(days: int = 30):
+    """Get usage trends over time, grouped by agent."""
     try:
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
         # Get all agents for reference
-        agents_result = await asyncio.to_thread(
-            lambda: supabase.table("agents").select("id, name, display_name").execute()
-        )
-        agent_display_names = {a["name"]: a.get("display_name", a["name"]) for a in (agents_result.data or [])}
+        agents_data = pb.get_all("agents", fields="id,name,display_name")
+        agent_display_names = {a["name"]: a.get("display_name", a["name"]) for a in agents_data}
 
         # Normalize legacy/inconsistent agent names stored in message metadata
         agent_name_aliases = {
@@ -58,49 +47,40 @@ async def get_usage_trends(
         }
 
         # Get all assistant messages in range WITH metadata
-        messages = await asyncio.to_thread(
-            lambda: supabase.table("messages")
-            .select("created_at, metadata")
-            .eq("role", "assistant")
-            .gte("created_at", start_date.isoformat())
-            .lte("created_at", end_date.isoformat())
-            .execute()
+        start_iso = start_date.isoformat()
+        end_iso = end_date.isoformat()
+        messages = pb.get_all(
+            "messages",
+            filter=f"role='assistant' && created>='{start_iso}' && created<='{end_iso}'",
+            fields="created,metadata",
         )
 
         # Also get meeting room messages for multi-agent conversations
-        meeting_messages = await asyncio.to_thread(
-            lambda: supabase.table("meeting_room_messages")
-            .select("created_at, agent_id, agent_name")
-            .gte("created_at", start_date.isoformat())
-            .lte("created_at", end_date.isoformat())
-            .not_.is_("agent_id", "null")
-            .execute()
+        meeting_messages = pb.get_all(
+            "meeting_room_messages",
+            filter=f"created>='{start_iso}' && created<='{end_iso}' && agent_id!=''",
+            fields="created,agent_id,agent_name",
         )
 
         # Get DISCO pipeline runs
-        disco_runs = await asyncio.to_thread(
-            lambda: supabase.table("disco_runs")
-            .select("agent_type, started_at")
-            .gte("started_at", start_date.isoformat())
-            .execute()
+        disco_runs = pb.get_all(
+            "disco_runs",
+            filter=f"started_at>='{start_iso}'",
+            fields="agent_type,started_at",
         )
 
         # Get all conversations in range
-        convos = await asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .select("created_at")
-            .gte("created_at", start_date.isoformat())
-            .lte("created_at", end_date.isoformat())
-            .execute()
+        convos = pb.get_all(
+            "conversations",
+            filter=f"created>='{start_iso}' && created<='{end_iso}'",
+            fields="created",
         )
 
         # Get all documents in range
-        docs = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("uploaded_at")
-            .gte("uploaded_at", start_date.isoformat())
-            .lte("uploaded_at", end_date.isoformat())
-            .execute()
+        docs = pb.get_all(
+            "documents",
+            filter=f"uploaded_at>='{start_iso}' && uploaded_at<='{end_iso}'",
+            fields="uploaded_at",
         )
 
         # Initialize trends by date
@@ -118,12 +98,12 @@ async def get_usage_trends(
             current_date += timedelta(days=1)
 
         # Count messages by date AND extract agent from metadata
-        for msg in messages.data or []:
-            date = datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00")).date().isoformat()
+        for msg in messages:
+            date = datetime.fromisoformat(msg["created"].replace("Z", "+00:00")).date().isoformat()
             if date in trends_by_date:
                 trends_by_date[date]["messages"] += 1
 
-                metadata = msg.get("metadata") or {}
+                metadata = pb.parse_json_field(msg.get("metadata"), {})
                 agent_name = metadata.get("agent_display_name") or metadata.get("agent_name")
                 if agent_name:
                     normalized_name = agent_name_aliases.get(
@@ -136,8 +116,8 @@ async def get_usage_trends(
                     )
 
         # Count meeting room messages by date and agent
-        for msg in meeting_messages.data or []:
-            date = datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00")).date().isoformat()
+        for msg in meeting_messages:
+            date = datetime.fromisoformat(msg["created"].replace("Z", "+00:00")).date().isoformat()
             if date in trends_by_date:
                 trends_by_date[date]["messages"] += 1
                 agent_name = msg.get("agent_name", "Unknown")
@@ -152,7 +132,7 @@ async def get_usage_trends(
                     )
 
         # Count DISCO runs by date and agent type (skip legacy agents)
-        for run in disco_runs.data or []:
+        for run in disco_runs:
             started_at = run.get("started_at")
             if started_at:
                 date = datetime.fromisoformat(started_at.replace("Z", "+00:00")).date().isoformat()
@@ -166,13 +146,13 @@ async def get_usage_trends(
                     )
 
         # Count conversations by date
-        for convo in convos.data or []:
-            date = datetime.fromisoformat(convo["created_at"].replace("Z", "+00:00")).date().isoformat()
+        for convo in convos:
+            date = datetime.fromisoformat(convo["created"].replace("Z", "+00:00")).date().isoformat()
             if date in trends_by_date:
                 trends_by_date[date]["conversations"] += 1
 
         # Count documents by date
-        for doc in docs.data or []:
+        for doc in docs:
             date = datetime.fromisoformat(doc["uploaded_at"].replace("Z", "+00:00")).date().isoformat()
             if date in trends_by_date:
                 trends_by_date[date]["documents"] += 1
@@ -216,48 +196,34 @@ async def get_usage_trends(
 
 
 @router.get("/analytics/active-users")
-async def get_active_users(
-    current_user: dict = Depends(require_admin),
-    days: int = 7,
-):
+async def get_active_users(days: int = 7):
     """Get active users in specified timeframe.
 
-    Args:
-        current_user: Injected by FastAPI dependency.
-        days: Number of days to analyze.
+    In single-tenant mode, this returns conversation-based activity counts.
     """
     try:
-        total_users_result = await asyncio.to_thread(
-            lambda: supabase.table("users").select("id", count="exact").execute()
-        )
-        total_users = total_users_result.count or 0
+        total_conversations = pb.count("conversations")
 
         seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-        active_7_convos = await asyncio.to_thread(
-            lambda: supabase.table("conversations").select("user_id").gte("updated_at", seven_days_ago).execute()
+        active_7_convos = pb.get_all(
+            "conversations",
+            filter=f"updated>='{seven_days_ago}'",
+            fields="id",
         )
-
-        active_7_user_ids = set()
-        for convo in active_7_convos.data or []:
-            if convo.get("user_id"):
-                active_7_user_ids.add(convo["user_id"])
 
         thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-        active_30_convos = await asyncio.to_thread(
-            lambda: supabase.table("conversations").select("user_id").gte("updated_at", thirty_days_ago).execute()
+        active_30_convos = pb.get_all(
+            "conversations",
+            filter=f"updated>='{thirty_days_ago}'",
+            fields="id",
         )
-
-        active_30_user_ids = set()
-        for convo in active_30_convos.data or []:
-            if convo.get("user_id"):
-                active_30_user_ids.add(convo["user_id"])
 
         return {
             "success": True,
             "active_users": {
-                "last_7_days": len(active_7_user_ids),
-                "last_30_days": len(active_30_user_ids),
-                "total_users": total_users,
+                "last_7_days": len(active_7_convos),
+                "last_30_days": len(active_30_convos),
+                "total_users": 1,  # single-tenant
             },
         }
     except Exception as e:
@@ -266,62 +232,38 @@ async def get_active_users(
 
 
 @router.get("/analytics/recent-activity")
-async def get_recent_activity(
-    current_user: dict = Depends(require_admin),
-    limit: int = 20,
-):
-    """Get recent platform activity.
-
-    Args:
-        current_user: Injected by FastAPI dependency.
-        limit: Maximum items to return.
-    """
+async def get_recent_activity(limit: int = 20):
+    """Get recent platform activity."""
     try:
-        convos = await asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .select("id, title, created_at, user_id, users:user_id(id, name, email)")
-            .order("created_at", desc=True)
-            .limit(limit)
-            .execute()
-        )
+        result = pb.list_records("conversations", sort="-created", per_page=limit, fields="id,title,created")
+        convos = result.get("items", [])
 
-        docs = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, filename, uploaded_at, uploaded_by, users:uploaded_by(id, name, email)")
-            .order("uploaded_at", desc=True)
-            .limit(limit)
-            .execute()
-        )
+        doc_result = pb.list_records("documents", sort="-uploaded_at", per_page=limit, fields="id,filename,uploaded_at")
+        docs = doc_result.get("items", [])
 
         activity = []
 
-        for conv in convos.data or []:
-            msg_count_result = await asyncio.to_thread(
-                lambda c=conv: supabase.table("messages")
-                .select("id", count="exact")
-                .eq("conversation_id", c["id"])
-                .execute()
-            )
-
+        for conv in convos:
+            msg_count = pb.count("messages", filter=f"conversation_id='{pb.escape_filter(conv['id'])}'")
             activity.append(
                 {
                     "type": "conversation",
                     "id": conv["id"],
-                    "timestamp": conv["created_at"],
+                    "timestamp": conv["created"],
                     "title": conv.get("title"),
-                    "user": conv.get("users") if conv.get("users") else None,
-                    "message_count": msg_count_result.count or 0,
+                    "user": None,
+                    "message_count": msg_count,
                 }
             )
 
-        for doc in docs.data or []:
+        for doc in docs:
             activity.append(
                 {
                     "type": "document",
                     "id": doc["id"],
                     "timestamp": doc["uploaded_at"],
                     "filename": doc.get("filename"),
-                    "user": doc.get("users") if doc.get("users") else None,
+                    "user": None,
                 }
             )
 
@@ -335,14 +277,8 @@ async def get_recent_activity(
 
 
 @router.get("/analytics/upload-health")
-async def get_upload_health(current_user: dict = Depends(require_admin)):
-    """Get document upload health metrics.
-
-    Returns success rates, failure breakdown, and stuck documents.
-
-    Args:
-        current_user: Injected by FastAPI dependency.
-    """
+async def get_upload_health():
+    """Get document upload health metrics."""
     try:
         now = datetime.now(timezone.utc)
         one_day_ago = (now - timedelta(days=1)).isoformat()
@@ -350,14 +286,12 @@ async def get_upload_health(current_user: dict = Depends(require_admin)):
         thirty_days_ago = (now - timedelta(days=30)).isoformat()
         one_hour_ago = (now - timedelta(hours=1)).isoformat()
 
-        async def get_status_counts(since: str):
-            result = await asyncio.to_thread(
-                lambda: supabase.table("documents")
-                .select("processing_status, filename")
-                .gte("uploaded_at", since)
-                .execute()
+        def get_status_counts(since: str):
+            docs = pb.get_all(
+                "documents",
+                filter=f"uploaded_at>='{since}'",
+                fields="processing_status,filename",
             )
-            docs = result.data or []
 
             counts = {
                 "total": len(docs),
@@ -381,28 +315,26 @@ async def get_upload_health(current_user: dict = Depends(require_admin)):
             success_rate = (counts["completed"] / counts["total"] * 100) if counts["total"] > 0 else 100
             return counts, success_rate, failed_by_type
 
-        counts_24h, rate_24h, failed_types_24h = await get_status_counts(one_day_ago)
-        counts_7d, rate_7d, failed_types_7d = await get_status_counts(seven_days_ago)
-        counts_30d, rate_30d, _ = await get_status_counts(thirty_days_ago)
+        counts_24h, rate_24h, failed_types_24h = get_status_counts(one_day_ago)
+        counts_7d, rate_7d, failed_types_7d = get_status_counts(seven_days_ago)
+        counts_30d, rate_30d, _ = get_status_counts(thirty_days_ago)
 
-        stuck_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, filename, processing_status, uploaded_at")
-            .in_("processing_status", ["pending", "processing"])
-            .lt("uploaded_at", one_hour_ago)
-            .execute()
+        # Stuck documents: pending/processing older than 1 hour
+        stuck_docs = pb.get_all(
+            "documents",
+            filter=f"(processing_status='pending' || processing_status='processing') && uploaded_at<'{one_hour_ago}'",
+            fields="id,filename,processing_status,uploaded_at",
         )
-        stuck_docs = stuck_result.data or []
 
-        recent_failures = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, filename, processing_error, uploaded_at")
-            .eq("processing_status", "failed")
-            .gte("uploaded_at", seven_days_ago)
-            .order("uploaded_at", desc=True)
-            .limit(5)
-            .execute()
+        # Recent failures
+        recent_failures_result = pb.list_records(
+            "documents",
+            filter=f"processing_status='failed' && uploaded_at>='{seven_days_ago}'",
+            sort="-uploaded_at",
+            per_page=5,
+            fields="id,filename,processing_error,uploaded_at",
         )
+        recent_failures = recent_failures_result.get("items", [])
 
         logger.info(f"Upload health: {rate_24h:.1f}% success (24h), {len(stuck_docs)} stuck")
 
@@ -448,7 +380,7 @@ async def get_upload_health(current_user: dict = Depends(require_admin)):
                     "error": doc.get("processing_error", "Unknown error"),
                     "uploaded_at": doc["uploaded_at"],
                 }
-                for doc in (recent_failures.data or [])
+                for doc in recent_failures
             ],
         }
     except Exception as e:
@@ -482,64 +414,39 @@ async def get_upload_health(current_user: dict = Depends(require_admin)):
 
 @router.post("/analytics/upload-health/clear-issues")
 @limiter.limit("10/minute")
-async def clear_upload_issues(
-    request: Request,
-    current_user: dict = Depends(require_admin),
-):
-    """Clear stuck documents and recent failures from the upload health panel.
-
-    Args:
-        request: FastAPI request object for rate limiting.
-        current_user: Injected by FastAPI dependency.
-    """
+async def clear_upload_issues(request: Request):
+    """Clear stuck documents and recent failures from the upload health panel."""
     try:
         now = datetime.now(timezone.utc)
         one_hour_ago = (now - timedelta(hours=1)).isoformat()
         seven_days_ago = (now - timedelta(days=7)).isoformat()
 
-        stuck_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, filename")
-            .in_("processing_status", ["pending", "processing"])
-            .lt("uploaded_at", one_hour_ago)
-            .execute()
+        stuck_docs = pb.get_all(
+            "documents",
+            filter=f"(processing_status='pending' || processing_status='processing') && uploaded_at<'{one_hour_ago}'",
+            fields="id,filename",
         )
-        stuck_docs = stuck_result.data or []
 
         stuck_count = 0
         for doc in stuck_docs:
-            await asyncio.to_thread(
-                lambda doc_id=doc["id"]: supabase.table("documents")
-                .update(
-                    {
-                        "processing_status": "failed",
-                        "processing_error": "Cleared by admin - document was stuck in processing",
-                    }
-                )
-                .eq("id", doc_id)
-                .execute()
-            )
+            pb.update_record("documents", doc["id"], {
+                "processing_status": "failed",
+                "processing_error": "Cleared by admin - document was stuck in processing",
+            })
             stuck_count += 1
 
-        failures_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id")
-            .eq("processing_status", "failed")
-            .gte("uploaded_at", seven_days_ago)
-            .execute()
+        failed_docs = pb.get_all(
+            "documents",
+            filter=f"processing_status='failed' && uploaded_at>='{seven_days_ago}'",
+            fields="id",
         )
-        failed_docs = failures_result.data or []
 
         failures_count = 0
         for doc in failed_docs:
-            await asyncio.to_thread(
-                lambda doc_id=doc["id"]: supabase.table("documents").delete().eq("id", doc_id).execute()
-            )
+            pb.delete_record("documents", doc["id"])
             failures_count += 1
 
-        logger.info(
-            f"Admin {current_user.get('email')} cleared upload issues: {stuck_count} stuck, {failures_count} failures"
-        )
+        logger.info(f"Admin cleared upload issues: {stuck_count} stuck, {failures_count} failures")
 
         return {
             "success": True,
@@ -552,57 +459,30 @@ async def clear_upload_issues(
 
 
 @router.get("/analytics/interface-health")
-async def get_interface_health(current_user: dict = Depends(require_admin)):
-    """Get interface health metrics.
-
-    Returns response length stats, image generation stats, and workflow metrics.
-
-    Args:
-        current_user: Injected by FastAPI dependency.
-    """
+async def get_interface_health():
+    """Get interface health metrics."""
     try:
         now = datetime.now(timezone.utc)
         seven_days_ago = (now - timedelta(days=7)).isoformat()
         five_minutes_ago = (now - timedelta(minutes=5)).isoformat()
         one_hour_ago = (now - timedelta(hours=1)).isoformat()
 
-        messages_task = asyncio.to_thread(
-            lambda: supabase.table("messages")
-            .select("content")
-            .eq("role", "assistant")
-            .gte("created_at", seven_days_ago)
-            .execute()
+        messages = pb.get_all(
+            "messages",
+            filter=f"role='assistant' && created>='{seven_days_ago}'",
+            fields="content",
         )
 
-        convos_task = asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .select("id", count="exact")
-            .gte("created_at", seven_days_ago)
-            .execute()
+        total_conversations_7d = pb.count("conversations", filter=f"created>='{seven_days_ago}'")
+
+        recent_messages_result = pb.list_records(
+            "messages",
+            filter=f"created>='{one_hour_ago}' && created<'{five_minutes_ago}'",
+            sort="-created",
+            per_page=50,
+            fields="conversation_id,metadata,created",
         )
-
-        active_users_task = asyncio.to_thread(
-            lambda: supabase.table("conversations").select("user_id").gte("updated_at", seven_days_ago).execute()
-        )
-
-        recent_messages_task = asyncio.to_thread(
-            lambda: supabase.table("messages")
-            .select("conversation_id, metadata, created_at")
-            .gte("created_at", one_hour_ago)
-            .lt("created_at", five_minutes_ago)
-            .order("created_at", desc=True)
-            .limit(50)
-            .execute()
-        )
-
-        (
-            messages_result,
-            convos_result,
-            active_users_result,
-            recent_messages_result,
-        ) = await asyncio.gather(messages_task, convos_task, active_users_task, recent_messages_task)
-
-        messages = messages_result.data or []
+        recent_messages = recent_messages_result.get("items", [])
 
         total_words = 0
         response_count = 0
@@ -615,32 +495,23 @@ async def get_interface_health(current_user: dict = Depends(require_admin)):
                 response_count += 1
 
         avg_response_length = round(total_words / response_count) if response_count > 0 else 0
-        total_conversations_7d = convos_result.count or 0
-
-        active_user_ids = set()
-        for convo in active_users_result.data or []:
-            if convo.get("user_id"):
-                active_user_ids.add(convo["user_id"])
-        active_users_count = len(active_user_ids)
 
         stuck_conversations = set()
-        for msg in recent_messages_result.data or []:
-            metadata = msg.get("metadata") or {}
+        for msg in recent_messages:
+            metadata = pb.parse_json_field(msg.get("metadata"), {})
             if metadata.get("awaiting_image_confirmation"):
                 stuck_conversations.add(msg["conversation_id"])
 
         avg_turns = 0
         useable_convos = []
         try:
-            useable_result = await asyncio.to_thread(
-                lambda: supabase.table("conversations")
-                .select("turns_to_useable_output")
-                .not_.is_("turns_to_useable_output", "null")
-                .gte("updated_at", seven_days_ago)
-                .limit(100)
-                .execute()
+            useable_convos = pb.get_all(
+                "conversations",
+                filter=f"turns_to_useable_output!=null && updated>='{seven_days_ago}'",
+                fields="turns_to_useable_output",
             )
-            useable_convos = useable_result.data or []
+            # Limit to 100
+            useable_convos = useable_convos[:100]
             total_turns = sum(c.get("turns_to_useable_output", 0) for c in useable_convos)
             avg_turns = round(total_turns / len(useable_convos), 1) if useable_convos else 0
         except Exception as e:
@@ -655,8 +526,7 @@ async def get_interface_health(current_user: dict = Depends(require_admin)):
 
         logger.info(
             f"Interface health: {avg_response_length} avg words, "
-            f"{len(stuck_conversations)} stuck, {total_conversations_7d} chats, "
-            f"{active_users_count} active users"
+            f"{len(stuck_conversations)} stuck, {total_conversations_7d} chats"
         )
 
         return {
@@ -669,7 +539,7 @@ async def get_interface_health(current_user: dict = Depends(require_admin)):
             },
             "activity_metrics": {
                 "conversations_7d": total_conversations_7d,
-                "active_users_7d": active_users_count,
+                "active_users_7d": 1,  # single-tenant
             },
             "workflow_metrics": {
                 "avg_turns_to_useable": avg_turns,
@@ -702,138 +572,49 @@ async def get_interface_health(current_user: dict = Depends(require_admin)):
 
 
 @router.get("/analytics/keyword-trends")
-async def get_keyword_trends(
-    current_user: dict = Depends(require_admin),
-    days: int = 30,
-):
-    """Analyze keyword trends from user messages.
-
-    Returns top keywords, questions asked, and suggested FAQs.
-
-    Args:
-        current_user: Injected by FastAPI dependency.
-        days: Number of days to analyze.
-    """
+async def get_keyword_trends(days: int = 30):
+    """Analyze keyword trends from user messages."""
     try:
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
-        messages_result = await asyncio.to_thread(
-            lambda: supabase.table("messages")
-            .select("content, created_at")
-            .eq("role", "user")
-            .gte("created_at", start_date.isoformat())
-            .lte("created_at", end_date.isoformat())
-            .execute()
+        messages = pb.get_all(
+            "messages",
+            filter=f"role='user' && created>='{start_date.isoformat()}' && created<='{end_date.isoformat()}'",
+            fields="content,created",
         )
-
-        messages = messages_result.data if messages_result.data else []
 
         # Domain keywords and categories
         domain_keywords = {
-            "strategy",
-            "roadmap",
-            "initiative",
-            "transformation",
-            "adoption",
-            "roi",
-            "business case",
-            "value",
-            "impact",
-            "metrics",
-            "kpi",
-            "genai",
-            "llm",
-            "rag",
-            "embeddings",
-            "fine-tuning",
-            "prompt",
-            "model",
-            "inference",
-            "agent",
-            "chatbot",
-            "copilot",
-            "automation",
-            "governance",
-            "compliance",
-            "security",
-            "privacy",
-            "policy",
-            "risk",
-            "audit",
-            "regulation",
-            "shadow ai",
-            "stakeholder",
-            "sponsor",
-            "champion",
-            "executive",
-            "c-suite",
-            "alignment",
-            "pilot",
-            "poc",
-            "mvp",
-            "prototype",
-            "integration",
-            "vendor",
-            "research",
-            "benchmark",
-            "best practice",
-            "use case",
-            "innovation",
-            "emerging",
+            "strategy", "roadmap", "initiative", "transformation", "adoption",
+            "roi", "business case", "value", "impact", "metrics", "kpi",
+            "genai", "llm", "rag", "embeddings", "fine-tuning", "prompt",
+            "model", "inference", "agent", "chatbot", "copilot", "automation",
+            "governance", "compliance", "security", "privacy", "policy", "risk",
+            "audit", "regulation", "shadow ai",
+            "stakeholder", "sponsor", "champion", "executive", "c-suite", "alignment",
+            "pilot", "poc", "mvp", "prototype", "integration", "vendor",
+            "research", "benchmark", "best practice", "use case", "innovation", "emerging",
         }
 
         keyword_categories = {
-            "strategy": "Strategy",
-            "roadmap": "Strategy",
-            "initiative": "Strategy",
-            "transformation": "Strategy",
-            "adoption": "Strategy",
-            "roi": "Business Value",
-            "business case": "Business Value",
-            "value": "Business Value",
-            "impact": "Business Value",
-            "metrics": "Business Value",
-            "kpi": "Business Value",
-            "genai": "AI Technology",
-            "llm": "AI Technology",
-            "rag": "AI Technology",
-            "embeddings": "AI Technology",
-            "fine-tuning": "AI Technology",
-            "prompt": "AI Technology",
-            "model": "AI Technology",
-            "inference": "AI Technology",
-            "agent": "AI Technology",
-            "chatbot": "AI Technology",
-            "copilot": "AI Technology",
-            "automation": "AI Technology",
-            "governance": "Governance",
-            "compliance": "Governance",
-            "security": "Governance",
-            "privacy": "Governance",
-            "policy": "Governance",
-            "risk": "Governance",
-            "audit": "Governance",
-            "regulation": "Governance",
-            "shadow ai": "Governance",
-            "stakeholder": "Stakeholders",
-            "sponsor": "Stakeholders",
-            "champion": "Stakeholders",
-            "executive": "Stakeholders",
-            "c-suite": "Stakeholders",
-            "alignment": "Stakeholders",
-            "pilot": "Implementation",
-            "poc": "Implementation",
-            "mvp": "Implementation",
-            "prototype": "Implementation",
-            "integration": "Implementation",
-            "vendor": "Implementation",
-            "research": "Research",
-            "benchmark": "Research",
-            "best practice": "Research",
-            "use case": "Research",
-            "innovation": "Research",
-            "emerging": "Research",
+            "strategy": "Strategy", "roadmap": "Strategy", "initiative": "Strategy",
+            "transformation": "Strategy", "adoption": "Strategy",
+            "roi": "Business Value", "business case": "Business Value", "value": "Business Value",
+            "impact": "Business Value", "metrics": "Business Value", "kpi": "Business Value",
+            "genai": "AI Technology", "llm": "AI Technology", "rag": "AI Technology",
+            "embeddings": "AI Technology", "fine-tuning": "AI Technology", "prompt": "AI Technology",
+            "model": "AI Technology", "inference": "AI Technology", "agent": "AI Technology",
+            "chatbot": "AI Technology", "copilot": "AI Technology", "automation": "AI Technology",
+            "governance": "Governance", "compliance": "Governance", "security": "Governance",
+            "privacy": "Governance", "policy": "Governance", "risk": "Governance",
+            "audit": "Governance", "regulation": "Governance", "shadow ai": "Governance",
+            "stakeholder": "Stakeholders", "sponsor": "Stakeholders", "champion": "Stakeholders",
+            "executive": "Stakeholders", "c-suite": "Stakeholders", "alignment": "Stakeholders",
+            "pilot": "Implementation", "poc": "Implementation", "mvp": "Implementation",
+            "prototype": "Implementation", "integration": "Implementation", "vendor": "Implementation",
+            "research": "Research", "benchmark": "Research", "best practice": "Research",
+            "use case": "Research", "innovation": "Research", "emerging": "Research",
         }
 
         # Process messages
@@ -847,7 +628,7 @@ async def get_keyword_trends(
                 questions.append(
                     {
                         "text": msg.get("content", "").strip()[:200],
-                        "timestamp": msg.get("created_at"),
+                        "timestamp": msg.get("created"),
                     }
                 )
 
@@ -857,60 +638,12 @@ async def get_keyword_trends(
         word_counts = Counter(all_words)
 
         stop_words = {
-            "the",
-            "and",
-            "for",
-            "are",
-            "but",
-            "not",
-            "you",
-            "all",
-            "can",
-            "had",
-            "her",
-            "was",
-            "one",
-            "our",
-            "out",
-            "has",
-            "have",
-            "been",
-            "were",
-            "will",
-            "this",
-            "that",
-            "with",
-            "from",
-            "they",
-            "what",
-            "which",
-            "when",
-            "would",
-            "there",
-            "their",
-            "about",
-            "could",
-            "other",
-            "into",
-            "some",
-            "than",
-            "then",
-            "these",
-            "only",
-            "just",
-            "also",
-            "more",
-            "after",
-            "before",
-            "should",
-            "how",
-            "like",
-            "help",
-            "want",
-            "need",
-            "please",
-            "thanks",
-            "thank",
+            "the", "and", "for", "are", "but", "not", "you", "all", "can", "had",
+            "her", "was", "one", "our", "out", "has", "have", "been", "were", "will",
+            "this", "that", "with", "from", "they", "what", "which", "when", "would",
+            "there", "their", "about", "could", "other", "into", "some", "than", "then",
+            "these", "only", "just", "also", "more", "after", "before", "should", "how",
+            "like", "help", "want", "need", "please", "thanks", "thank",
         }
 
         keywords = []

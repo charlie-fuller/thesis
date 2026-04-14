@@ -1,13 +1,12 @@
 """Admin manifesto compliance analytics -- aggregate compliance scoring data."""
 
-import asyncio
 import math
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
-from auth import require_admin
+import pb_client as pb
 from logger_config import get_logger
 from services.manifesto_compliance import (
     AGENT_EXPECTED_PRINCIPLES,
@@ -18,62 +17,50 @@ from services.manifesto_compliance import (
     _get_compliance_level,
 )
 
-from ._shared import supabase
-
 logger = get_logger(__name__)
 router = APIRouter()
 
 
 @router.get("/analytics/manifesto-compliance")
-async def get_manifesto_compliance(
-    current_user: dict = Depends(require_admin),
-    days: int = 30,
-):
+async def get_manifesto_compliance(days: int = 30):
     """Get manifesto compliance analytics aggregated by agent and principle.
 
     Queries messages and meeting_room_messages for stored compliance data,
     aggregates by agent and principle, and flags drift (low hit rates on
     expected principles).
-
-    Args:
-        current_user: Injected by FastAPI dependency.
-        days: Number of days to analyze (default 30).
     """
     try:
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
+        start_iso = start_date.isoformat()
+        end_iso = end_date.isoformat()
+
         # Query chat messages with compliance data
-        chat_messages = await asyncio.to_thread(
-            lambda: supabase.table("messages")
-            .select("metadata")
-            .eq("role", "assistant")
-            .gte("created_at", start_date.isoformat())
-            .lte("created_at", end_date.isoformat())
-            .execute()
+        chat_messages = pb.get_all(
+            "messages",
+            filter=f"role='assistant' && created>='{start_iso}' && created<='{end_iso}'",
+            fields="metadata",
         )
 
         # Query meeting room messages with compliance data
-        meeting_messages = await asyncio.to_thread(
-            lambda: supabase.table("meeting_room_messages")
-            .select("metadata")
-            .gte("created_at", start_date.isoformat())
-            .lte("created_at", end_date.isoformat())
-            .not_.is_("agent_id", "null")
-            .execute()
+        meeting_messages = pb.get_all(
+            "meeting_room_messages",
+            filter=f"created>='{start_iso}' && created<='{end_iso}' && agent_id!=''",
+            fields="metadata",
         )
 
         # Extract compliance records from both sources
         compliance_records = []
 
-        for msg in chat_messages.data or []:
-            metadata = msg.get("metadata") or {}
+        for msg in chat_messages:
+            metadata = pb.parse_json_field(msg, "metadata", {})
             compliance = metadata.get("manifesto_compliance")
             if compliance:
                 compliance_records.append(compliance)
 
-        for msg in meeting_messages.data or []:
-            metadata = msg.get("metadata") or {}
+        for msg in meeting_messages:
+            metadata = pb.parse_json_field(msg, "metadata", {})
             compliance = metadata.get("manifesto_compliance")
             if compliance:
                 compliance_records.append(compliance)
@@ -204,7 +191,6 @@ def _build_recommendation(gaps: list[str], signals: list[str], max_items: int = 
             parts.append(rec)
     if parts:
         return " ".join(parts)
-    # Fallback when no specific gaps (agent not in expected config)
     signal_count = len(signals)
     total = len(PRINCIPLE_RECOMMENDATIONS)
     return f"Only {signal_count} of {total} principles detected. Broaden principle engagement across responses."
@@ -235,7 +221,7 @@ def _build_why_flagged(gaps: list[str], signals: list[str], max_items: int = 3) 
 
 
 def _format_principle(principle_id: str) -> str:
-    """Convert principle ID to readable label, e.g. P3_evidence_over_eloquence -> Evidence over eloquence."""
+    """Convert principle ID to readable label."""
     parts = principle_id.split("_", 1)
     if len(parts) == 2:
         return parts[1].replace("_", " ").capitalize()
@@ -255,10 +241,7 @@ def _compute_confidence(
     conv_meta: dict | None,
     conv_message_count: int,
 ) -> tuple[int, dict[str, str]]:
-    """Compute context-aware confidence score for a flagged compliance item.
-
-    Returns (confidence_int, factors_dict) where confidence is 5-99.
-    """
+    """Compute context-aware confidence score for a flagged compliance item."""
     factors = {}
 
     # 1. Base score (inverse of compliance score)
@@ -341,7 +324,7 @@ def _compute_confidence(
         mean = baseline["mean"]
         stddev = baseline["stddev"]
         if stddev > 0:
-            z = (mean - score) / stddev  # positive z = score below mean
+            z = (mean - score) / stddev
             if z < 1:
                 baseline_factor = 0.6
                 factors["baseline"] = f"normal for {agent} (0.6x)"
@@ -366,18 +349,8 @@ def _compute_confidence(
 
 
 @router.get("/analytics/manifesto-compliance/flagged")
-async def get_flagged_messages(
-    current_user: dict = Depends(require_admin),
-    days: int = 30,
-    level: str = "drifting",
-):
-    """Get individual flagged messages with compliance details.
-
-    Args:
-        current_user: Injected by FastAPI dependency.
-        days: Number of days to look back (default 30).
-        level: Filter by compliance level ('drifting' or 'misaligned').
-    """
+async def get_flagged_messages(days: int = 30, level: str = "drifting"):
+    """Get individual flagged messages with compliance details."""
     if level not in ("drifting", "misaligned"):
         raise HTTPException(status_code=400, detail="level must be 'drifting' or 'misaligned'")
 
@@ -385,34 +358,31 @@ async def get_flagged_messages(
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
+        start_iso = start_date.isoformat()
+        end_iso = end_date.isoformat()
+
         # Query chat messages
-        chat_result = await asyncio.to_thread(
-            lambda: supabase.table("messages")
-            .select("id, conversation_id, content, metadata, created_at")
-            .eq("role", "assistant")
-            .gte("created_at", start_date.isoformat())
-            .lte("created_at", end_date.isoformat())
-            .execute()
+        chat_data = pb.get_all(
+            "messages",
+            filter=f"role='assistant' && created>='{start_iso}' && created<='{end_iso}'",
+            fields="id,conversation_id,content,metadata,created",
         )
 
         # Query meeting room messages
-        meeting_result = await asyncio.to_thread(
-            lambda: supabase.table("meeting_room_messages")
-            .select("id, meeting_room_id, content, metadata, created_at")
-            .gte("created_at", start_date.isoformat())
-            .lte("created_at", end_date.isoformat())
-            .not_.is_("agent_id", "null")
-            .execute()
+        meeting_data = pb.get_all(
+            "meeting_room_messages",
+            filter=f"created>='{start_iso}' && created<='{end_iso}' && agent_id!=''",
+            fields="id,meeting_room_id,content,metadata,created",
         )
 
         # -- Build agent baselines from ALL compliance records in the period --
         agent_scores: dict[str, list[float]] = defaultdict(list)
-        for msg in chat_result.data or []:
-            c = (msg.get("metadata") or {}).get("manifesto_compliance")
+        for msg in chat_data:
+            c = pb.parse_json_field(msg, "metadata", {}).get("manifesto_compliance")
             if c:
                 agent_scores[c.get("agent", "unknown")].append(c.get("score", 0.0))
-        for msg in meeting_result.data or []:
-            c = (msg.get("metadata") or {}).get("manifesto_compliance")
+        for msg in meeting_data:
+            c = pb.parse_json_field(msg, "metadata", {}).get("manifesto_compliance")
             if c:
                 agent_scores[c.get("agent", "unknown")].append(c.get("score", 0.0))
 
@@ -429,54 +399,64 @@ async def get_flagged_messages(
 
         # -- Build conversation message counts --
         conv_msg_counts: dict[str, int] = defaultdict(int)
-        for msg in chat_result.data or []:
+        for msg in chat_data:
             cid = msg.get("conversation_id")
             if cid:
                 conv_msg_counts[f"chat:{cid}"] += 1
-        for msg in meeting_result.data or []:
+        for msg in meeting_data:
             mid = msg.get("meeting_room_id")
             if mid:
                 conv_msg_counts[f"meeting:{mid}"] += 1
 
         # -- Batch-fetch conversation metadata --
         chat_conv_ids = list(
-            {msg.get("conversation_id") for msg in chat_result.data or [] if msg.get("conversation_id")}
+            {msg.get("conversation_id") for msg in chat_data if msg.get("conversation_id")}
         )
         meeting_room_ids = list(
-            {msg.get("meeting_room_id") for msg in meeting_result.data or [] if msg.get("meeting_room_id")}
+            {msg.get("meeting_room_id") for msg in meeting_data if msg.get("meeting_room_id")}
         )
 
         conv_meta_map: dict[str, dict] = {}
         if chat_conv_ids:
-            conv_result = await asyncio.to_thread(
-                lambda: supabase.table("conversations")
-                .select("id, title, project_id, initiative_id")
-                .in_("id", chat_conv_ids)
-                .execute()
-            )
-            for conv in conv_result.data or []:
-                conv_meta_map[f"chat:{conv['id']}"] = {
-                    "title": conv.get("title"),
-                    "project_id": conv.get("project_id"),
-                    "initiative_id": conv.get("initiative_id"),
-                }
+            # Fetch in batches to avoid overly long filters
+            for i in range(0, len(chat_conv_ids), 30):
+                batch = chat_conv_ids[i : i + 30]
+                parts = [f"id='{pb.escape_filter(cid)}'" for cid in batch]
+                conv_filter = " || ".join(parts)
+                conv_records = pb.get_all(
+                    "conversations",
+                    filter=conv_filter,
+                    fields="id,title,project_id,initiative_id",
+                )
+                for conv in conv_records:
+                    conv_meta_map[f"chat:{conv['id']}"] = {
+                        "title": conv.get("title"),
+                        "project_id": conv.get("project_id"),
+                        "initiative_id": conv.get("initiative_id"),
+                    }
 
         if meeting_room_ids:
-            mr_result = await asyncio.to_thread(
-                lambda: supabase.table("meeting_rooms").select("id, title").in_("id", meeting_room_ids).execute()
-            )
-            for mr in mr_result.data or []:
-                conv_meta_map[f"meeting:{mr['id']}"] = {
-                    "title": mr.get("title"),
-                    "project_id": None,
-                    "initiative_id": None,
-                }
+            for i in range(0, len(meeting_room_ids), 30):
+                batch = meeting_room_ids[i : i + 30]
+                parts = [f"id='{pb.escape_filter(mid)}'" for mid in batch]
+                mr_filter = " || ".join(parts)
+                mr_records = pb.get_all(
+                    "meeting_rooms",
+                    filter=mr_filter,
+                    fields="id,title",
+                )
+                for mr in mr_records:
+                    conv_meta_map[f"meeting:{mr['id']}"] = {
+                        "title": mr.get("title"),
+                        "project_id": None,
+                        "initiative_id": None,
+                    }
 
         # -- Build flagged items with context-aware confidence --
         items = []
 
-        for msg in chat_result.data or []:
-            metadata = msg.get("metadata") or {}
+        for msg in chat_data:
+            metadata = pb.parse_json_field(msg, "metadata", {})
             compliance = metadata.get("manifesto_compliance")
             if not compliance:
                 continue
@@ -516,13 +496,13 @@ async def get_flagged_messages(
                     "gaps": gaps,
                     "why_flagged": _build_why_flagged(gaps, signals),
                     "content_preview": content[:150] + ("..." if len(content) > 150 else ""),
-                    "created_at": msg.get("created_at"),
+                    "created_at": msg.get("created"),
                     "recommendation": _build_recommendation(gaps, signals),
                 }
             )
 
-        for msg in meeting_result.data or []:
-            metadata = msg.get("metadata") or {}
+        for msg in meeting_data:
+            metadata = pb.parse_json_field(msg, "metadata", {})
             compliance = metadata.get("manifesto_compliance")
             if not compliance:
                 continue
@@ -562,7 +542,7 @@ async def get_flagged_messages(
                     "gaps": gaps,
                     "why_flagged": _build_why_flagged(gaps, signals),
                     "content_preview": content[:150] + ("..." if len(content) > 150 else ""),
-                    "created_at": msg.get("created_at"),
+                    "created_at": msg.get("created"),
                     "recommendation": _build_recommendation(gaps, signals),
                 }
             )
