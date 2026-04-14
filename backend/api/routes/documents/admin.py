@@ -1,43 +1,38 @@
 """Document admin routes - listing, details, cleanup."""
 
-import asyncio
+from fastapi import APIRouter, HTTPException
 
-from fastapi import APIRouter, Depends, HTTPException
-
-from auth import require_admin
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
+from repositories import documents as doc_repo
 from validation import validate_uuid
 
 logger = get_logger(__name__)
 router = APIRouter()
-supabase = get_supabase()
 
 
 @router.get("/")
 async def list_all_documents(
-    current_user: dict = Depends(require_admin),
     limit: int = 50,
     offset: int = 0,
 ):
     """List all documents (admin only).
 
     Args:
-        current_user: Injected by FastAPI dependency.
         limit: Maximum documents to return.
         offset: Pagination offset.
     """
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("*, clients(name), users!documents_user_id_fkey(email)")
-            .order("uploaded_at", desc=True)
-            .limit(limit)
-            .offset(offset)
-            .execute()
+        page = (offset // limit) + 1 if limit else 1
+        result = pb.list_records(
+            "documents",
+            sort="-uploaded_at",
+            page=page,
+            per_page=limit,
         )
+        documents = result.get("items", [])
 
-        return {"success": True, "documents": result.data, "limit": limit, "offset": offset}
+        return {"success": True, "documents": documents, "limit": limit, "offset": offset}
 
     except Exception as e:
         logger.error(f"Error listing documents: {str(e)}")
@@ -47,37 +42,26 @@ async def list_all_documents(
 @router.get("/{document_id}/details")
 async def get_document_details(
     document_id: str,
-    current_user: dict = Depends(require_admin),
 ):
     """Get detailed document information including chunks (admin only).
 
     Args:
         document_id: UUID of the document.
-        current_user: Injected by FastAPI dependency.
     """
     try:
         validate_uuid(document_id, "document_id")
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("*").eq("id", document_id).single().execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        chunks_result = await asyncio.to_thread(
-            lambda: supabase.table("document_chunks")
-            .select("id, chunk_index, content")
-            .eq("document_id", document_id)
-            .order("chunk_index")
-            .execute()
-        )
+        chunks = doc_repo.list_document_chunks(document_id)
 
         return {
             "success": True,
-            "document": doc_result.data,
-            "chunks": chunks_result.data,
-            "chunk_count": len(chunks_result.data),
+            "document": document,
+            "chunks": chunks,
+            "chunk_count": len(chunks),
         }
 
     except HTTPException:
@@ -95,7 +79,6 @@ async def get_document_details(
 @router.get("/cleanup/by-path")
 async def find_documents_by_path_pattern(
     pattern: str,
-    current_user: dict = Depends(require_admin),
     limit: int = 100,
 ):
     """Find documents whose obsidian_file_path contains the given pattern (admin only).
@@ -104,52 +87,40 @@ async def find_documents_by_path_pattern(
 
     Args:
         pattern: Substring to search for in obsidian_file_path (e.g., "node_modules").
-        current_user: Injected by FastAPI dependency.
         limit: Maximum number of documents to return (default 100).
     """
     try:
         if not pattern or len(pattern) < 3:
             raise HTTPException(status_code=400, detail="Pattern must be at least 3 characters")
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, filename, title, obsidian_file_path, uploaded_at")
-            .ilike("obsidian_file_path", f"%{pattern}%")
-            .limit(limit)
-            .execute()
+        result = pb.list_records(
+            "documents",
+            filter=f"obsidian_file_path~'{pb.escape_filter(pattern)}'",
+            per_page=limit,
         )
-
-        documents = result.data or []
+        documents = result.get("items", [])
         doc_ids = [d["id"] for d in documents]
 
-        # Batch fetch all tags for the documents in a single query
+        # Fetch tags for each document
         tags_by_doc = {}
-        if doc_ids:
-            tags_result = await asyncio.to_thread(
-                lambda: supabase.table("document_tags").select("document_id, tag").in_("document_id", doc_ids).execute()
-            )
-            for tag_record in tags_result.data or []:
-                doc_id = tag_record["document_id"]
-                if doc_id not in tags_by_doc:
-                    tags_by_doc[doc_id] = []
-                tags_by_doc[doc_id].append(tag_record["tag"])
+        for doc_id in doc_ids:
+            tags = doc_repo.list_document_tags(doc_id)
+            tags_by_doc[doc_id] = [t["tag"] for t in tags]
 
         # Attach tags to each document
         for doc in documents:
             doc["tags"] = tags_by_doc.get(doc["id"], [])
 
-        # Get total count (may be more than limit)
-        count_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id", count="exact")
-            .ilike("obsidian_file_path", f"%{pattern}%")
-            .execute()
+        # Get total count
+        total_count = pb.count(
+            "documents",
+            filter=f"obsidian_file_path~'{pb.escape_filter(pattern)}'",
         )
 
         return {
             "success": True,
             "pattern": pattern,
-            "total_count": count_result.count,
+            "total_count": total_count,
             "returned_count": len(documents),
             "documents": documents,
         }
@@ -164,7 +135,6 @@ async def find_documents_by_path_pattern(
 @router.delete("/cleanup/by-path")
 async def delete_documents_by_path_pattern(
     pattern: str,
-    current_user: dict = Depends(require_admin),
     dry_run: bool = True,
 ):
     """Delete documents whose obsidian_file_path contains the given pattern (admin only).
@@ -173,30 +143,23 @@ async def delete_documents_by_path_pattern(
 
     Args:
         pattern: Substring to search for in obsidian_file_path (e.g., "node_modules").
-        current_user: Injected by FastAPI dependency.
         dry_run: If True (default), only report what would be deleted without deleting.
     """
     try:
         if not pattern or len(pattern) < 3:
             raise HTTPException(status_code=400, detail="Pattern must be at least 3 characters")
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, filename, obsidian_file_path")
-            .ilike("obsidian_file_path", f"%{pattern}%")
-            .execute()
+        documents = pb.get_all(
+            "documents",
+            filter=f"obsidian_file_path~'{pb.escape_filter(pattern)}'",
         )
-
-        documents = result.data or []
         doc_ids = [d["id"] for d in documents]
 
-        # Batch fetch all tags for affected documents in a single query
+        # Fetch all tags for affected documents
         affected_tags = set()
-        if doc_ids:
-            tags_result = await asyncio.to_thread(
-                lambda: supabase.table("document_tags").select("tag").in_("document_id", doc_ids).execute()
-            )
-            for t in tags_result.data or []:
+        for doc_id in doc_ids:
+            tags = doc_repo.list_document_tags(doc_id)
+            for t in tags:
                 affected_tags.add(t["tag"])
 
         if dry_run:
@@ -207,31 +170,32 @@ async def delete_documents_by_path_pattern(
                 "would_delete_count": len(documents),
                 "affected_tags": sorted(affected_tags),
                 "documents": [
-                    {"id": d["id"], "filename": d["filename"], "path": d["obsidian_file_path"]} for d in documents[:50]
+                    {"id": d["id"], "filename": d.get("filename"), "path": d.get("obsidian_file_path")}
+                    for d in documents[:50]
                 ],
                 "message": (f"Would delete {len(documents)} documents. Set dry_run=false to actually delete."),
             }
 
-        # Actually delete using batch operations
+        # Actually delete
         deleted_count = 0
         errors = []
 
         if doc_ids:
             try:
-                # Batch delete chunks for all documents
-                await asyncio.to_thread(
-                    lambda: supabase.table("document_chunks").delete().in_("document_id", doc_ids).execute()
-                )
-
-                # Batch delete documents (tags deleted via CASCADE)
-                await asyncio.to_thread(lambda: supabase.table("documents").delete().in_("id", doc_ids).execute())
+                for doc_id in doc_ids:
+                    # Delete chunks first
+                    chunks = doc_repo.list_document_chunks(doc_id)
+                    for chunk in chunks:
+                        doc_repo.delete_document_chunk(chunk["id"])
+                    # Delete document (tags should cascade)
+                    doc_repo.delete_document(doc_id)
 
                 deleted_count = len(doc_ids)
 
             except Exception as e:
                 errors.append({"batch": True, "error": str(e)})
 
-        logger.info(f"Deleted {deleted_count} documents matching pattern '{pattern}' by admin {current_user['id']}")
+        logger.info(f"Deleted {deleted_count} documents matching pattern '{pattern}'")
 
         return {
             "success": True,

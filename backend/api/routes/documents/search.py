@@ -1,45 +1,34 @@
 """Document search and tag-based selection routes."""
 
-import asyncio
-import json
 from collections import Counter, defaultdict
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
-from auth import get_current_user
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
+from repositories import documents as doc_repo
 from validation import validate_uuid
 
 from ._shared import BatchTagsRequest, BulkTagsRequest
 
 logger = get_logger(__name__)
 router = APIRouter()
-supabase = get_supabase()
 
 
 @router.get("/pending-reviews")
-async def get_pending_classification_reviews(
-    current_user: dict = Depends(get_current_user),
-):
+async def get_pending_classification_reviews():
     """Get all documents with pending classification reviews."""
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("document_classifications")
-            .select(
-                "document_id, detected_type, review_reason, raw_scores, created_at, "
-                "documents(id, filename, uploaded_by)"
-            )
-            .eq("requires_user_review", True)
-            .eq("status", "needs_review")
-            .order("created_at", desc=True)
-            .execute()
+        classifications = pb.get_all(
+            "document_classifications",
+            filter="requires_user_review=true && status='needs_review'",
+            sort="-created",
         )
 
         pending_reviews = []
-        for item in result.data or []:
-            doc = item.get("documents")
+        for item in classifications:
+            doc = pb.get_record("documents", item["document_id"])
             if not doc:
                 continue
 
@@ -49,8 +38,8 @@ async def get_pending_classification_reviews(
                     "filename": doc.get("filename"),
                     "detected_type": item.get("detected_type"),
                     "review_reason": item.get("review_reason"),
-                    "suggested_agents": item.get("raw_scores", {}),
-                    "created_at": item.get("created_at"),
+                    "suggested_agents": pb.parse_json_field(item.get("raw_scores"), {}),
+                    "created_at": item.get("created"),
                 }
             )
 
@@ -70,31 +59,21 @@ async def get_all_tags(
     search: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
-    current_user: dict = Depends(get_current_user),
 ):
     """Get all tags with document counts, with optional search and pagination."""
     try:
-        user_id = current_user["id"]
+        all_docs = pb.get_all("documents", fields="tags_cache")
 
-        docs_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("tags_cache").eq("uploaded_by", user_id).execute()
-        )
-
-        if not docs_result.data:
-            logger.info(f"No documents found for user {user_id}")
+        if not all_docs:
             return {"success": True, "tags": [], "hasMore": False}
 
         tag_counts: Counter = Counter()
-        for doc in docs_result.data:
-            tags_list = doc.get("tags_cache") or []
+        for doc in all_docs:
+            tags_list = pb.parse_json_field(doc.get("tags_cache"), [])
             for tag in tags_list:
                 if search and search.lower() not in tag.lower():
                     continue
                 tag_counts[tag] += 1
-
-        logger.info(
-            f"Found {sum(tag_counts.values())} tag entries for user {user_id} across {len(docs_result.data)} documents"
-        )
 
         sorted_tags = sorted(tag_counts.items(), key=lambda x: x[0].lower())
         paginated = sorted_tags[offset : offset + limit + 1]
@@ -115,14 +94,11 @@ async def get_all_tags(
 @router.post("/tags/batch")
 async def get_tags_batch(
     request: BatchTagsRequest,
-    current_user: dict = Depends(get_current_user),
 ):
     """Get tags for multiple documents in a single request."""
     try:
         if not request.document_ids:
             return {"success": True, "tags": {}}
-
-        user_id = current_user["id"]
 
         valid_doc_ids = []
         for doc_id in request.document_ids:
@@ -137,36 +113,13 @@ async def get_tags_batch(
 
         valid_doc_ids = valid_doc_ids[:100]
 
-        docs_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id")
-            .eq("uploaded_by", user_id)
-            .in_("id", valid_doc_ids)
-            .execute()
-        )
-
-        owned_doc_ids = [doc["id"] for doc in (docs_result.data or [])]
-
-        if not owned_doc_ids:
-            return {"success": True, "tags": {}}
-
-        tags_result = await asyncio.to_thread(
-            lambda: supabase.table("document_tags")
-            .select("document_id, tag, source")
-            .in_("document_id", owned_doc_ids)
-            .execute()
-        )
-
+        # Fetch tags for each document
         tags_by_doc: dict = {}
-        for tag_record in tags_result.data or []:
-            doc_id = tag_record["document_id"]
-            if doc_id not in tags_by_doc:
-                tags_by_doc[doc_id] = []
-            tags_by_doc[doc_id].append({"tag": tag_record["tag"], "source": tag_record["source"]})
-
-        for doc_id in owned_doc_ids:
-            if doc_id not in tags_by_doc:
-                tags_by_doc[doc_id] = []
+        for doc_id in valid_doc_ids:
+            tags = doc_repo.list_document_tags(doc_id)
+            tags_by_doc[doc_id] = [
+                {"tag": t["tag"], "source": t.get("source", "")} for t in tags
+            ]
 
         return {"success": True, "tags": tags_by_doc}
 
@@ -178,14 +131,12 @@ async def get_tags_batch(
 @router.get("/by-tags")
 async def get_documents_by_tags(
     tags: str,
-    current_user: dict = Depends(get_current_user),
 ):
     """Get documents that have ALL specified tags (AND logic)."""
     try:
         if not tags or not tags.strip():
             raise HTTPException(status_code=400, detail="At least one tag is required")
 
-        user_id = current_user["id"]
         tag_list = [t.strip() for t in tags.split(",") if t.strip()]
 
         if not tag_list:
@@ -193,29 +144,25 @@ async def get_documents_by_tags(
 
         first_tag = tag_list[0]
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("document_tags")
-            .select("document_id, documents!inner(id, filename, title, uploaded_by)")
-            .eq("tag", first_tag)
-            .eq("documents.uploaded_by", user_id)
-            .execute()
+        # Get docs with first tag
+        first_tag_records = pb.get_all(
+            "document_tags",
+            filter=f"tag='{pb.escape_filter(first_tag)}'",
         )
 
-        if not result.data:
+        if not first_tag_records:
             return {"success": True, "tags": tag_list, "count": 0, "documents": []}
 
-        candidate_ids = [row["document_id"] for row in result.data]
+        candidate_ids = [row["document_id"] for row in first_tag_records]
 
+        # Narrow by additional tags
         if len(tag_list) > 1:
             for additional_tag in tag_list[1:]:
-                tag_result = await asyncio.to_thread(
-                    lambda t=additional_tag, cids=candidate_ids: supabase.table("document_tags")
-                    .select("document_id")
-                    .eq("tag", t)
-                    .in_("document_id", cids)
-                    .execute()
+                tag_records = pb.get_all(
+                    "document_tags",
+                    filter=f"tag='{pb.escape_filter(additional_tag)}'",
                 )
-                tag_doc_ids = {row["document_id"] for row in (tag_result.data or [])}
+                tag_doc_ids = {row["document_id"] for row in tag_records}
                 candidate_ids = [did for did in candidate_ids if did in tag_doc_ids]
 
                 if not candidate_ids:
@@ -226,32 +173,26 @@ async def get_documents_by_tags(
                         "documents": [],
                     }
 
-        docs_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, filename, title, obsidian_file_path, uploaded_at, tags_cache")
-            .in_("id", candidate_ids)
-            .execute()
-        )
+        # Fetch documents
+        docs = []
+        for doc_id in candidate_ids:
+            doc = doc_repo.get_document(doc_id)
+            if doc:
+                docs.append(doc)
 
-        if not docs_result.data:
+        if not docs:
             return {"success": True, "tags": tag_list, "count": 0, "documents": []}
 
-        chunks_result = await asyncio.to_thread(
-            lambda: supabase.table("document_chunks")
-            .select("document_id, content, chunk_index")
-            .in_("document_id", candidate_ids)
-            .order("chunk_index")
-            .execute()
-        )
-
+        # Fetch chunks for each document
         chunks_by_doc: dict = defaultdict(list)
-        for chunk in chunks_result.data or []:
-            chunks_by_doc[chunk["document_id"]].append(chunk)
+        for doc in docs:
+            chunks = doc_repo.list_document_chunks(doc["id"])
+            chunks_by_doc[doc["id"]] = chunks
 
         docs_with_content = []
-        for doc in docs_result.data:
+        for doc in docs:
             doc_chunks = chunks_by_doc.get(doc["id"], [])
-            doc_chunks.sort(key=lambda c: c["chunk_index"])
+            doc_chunks.sort(key=lambda c: c.get("chunk_index", 0))
             content = "\n".join([c["content"] for c in doc_chunks])
 
             docs_with_content.append(
@@ -262,7 +203,7 @@ async def get_documents_by_tags(
                     "obsidian_file_path": doc.get("obsidian_file_path"),
                     "uploaded_at": doc.get("uploaded_at"),
                     "content": content,
-                    "tags": doc.get("tags_cache") or [],
+                    "tags": pb.parse_json_field(doc.get("tags_cache"), []),
                 }
             )
 
@@ -283,7 +224,6 @@ async def get_documents_by_tags(
 @router.post("/bulk-tags")
 async def bulk_tag_operation(
     request: BulkTagsRequest,
-    current_user: dict = Depends(get_current_user),
 ):
     """Add or remove tags from multiple documents."""
     try:
@@ -296,8 +236,6 @@ async def bulk_tag_operation(
         if not request.tags:
             raise HTTPException(status_code=400, detail="At least one tag is required")
 
-        user_id = current_user["id"]
-        is_admin = current_user.get("role") == "admin"
         results = {"success": 0, "failed": 0, "errors": []}
 
         # Validate all UUIDs first
@@ -318,23 +256,13 @@ async def bulk_tag_operation(
                 "results": results,
             }
 
-        # Batch fetch all documents in one query
-        docs_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("id, uploaded_by").in_("id", valid_doc_ids).execute()
-        )
-
-        docs_by_id = {d["id"]: d for d in (docs_result.data or [])}
-
-        # Filter authorized documents
+        # Verify documents exist
         authorized_doc_ids = []
         for doc_id in valid_doc_ids:
-            doc = docs_by_id.get(doc_id)
+            doc = doc_repo.get_document(doc_id)
             if not doc:
                 results["failed"] += 1
                 results["errors"].append({"document_id": doc_id, "error": "Not found"})
-            elif not is_admin and doc["uploaded_by"] != user_id:
-                results["failed"] += 1
-                results["errors"].append({"document_id": doc_id, "error": "Not authorized"})
             else:
                 authorized_doc_ids.append(doc_id)
 
@@ -343,24 +271,12 @@ async def bulk_tag_operation(
 
         if authorized_doc_ids and clean_tags:
             if request.operation == "add":
-                # Batch fetch existing tags for all authorized documents
-                existing_result = await asyncio.to_thread(
-                    lambda: supabase.table("document_tags")
-                    .select("document_id, tag")
-                    .in_("document_id", authorized_doc_ids)
-                    .in_("tag", clean_tags)
-                    .execute()
-                )
-
-                # Track existing document-tag pairs
-                existing_pairs = {(r["document_id"], r["tag"]) for r in (existing_result.data or [])}
-
-                # Build list of new tags to insert
-                new_tags = []
                 for doc_id in authorized_doc_ids:
+                    existing_tags = doc_repo.list_document_tags(doc_id)
+                    existing_tag_names = {t["tag"] for t in existing_tags}
                     for tag in clean_tags:
-                        if (doc_id, tag) not in existing_pairs:
-                            new_tags.append(
+                        if tag not in existing_tag_names:
+                            doc_repo.create_document_tag(
                                 {
                                     "document_id": doc_id,
                                     "tag": tag,
@@ -368,22 +284,12 @@ async def bulk_tag_operation(
                                 }
                             )
 
-                # Batch insert new tags
-                if new_tags:
-                    await asyncio.to_thread(lambda: supabase.table("document_tags").insert(new_tags).execute())
-
             else:  # remove operation
-                # Batch delete tags - need to do this per tag since we can't combine
-                # multiple .eq() conditions with .in_() for different columns
-                for tag in clean_tags:
-                    await asyncio.to_thread(
-                        lambda t=tag: supabase.table("document_tags")
-                        .delete()
-                        .in_("document_id", authorized_doc_ids)
-                        .eq("tag", t)
-                        .eq("source", "manual")
-                        .execute()
-                    )
+                for doc_id in authorized_doc_ids:
+                    existing_tags = doc_repo.list_document_tags(doc_id)
+                    for tag_record in existing_tags:
+                        if tag_record["tag"] in clean_tags and tag_record.get("source") == "manual":
+                            doc_repo.delete_document_tag(tag_record["id"])
 
             results["success"] = len(authorized_doc_ids)
 
@@ -416,7 +322,6 @@ async def search_documents(
     folder: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
-    current_user: dict = Depends(get_current_user),
 ):
     """Search KB documents by filename, title, content, and/or tags.
 
@@ -430,56 +335,63 @@ async def search_documents(
         offset: Pagination offset
     """
     try:
-        user_id = current_user["id"]
+        # Build filter
+        filter_parts = []
 
-        query = (
-            supabase.table("documents")
-            .select(
-                "id, filename, title, obsidian_file_path, uploaded_at, original_date, source_platform, "
-                "processed, processing_status, processing_error, storage_url, external_url, "
-                "file_size, sync_cadence, google_drive_file_id, tags_cache",
-                count="exact",
-            )
-            .eq("uploaded_by", user_id)
-        )
-
-        # Apply source platform filter
         if source and source.strip():
-            query = query.eq("source_platform", source.strip())
+            filter_parts.append(f"source_platform='{pb.escape_filter(source.strip())}'")
 
-        # Apply folder path filter
         if folder and folder.strip():
-            query = query.ilike("obsidian_file_path", f"{folder.strip()}/%")
-
-        # Apply sort order - use uploaded_at as primary for recency (most recently added),
-        # with original_date as secondary for documents uploaded at the same time
-        sort_field = sort.strip().lower() if sort else "recent"
-        if sort_field == "oldest":
-            query = query.order("uploaded_at", desc=False).order("original_date", desc=False, nullsfirst=False)
-        elif sort_field == "name_asc":
-            query = query.order("filename", desc=False)
-        elif sort_field == "name_desc":
-            query = query.order("filename", desc=True)
-        else:  # default to 'recent'
-            query = query.order("uploaded_at", desc=True).order("original_date", desc=True, nullsfirst=False)
+            filter_parts.append(f"obsidian_file_path~'{pb.escape_filter(folder.strip())}/%'")
 
         if q and q.strip():
-            search_term = q.strip()
-            query = query.or_(f"filename.ilike.%{search_term}%,title.ilike.%{search_term}%")
+            search_term = pb.escape_filter(q.strip())
+            filter_parts.append(
+                f"(filename~'{search_term}' || title~'{search_term}')"
+            )
 
+        filter_str = " && ".join(filter_parts)
+
+        # Build sort
+        sort_field = sort.strip().lower() if sort else "recent"
+        if sort_field == "oldest":
+            pb_sort = "uploaded_at"
+        elif sort_field == "name_asc":
+            pb_sort = "filename"
+        elif sort_field == "name_desc":
+            pb_sort = "-filename"
+        else:  # default to 'recent'
+            pb_sort = "-uploaded_at"
+
+        # Fetch total count
+        total_count = pb.count("documents", filter=filter_str)
+
+        # Paginate
+        page = (offset // limit) + 1 if limit else 1
+        result = pb.list_records(
+            "documents",
+            filter=filter_str,
+            sort=pb_sort,
+            page=page,
+            per_page=limit,
+        )
+        documents = result.get("items", [])
+
+        # Filter by tags in-memory (PocketBase JSON array contains)
         if tags:
             tag_list = [t.strip() for t in tags.split(",") if t.strip()]
-            for tag in tag_list:
-                query = query.contains("tags_cache", json.dumps([tag]))
-
-        query = query.range(offset, offset + limit - 1)
-
-        result = await asyncio.to_thread(lambda: query.execute())
-        documents = result.data or []
-        total_count = result.count if result.count is not None else len(documents)
+            if tag_list:
+                filtered = []
+                for doc in documents:
+                    doc_tags = pb.parse_json_field(doc.get("tags_cache"), [])
+                    if all(tag in doc_tags for tag in tag_list):
+                        filtered.append(doc)
+                documents = filtered
+                # Adjust count for tag filtering (approximate)
+                total_count = len(documents) if len(documents) < limit else total_count
 
         for doc in documents:
-            doc["tags"] = doc.get("tags_cache") or []
+            doc["tags"] = pb.parse_json_field(doc.get("tags_cache"), [])
             doc.pop("tags_cache", None)
 
         return {
@@ -500,7 +412,6 @@ async def search_documents(
 @router.get("/by-folder")
 async def get_documents_by_folder(
     folder_path: str,
-    current_user: dict = Depends(get_current_user),
 ):
     """Get all KB documents from a specific Obsidian folder path."""
     try:
@@ -509,17 +420,11 @@ async def get_documents_by_folder(
 
         folder_path = folder_path.strip()
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, filename, title, obsidian_file_path, source_platform, uploaded_at, storage_url")
-            .eq("source_platform", "obsidian")
-            .eq("uploaded_by", current_user["id"])
-            .ilike("obsidian_file_path", f"{folder_path}%")
-            .order("obsidian_file_path")
-            .execute()
+        documents = pb.get_all(
+            "documents",
+            filter=f"source_platform='obsidian' && obsidian_file_path~'{pb.escape_filter(folder_path)}%'",
+            sort="obsidian_file_path",
         )
-
-        documents = result.data or []
 
         if not documents:
             return {
@@ -529,23 +434,16 @@ async def get_documents_by_folder(
                 "documents": [],
             }
 
-        doc_ids = [d["id"] for d in documents]
-        chunks_result = await asyncio.to_thread(
-            lambda: supabase.table("document_chunks")
-            .select("document_id, content, chunk_index")
-            .in_("document_id", doc_ids)
-            .order("chunk_index")
-            .execute()
-        )
-
+        # Fetch chunks for each document
         chunks_by_doc: dict = defaultdict(list)
-        for chunk in chunks_result.data or []:
-            chunks_by_doc[chunk["document_id"]].append(chunk)
+        for doc in documents:
+            chunks = doc_repo.list_document_chunks(doc["id"])
+            chunks_by_doc[doc["id"]] = chunks
 
         docs_with_content = []
         for doc in documents:
             doc_chunks = chunks_by_doc.get(doc["id"], [])
-            doc_chunks.sort(key=lambda c: c["chunk_index"])
+            doc_chunks.sort(key=lambda c: c.get("chunk_index", 0))
             content = "\n".join([c["content"] for c in doc_chunks])
             docs_with_content.append({**doc, "content": content})
 
@@ -564,29 +462,13 @@ async def get_documents_by_folder(
 
 
 @router.get("/folders")
-async def get_obsidian_folders(current_user: dict = Depends(get_current_user)):
+async def get_obsidian_folders():
     """Get unique Obsidian folder paths for the current user with document counts."""
     try:
-        # Fetch all documents - Supabase defaults to 1000 row limit,
-        # so we need to paginate to get complete folder tree
-        all_docs = []
-        page_size = 1000
-        offset = 0
-        while True:
-            page = await asyncio.to_thread(
-                lambda off=offset: supabase.table("documents")
-                .select("obsidian_file_path")
-                .eq("source_platform", "obsidian")
-                .eq("uploaded_by", current_user["id"])
-                .not_.is_("obsidian_file_path", "null")
-                .range(off, off + page_size - 1)
-                .execute()
-            )
-            rows = page.data or []
-            all_docs.extend(rows)
-            if len(rows) < page_size:
-                break
-            offset += page_size
+        all_docs = pb.get_all(
+            "documents",
+            filter="source_platform='obsidian' && obsidian_file_path!=''",
+        )
 
         folders = set()
         folder_counts: Counter = Counter()

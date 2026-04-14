@@ -1,19 +1,16 @@
 """Document tags and metadata routes."""
 
-import asyncio
+from fastapi import APIRouter, HTTPException
 
-from fastapi import APIRouter, Depends, HTTPException
-
-from auth import check_owner_or_admin, get_current_user
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
+from repositories import documents as doc_repo
 from validation import validate_uuid
 
 from ._shared import AddTagRequest, OriginalDateUpdate, SyncCadenceUpdate
 
 logger = get_logger(__name__)
 router = APIRouter()
-supabase = get_supabase()
 
 
 # ============================================================================
@@ -24,13 +21,11 @@ supabase = get_supabase()
 @router.get("/{document_id}/tags")
 async def get_document_tags(
     document_id: str,
-    current_user: dict = Depends(get_current_user),
 ):
     """Get all tags for a document.
 
     Args:
         document_id: UUID of the document.
-        current_user: Injected by FastAPI dependency.
 
     Returns:
         tags: List of tag objects with tag name and source (frontmatter/manual).
@@ -38,25 +33,13 @@ async def get_document_tags(
     try:
         validate_uuid(document_id, "document_id")
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        document = doc_result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
+        tags = doc_repo.list_document_tags(document_id)
 
-        tags_result = await asyncio.to_thread(
-            lambda: supabase.table("document_tags")
-            .select("id, tag, source, created_at")
-            .eq("document_id", document_id)
-            .order("created_at")
-            .execute()
-        )
-
-        return {"success": True, "document_id": document_id, "tags": tags_result.data or []}
+        return {"success": True, "document_id": document_id, "tags": tags}
 
     except HTTPException:
         raise
@@ -69,14 +52,12 @@ async def get_document_tags(
 async def add_document_tag(
     document_id: str,
     request: AddTagRequest,
-    current_user: dict = Depends(get_current_user),
 ):
     """Add a manual tag to a document.
 
     Args:
         document_id: UUID of the document.
         request: Contains the tag text to add.
-        current_user: Injected by FastAPI dependency.
     """
     try:
         validate_uuid(document_id, "document_id")
@@ -88,47 +69,36 @@ async def add_document_tag(
         if len(tag) > 100:
             raise HTTPException(status_code=400, detail="Tag must be 100 characters or less")
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        document = doc_result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
-
         # Check if tag already exists
-        existing = await asyncio.to_thread(
-            lambda: supabase.table("document_tags")
-            .select("id, tag, source")
-            .eq("document_id", document_id)
-            .eq("tag", tag)
-            .execute()
+        existing = pb.get_first(
+            "document_tags",
+            filter=f"document_id='{pb.escape_filter(document_id)}' && tag='{pb.escape_filter(tag)}'",
         )
 
-        if existing.data:
+        if existing:
             logger.info(f"Tag '{tag}' already exists on document {document_id}")
             return {
                 "success": True,
                 "document_id": document_id,
-                "tag": existing.data[0],
+                "tag": existing,
                 "already_exists": True,
             }
 
         # Insert new tag
-        tag_result = await asyncio.to_thread(
-            lambda: supabase.table("document_tags")
-            .insert({"document_id": document_id, "tag": tag, "source": "manual"})
-            .execute()
+        new_tag = doc_repo.create_document_tag(
+            {"document_id": document_id, "tag": tag, "source": "manual"}
         )
 
-        logger.info(f"Added tag '{tag}' to document {document_id}: {tag_result.data}")
+        logger.info(f"Added tag '{tag}' to document {document_id}")
 
         return {
             "success": True,
             "document_id": document_id,
-            "tag": tag_result.data[0] if tag_result.data else {"tag": tag, "source": "manual"},
+            "tag": new_tag,
         }
 
     except HTTPException:
@@ -142,7 +112,6 @@ async def add_document_tag(
 async def remove_document_tag(
     document_id: str,
     tag: str,
-    current_user: dict = Depends(get_current_user),
 ):
     """Remove a tag from a document.
 
@@ -152,7 +121,6 @@ async def remove_document_tag(
     Args:
         document_id: UUID of the document.
         tag: The tag text to remove.
-        current_user: Injected by FastAPI dependency.
     """
     try:
         validate_uuid(document_id, "document_id")
@@ -162,39 +130,27 @@ async def remove_document_tag(
 
         tag = tag.strip()
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        document = doc_result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
-
         # Check if tag exists and is manual
-        existing_tag = await asyncio.to_thread(
-            lambda: supabase.table("document_tags")
-            .select("id, source")
-            .eq("document_id", document_id)
-            .eq("tag", tag)
-            .single()
-            .execute()
+        existing_tag = pb.get_first(
+            "document_tags",
+            filter=f"document_id='{pb.escape_filter(document_id)}' && tag='{pb.escape_filter(tag)}'",
         )
 
-        if not existing_tag.data:
+        if not existing_tag:
             raise HTTPException(status_code=404, detail="Tag not found")
 
-        if existing_tag.data["source"] == "frontmatter":
+        if existing_tag.get("source") == "frontmatter":
             raise HTTPException(
                 status_code=400,
                 detail="Cannot remove frontmatter tags. Edit the source Obsidian file instead.",
             )
 
         # Delete the tag
-        await asyncio.to_thread(
-            lambda: supabase.table("document_tags").delete().eq("document_id", document_id).eq("tag", tag).execute()
-        )
+        doc_repo.delete_document_tag(existing_tag["id"])
 
         logger.info(f"Removed tag '{tag}' from document {document_id}")
 
@@ -216,27 +172,19 @@ async def remove_document_tag(
 async def update_document_original_date(
     document_id: str,
     request: OriginalDateUpdate,
-    current_user: dict = Depends(get_current_user),
 ):
     """Update the original date for a document (e.g., meeting date for transcripts).
 
     Args:
         document_id: UUID of the document.
         request: Contains original_date in YYYY-MM-DD format, or null to clear.
-        current_user: Injected by FastAPI dependency.
     """
     try:
         validate_uuid(document_id, "document_id")
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
-
-        document = doc_result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         # Validate and parse date if provided
         parsed_date = None
@@ -250,9 +198,7 @@ async def update_document_original_date(
                     status_code=400, detail="Invalid date format. Please use YYYY-MM-DD format."
                 ) from None
 
-        await asyncio.to_thread(
-            lambda: supabase.table("documents").update({"original_date": parsed_date}).eq("id", document_id).execute()
-        )
+        doc_repo.update_document(document_id, {"original_date": parsed_date})
 
         logger.info(f"Updated original_date for document {document_id}: {parsed_date}")
 
@@ -269,14 +215,12 @@ async def update_document_original_date(
 async def update_document_sync_cadence(
     document_id: str,
     request: SyncCadenceUpdate,
-    current_user: dict = Depends(get_current_user),
 ):
     """Update the sync cadence for a document (for Google Drive documents).
 
     Args:
         document_id: UUID of the document.
         request: Contains sync_cadence - manual, daily, weekly, or monthly.
-        current_user: Injected by FastAPI dependency.
     """
     try:
         validate_uuid(document_id, "document_id")
@@ -288,26 +232,11 @@ async def update_document_sync_cadence(
                 detail=f"Invalid sync_cadence. Must be one of: {', '.join(valid_cadences)}",
             )
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, uploaded_by, source_platform")
-            .eq("id", document_id)
-            .single()
-            .execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        document = doc_result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
-
-        await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .update({"sync_cadence": request.sync_cadence})
-            .eq("id", document_id)
-            .execute()
-        )
+        doc_repo.update_document(document_id, {"sync_cadence": request.sync_cadence})
 
         logger.info(f"Updated sync_cadence for document {document_id}: {request.sync_cadence}")
 

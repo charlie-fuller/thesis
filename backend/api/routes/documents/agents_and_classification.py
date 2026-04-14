@@ -1,19 +1,16 @@
 """Document agent assignments and classification routes."""
 
-import asyncio
+from fastapi import APIRouter, HTTPException
 
-from fastapi import APIRouter, Depends, HTTPException
-
-from auth import check_owner_or_admin, get_current_user
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
+from repositories import documents as doc_repo
 from validation import validate_uuid
 
 from ._shared import ConfirmClassificationRequest, UpdateDocumentAgentsRequest
 
 logger = get_logger(__name__)
 router = APIRouter()
-supabase = get_supabase()
 
 
 # ============================================================================
@@ -24,13 +21,11 @@ supabase = get_supabase()
 @router.get("/{document_id}/agents")
 async def get_document_agents(
     document_id: str,
-    current_user: dict = Depends(get_current_user),
 ):
     """Get the agents linked to a document.
 
     Args:
         document_id: UUID of the document.
-        current_user: Injected by FastAPI dependency.
 
     Returns:
         is_global: True if document has no agent links (available to all agents).
@@ -39,31 +34,24 @@ async def get_document_agents(
     try:
         validate_uuid(document_id, "document_id")
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        document = doc_result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
-
-        links_result = await asyncio.to_thread(
-            lambda: supabase.table("agent_knowledge_base")
-            .select("agent_id, agents(id, name, display_name)")
-            .eq("document_id", document_id)
-            .execute()
+        kb_links = pb.get_all(
+            "agent_knowledge_base",
+            filter=f"document_id='{pb.escape_filter(document_id)}'",
         )
 
         linked_agents = []
-        for link in links_result.data or []:
-            if link.get("agents"):
+        for link in kb_links:
+            agent = pb.get_record("agents", link["agent_id"])
+            if agent:
                 linked_agents.append(
                     {
-                        "id": link["agents"]["id"],
-                        "name": link["agents"]["name"],
-                        "display_name": link["agents"]["display_name"],
+                        "id": agent["id"],
+                        "name": agent["name"],
+                        "display_name": agent.get("display_name", ""),
                     }
                 )
 
@@ -85,34 +73,27 @@ async def get_document_agents(
 async def update_document_agents(
     document_id: str,
     request: UpdateDocumentAgentsRequest,
-    current_user: dict = Depends(get_current_user),
 ):
     """Update the agents linked to a document.
 
     Args:
         document_id: UUID of the document.
         request: Contains agent_ids list. Empty list makes document global.
-        current_user: Injected by FastAPI dependency.
     """
     try:
         validate_uuid(document_id, "document_id")
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        document = doc_result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
-
-        user_id = current_user["id"]
-
         # Delete all existing links for this document
-        await asyncio.to_thread(
-            lambda: supabase.table("agent_knowledge_base").delete().eq("document_id", document_id).execute()
+        existing_links = pb.get_all(
+            "agent_knowledge_base",
+            filter=f"document_id='{pb.escape_filter(document_id)}'",
         )
+        for link in existing_links:
+            pb.delete_record("agent_knowledge_base", link["id"])
 
         # Create new links
         linked_agents = []
@@ -120,36 +101,25 @@ async def update_document_agents(
             try:
                 validate_uuid(agent_id, "agent_id")
 
-                agent_result = await asyncio.to_thread(
-                    lambda aid=agent_id: supabase.table("agents")
-                    .select("id, name, display_name")
-                    .eq("id", aid)
-                    .single()
-                    .execute()
-                )
-
-                if not agent_result.data:
+                agent = pb.get_record("agents", agent_id)
+                if not agent:
                     logger.warning(f"Agent {agent_id} not found, skipping")
                     continue
 
-                await asyncio.to_thread(
-                    lambda aid=agent_id: supabase.table("agent_knowledge_base")
-                    .insert(
-                        {
-                            "agent_id": aid,
-                            "document_id": document_id,
-                            "added_by": user_id,
-                            "priority": 0,
-                        }
-                    )
-                    .execute()
+                pb.create_record(
+                    "agent_knowledge_base",
+                    {
+                        "agent_id": agent_id,
+                        "document_id": document_id,
+                        "priority": 0,
+                    },
                 )
 
                 linked_agents.append(
                     {
-                        "id": agent_result.data["id"],
-                        "name": agent_result.data["name"],
-                        "display_name": agent_result.data["display_name"],
+                        "id": agent["id"],
+                        "name": agent["name"],
+                        "display_name": agent.get("display_name", ""),
                     }
                 )
                 logger.info(f"Linked document {document_id} to agent {agent_id}")
@@ -182,7 +152,6 @@ async def update_document_agents(
 @router.get("/{document_id}/classification")
 async def get_document_classification(
     document_id: str,
-    current_user: dict = Depends(get_current_user),
 ):
     """Get classification results for a document.
 
@@ -190,28 +159,17 @@ async def get_document_classification(
 
     Args:
         document_id: UUID of the document.
-        current_user: Injected by FastAPI dependency.
     """
     try:
         validate_uuid(document_id, "document_id")
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("id, filename").eq("id", document_id).single().execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        classification_result = await asyncio.to_thread(
-            lambda: supabase.table("document_classifications")
-            .select("*")
-            .eq("document_id", document_id)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
+        classifications = doc_repo.list_document_classifications(document_id)
 
-        if not classification_result.data:
+        if not classifications:
             return {
                 "success": True,
                 "document_id": document_id,
@@ -219,27 +177,23 @@ async def get_document_classification(
                 "message": "No classification found for this document",
             }
 
-        classification = classification_result.data[0]
+        classification = classifications[0]  # Already sorted by -confidence
 
         # Get current agent links with relevance scores
-        links_result = await asyncio.to_thread(
-            lambda: supabase.table("agent_knowledge_base")
-            .select(
-                "agent_id, relevance_score, classification_source, "
-                "classification_confidence, user_confirmed, agents(id, name, display_name)"
-            )
-            .eq("document_id", document_id)
-            .execute()
+        kb_links = pb.get_all(
+            "agent_knowledge_base",
+            filter=f"document_id='{pb.escape_filter(document_id)}'",
         )
 
         linked_agents = []
-        for link in links_result.data or []:
-            if link.get("agents"):
+        for link in kb_links:
+            agent = pb.get_record("agents", link["agent_id"])
+            if agent:
                 linked_agents.append(
                     {
-                        "id": link["agents"]["id"],
-                        "name": link["agents"]["name"],
-                        "display_name": link["agents"]["display_name"],
+                        "id": agent["id"],
+                        "name": agent["name"],
+                        "display_name": agent.get("display_name", ""),
                         "relevance_score": link.get("relevance_score", 0),
                         "classification_source": link.get("classification_source", "manual"),
                         "confidence": link.get("classification_confidence"),
@@ -257,8 +211,8 @@ async def get_document_classification(
                 "status": classification.get("status"),
                 "requires_user_review": classification.get("requires_user_review", False),
                 "review_reason": classification.get("review_reason"),
-                "raw_scores": classification.get("raw_scores", {}),
-                "created_at": classification.get("created_at"),
+                "raw_scores": pb.parse_json_field(classification.get("raw_scores"), {}),
+                "created_at": classification.get("created"),
             },
             "linked_agents": linked_agents,
         }
@@ -274,7 +228,6 @@ async def get_document_classification(
 async def confirm_classification(
     document_id: str,
     request: ConfirmClassificationRequest,
-    current_user: dict = Depends(get_current_user),
 ):
     """Confirm or modify auto-classification for a document.
 
@@ -283,27 +236,21 @@ async def confirm_classification(
     Args:
         document_id: UUID of the document.
         request: Contains agent_ids and optional relevance_scores.
-        current_user: Injected by FastAPI dependency.
     """
     try:
         validate_uuid(document_id, "document_id")
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        document = doc_result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
-
-        user_id = current_user["id"]
-
         # Delete all existing links
-        await asyncio.to_thread(
-            lambda: supabase.table("agent_knowledge_base").delete().eq("document_id", document_id).execute()
+        existing_links = pb.get_all(
+            "agent_knowledge_base",
+            filter=f"document_id='{pb.escape_filter(document_id)}'",
         )
+        for link in existing_links:
+            pb.delete_record("agent_knowledge_base", link["id"])
 
         # Create confirmed links
         linked_agents = []
@@ -316,40 +263,29 @@ async def confirm_classification(
                 if request.relevance_scores and agent_id in request.relevance_scores:
                     relevance_score = request.relevance_scores[agent_id]
 
-                agent_result = await asyncio.to_thread(
-                    lambda aid=agent_id: supabase.table("agents")
-                    .select("id, name, display_name")
-                    .eq("id", aid)
-                    .single()
-                    .execute()
-                )
-
-                if not agent_result.data:
+                agent = pb.get_record("agents", agent_id)
+                if not agent:
                     logger.warning(f"Agent {agent_id} not found, skipping")
                     continue
 
-                await asyncio.to_thread(
-                    lambda aid=agent_id, rs=relevance_score: supabase.table("agent_knowledge_base")
-                    .insert(
-                        {
-                            "agent_id": aid,
-                            "document_id": document_id,
-                            "added_by": user_id,
-                            "priority": 0,
-                            "relevance_score": rs,
-                            "classification_source": "user_confirmed",
-                            "classification_confidence": rs,
-                            "user_confirmed": True,
-                        }
-                    )
-                    .execute()
+                pb.create_record(
+                    "agent_knowledge_base",
+                    {
+                        "agent_id": agent_id,
+                        "document_id": document_id,
+                        "priority": 0,
+                        "relevance_score": relevance_score,
+                        "classification_source": "user_confirmed",
+                        "classification_confidence": relevance_score,
+                        "user_confirmed": True,
+                    },
                 )
 
                 linked_agents.append(
                     {
-                        "id": agent_result.data["id"],
-                        "name": agent_result.data["name"],
-                        "display_name": agent_result.data["display_name"],
+                        "id": agent["id"],
+                        "name": agent["name"],
+                        "display_name": agent.get("display_name", ""),
                         "relevance_score": relevance_score,
                     }
                 )
@@ -359,19 +295,15 @@ async def confirm_classification(
                 logger.warning(f"Failed to link document to agent {agent_id}: {link_error}")
 
         # Update classification status to reviewed
-        await asyncio.to_thread(
-            lambda: supabase.table("document_classifications")
-            .update(
+        classifications = doc_repo.list_document_classifications(document_id)
+        for cl in classifications:
+            doc_repo.update_document_classification(
+                cl["id"],
                 {
                     "status": "reviewed",
                     "requires_user_review": False,
-                    "reviewed_at": "now()",
-                    "reviewed_by": user_id,
-                }
+                },
             )
-            .eq("document_id", document_id)
-            .execute()
-        )
 
         return {
             "success": True,

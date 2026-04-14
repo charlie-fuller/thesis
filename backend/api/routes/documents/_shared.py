@@ -1,48 +1,15 @@
 """Shared utilities and models for document routes."""
 
-import asyncio
 from typing import List, Optional
 
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from database import get_supabase
 from logger_config import get_logger
 
 logger = get_logger(__name__)
 limiter = Limiter(key_func=get_remote_address)
-supabase = get_supabase()
-
-
-# ============================================================================
-# UTILITIES
-# ============================================================================
-
-
-async def retry_supabase_operation(operation, max_retries: int = 3, base_delay: float = 0.5):
-    """Retry a Supabase operation with exponential backoff.
-
-    Handles transient connection errors like ConnectionTerminated that occur
-    with rapid successive requests to Supabase.
-    """
-    last_error = None
-    for attempt in range(max_retries):
-        try:
-            return await asyncio.to_thread(operation)
-        except Exception as e:
-            error_str = str(e)
-            if "ConnectionTerminated" in error_str or "RemoteProtocolError" in error_str:
-                last_error = e
-                delay = base_delay * (2**attempt)
-                logger.warning(
-                    f"Supabase connection error (attempt {attempt + 1}/{max_retries}), "
-                    f"retrying in {delay}s: {error_str}"
-                )
-                await asyncio.sleep(delay)
-            else:
-                raise
-    raise last_error
 
 
 # ============================================================================

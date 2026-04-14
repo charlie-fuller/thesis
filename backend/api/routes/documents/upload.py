@@ -1,15 +1,11 @@
 """Document upload routes."""
 
-import asyncio
-import json
-import os
 import uuid
 from typing import Optional
 
 from fastapi import (
     APIRouter,
     BackgroundTasks,
-    Depends,
     File,
     Form,
     HTTPException,
@@ -17,11 +13,11 @@ from fastapi import (
     UploadFile,
 )
 
-from auth import get_current_user
-from config import get_default_client_id
-from database import get_supabase
+import json
+import pb_client as pb
 from document_processor import process_document, process_document_with_classification
 from logger_config import get_logger
+from repositories import documents as doc_repo
 from validation import (
     validate_file_magic,
     validate_file_size,
@@ -33,8 +29,6 @@ from ._shared import ExportToKBRequest, SaveFromChatRequest, limiter
 
 logger = get_logger(__name__)
 router = APIRouter()
-supabase = get_supabase()
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
 
 
 @router.post("/upload")
@@ -46,9 +40,8 @@ async def upload_document(
     agent_ids: Optional[str] = Form(None),
     auto_classify: Optional[str] = Form("true"),
     original_date: Optional[str] = Form(None),
-    current_user: dict = Depends(get_current_user),
 ):
-    """Upload a document to Supabase Storage and create database record.
+    """Upload a document and create database record.
 
     Args:
         request: FastAPI request object for rate limiting.
@@ -57,7 +50,6 @@ async def upload_document(
         agent_ids: JSON array of agent IDs to link the document to.
         auto_classify: If "true" and no agent_ids, auto-classify document.
         original_date: The actual date of the document content (YYYY-MM-DD).
-        current_user: Injected by FastAPI dependency.
     """
     try:
         validate_file_upload(file)
@@ -75,25 +67,16 @@ async def upload_document(
             except json.JSONDecodeError:
                 parsed_agent_ids = [agent_ids] if agent_ids else []
 
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
-
         # Generate unique filename
         file_ext = file.filename.split(".")[-1] if "." in file.filename else "txt"
         unique_filename = f"{uuid.uuid4()}.{file_ext}"
-        storage_path = f"{client_id}/{unique_filename}"
+        storage_path = f"uploads/{unique_filename}"
 
-        logger.info(f"Uploading {file.filename} to storage: {storage_path}")
+        # TODO: PocketBase file storage migration pending
+        # For now, store the path but skip actual storage upload
+        logger.info(f"Uploading {file.filename} -- storage upload deferred (PocketBase migration pending)")
 
-        await asyncio.to_thread(
-            lambda: supabase.storage.from_("documents").upload(
-                storage_path,
-                file_content,
-                file_options={"content-type": file.content_type or "application/octet-stream"},
-            )
-        )
-
-        storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
+        storage_url = ""
 
         # Parse original_date if provided
         parsed_original_date = None
@@ -105,9 +88,7 @@ async def upload_document(
             except ValueError:
                 logger.warning(f"Invalid original_date format: {original_date}, expected YYYY-MM-DD")
 
-        doc_record = {
-            "client_id": client_id,
-            "uploaded_by": user_id,
+        doc_data = {
             "filename": file.filename,
             "storage_path": storage_path,
             "storage_url": storage_url,
@@ -117,11 +98,9 @@ async def upload_document(
         }
 
         if parsed_original_date:
-            doc_record["original_date"] = parsed_original_date
+            doc_data["original_date"] = parsed_original_date
 
-        result = await asyncio.to_thread(lambda: supabase.table("documents").insert(doc_record).execute())
-
-        document = result.data[0]
+        document = doc_repo.create_document(doc_data)
         document_id = document["id"]
 
         logger.info(f"Document uploaded: {document_id}")
@@ -132,17 +111,13 @@ async def upload_document(
             for agent_id in parsed_agent_ids:
                 try:
                     validate_uuid(agent_id, "agent_id")
-                    await asyncio.to_thread(
-                        lambda aid=agent_id: supabase.table("agent_knowledge_base")
-                        .insert(
-                            {
-                                "agent_id": aid,
-                                "document_id": document_id,
-                                "added_by": user_id,
-                                "priority": 0,
-                            }
-                        )
-                        .execute()
+                    pb.create_record(
+                        "agent_knowledge_base",
+                        {
+                            "agent_id": agent_id,
+                            "document_id": document_id,
+                            "priority": 0,
+                        },
                     )
                     linked_agents.append(agent_id)
                     logger.info(f"Linked document {document_id} to agent {agent_id}")
@@ -196,7 +171,6 @@ async def save_from_chat(
     request: Request,
     save_data: SaveFromChatRequest,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user),
 ):
     """Save a chat response as a markdown document in the knowledge base."""
     try:
@@ -205,9 +179,6 @@ async def save_from_chat(
 
         if not save_data.title or not save_data.title.strip():
             raise HTTPException(status_code=400, detail="Title cannot be empty")
-
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
 
         markdown_content = f"""# {save_data.title}
 
@@ -219,23 +190,16 @@ async def save_from_chat(
 
         safe_title = "".join(c if c.isalnum() or c in " -_" else "_" for c in save_data.title)[:50]
         unique_filename = f"{safe_title}_{uuid.uuid4().hex[:8]}.md"
-        storage_path = f"{client_id}/{unique_filename}"
+        storage_path = f"chat-saves/{unique_filename}"
 
         file_content = markdown_content.encode("utf-8")
 
-        logger.info(f"Saving chat response to storage: {storage_path}")
+        # TODO: PocketBase file storage migration pending
+        logger.info(f"Saving chat response -- storage upload deferred (PocketBase migration pending): {storage_path}")
 
-        await asyncio.to_thread(
-            lambda: supabase.storage.from_("documents").upload(
-                storage_path, file_content, file_options={"content-type": "text/markdown"}
-            )
-        )
+        storage_url = ""
 
-        storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
-
-        doc_record = {
-            "client_id": client_id,
-            "uploaded_by": user_id,
+        doc_data = {
             "title": save_data.title.strip(),
             "filename": unique_filename,
             "storage_path": storage_path,
@@ -245,9 +209,7 @@ async def save_from_chat(
             "processed": False,
         }
 
-        result = await asyncio.to_thread(lambda: supabase.table("documents").insert(doc_record).execute())
-
-        document = result.data[0]
+        document = doc_repo.create_document(doc_data)
         document_id = document["id"]
 
         logger.info(f"Chat response saved as document: {document_id}")
@@ -259,17 +221,13 @@ async def save_from_chat(
             for agent_id in parsed_agent_ids:
                 try:
                     validate_uuid(agent_id, "agent_id")
-                    await asyncio.to_thread(
-                        lambda aid=agent_id: supabase.table("agent_knowledge_base")
-                        .insert(
-                            {
-                                "agent_id": aid,
-                                "document_id": document_id,
-                                "added_by": user_id,
-                                "priority": 0,
-                            }
-                        )
-                        .execute()
+                    pb.create_record(
+                        "agent_knowledge_base",
+                        {
+                            "agent_id": agent_id,
+                            "document_id": document_id,
+                            "priority": 0,
+                        },
                     )
                     linked_agents.append(agent_id)
                     logger.info(f"Linked document {document_id} to agent {agent_id}")
@@ -303,7 +261,6 @@ async def export_to_kb(
     request: Request,
     export_data: ExportToKBRequest,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user),
 ):
     """Export content to KB and optionally link to a project and/or initiative."""
     try:
@@ -311,9 +268,6 @@ async def export_to_kb(
             raise HTTPException(status_code=400, detail="Content cannot be empty")
         if not export_data.title or not export_data.title.strip():
             raise HTTPException(status_code=400, detail="Title cannot be empty")
-
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
 
         # Build markdown with metadata header
         meta_lines = [f"# {export_data.title}"]
@@ -333,25 +287,18 @@ async def export_to_kb(
         # Use location as storage subfolder if provided
         if export_data.location:
             safe_location = export_data.location.strip("/").replace("..", "")
-            storage_path = f"{client_id}/{safe_location}/{unique_filename}"
+            storage_path = f"exports/{safe_location}/{unique_filename}"
         else:
-            storage_path = f"{client_id}/{unique_filename}"
+            storage_path = f"exports/{unique_filename}"
 
         file_content = markdown_content.encode("utf-8")
 
-        logger.info(f"Exporting to KB: {storage_path}")
+        # TODO: PocketBase file storage migration pending
+        logger.info(f"Exporting to KB -- storage upload deferred (PocketBase migration pending): {storage_path}")
 
-        await asyncio.to_thread(
-            lambda: supabase.storage.from_("documents").upload(
-                storage_path, file_content, file_options={"content-type": "text/markdown"}
-            )
-        )
+        storage_url = ""
 
-        storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
-
-        doc_record = {
-            "client_id": client_id,
-            "uploaded_by": user_id,
+        doc_data = {
             "title": export_data.title.strip(),
             "filename": unique_filename,
             "storage_path": storage_path,
@@ -361,8 +308,7 @@ async def export_to_kb(
             "processed": False,
         }
 
-        result = await asyncio.to_thread(lambda: supabase.table("documents").insert(doc_record).execute())
-        document = result.data[0]
+        document = doc_repo.create_document(doc_data)
         document_id = document["id"]
 
         logger.info(f"Export saved as document: {document_id}")
@@ -372,10 +318,9 @@ async def export_to_kb(
         for agent_id in (export_data.agent_ids or []):
             try:
                 validate_uuid(agent_id, "agent_id")
-                await asyncio.to_thread(
-                    lambda aid=agent_id: supabase.table("agent_knowledge_base")
-                    .insert({"agent_id": aid, "document_id": document_id, "added_by": user_id, "priority": 0})
-                    .execute()
+                pb.create_record(
+                    "agent_knowledge_base",
+                    {"agent_id": agent_id, "document_id": document_id, "priority": 0},
                 )
                 linked_agents.append(agent_id)
             except Exception as link_error:
@@ -386,14 +331,16 @@ async def export_to_kb(
         if export_data.project_id:
             try:
                 validate_uuid(export_data.project_id, "project_id")
-                await asyncio.to_thread(
-                    lambda: supabase.table("project_documents")
-                    .upsert(
-                        {"project_id": export_data.project_id, "document_id": document_id, "linked_by": user_id},
-                        on_conflict="project_id,document_id",
-                    )
-                    .execute()
+                # Upsert: check if exists first
+                existing = pb.get_first(
+                    "project_documents",
+                    filter=f"project_id='{pb.escape_filter(export_data.project_id)}' && document_id='{pb.escape_filter(document_id)}'",
                 )
+                if not existing:
+                    pb.create_record(
+                        "project_documents",
+                        {"project_id": export_data.project_id, "document_id": document_id},
+                    )
                 linked_project = export_data.project_id
                 logger.info(f"Linked export {document_id} to project {export_data.project_id}")
             except Exception as link_error:
@@ -404,14 +351,15 @@ async def export_to_kb(
         if export_data.initiative_id:
             try:
                 validate_uuid(export_data.initiative_id, "initiative_id")
-                await asyncio.to_thread(
-                    lambda: supabase.table("disco_initiative_documents")
-                    .upsert(
-                        {"initiative_id": export_data.initiative_id, "document_id": document_id, "linked_by": user_id},
-                        on_conflict="initiative_id,document_id",
-                    )
-                    .execute()
+                existing = pb.get_first(
+                    "disco_initiative_documents",
+                    filter=f"initiative_id='{pb.escape_filter(export_data.initiative_id)}' && document_id='{pb.escape_filter(document_id)}'",
                 )
+                if not existing:
+                    pb.create_record(
+                        "disco_initiative_documents",
+                        {"initiative_id": export_data.initiative_id, "document_id": document_id},
+                    )
                 linked_initiative = export_data.initiative_id
                 logger.info(f"Linked export {document_id} to initiative {export_data.initiative_id}")
             except Exception as link_error:

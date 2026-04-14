@@ -13,7 +13,6 @@ from ._shared import (
     SyncCadenceUpdate,
     UpdateDocumentAgentsRequest,
     limiter,
-    retry_supabase_operation,
 )
 
 # Create main router with prefix and tags
@@ -45,7 +44,6 @@ router.include_router(tags_and_metadata.router)
 __all__ = [
     "router",
     "limiter",
-    "retry_supabase_operation",
     "SaveFromChatRequest",
     "BatchTagsRequest",
     "BulkTagsRequest",

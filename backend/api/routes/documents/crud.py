@@ -1,28 +1,25 @@
 """Document CRUD routes - get, delete, download, process."""
 
-import asyncio
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
-from auth import check_owner_or_admin, get_current_user
-from database import get_supabase
+import pb_client as pb
 from document_processor import process_document
 from logger_config import get_logger
+from repositories import documents as doc_repo
 from validation import validate_uuid
 
-from ._shared import limiter, retry_supabase_operation
+from ._shared import limiter
 
 logger = get_logger(__name__)
 router = APIRouter()
-supabase = get_supabase()
 
 
 @router.post("/{document_id}/process")
 async def process_document_endpoint(
     document_id: str,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user),
 ):
     """Trigger document processing (chunking and embedding)."""
     try:
@@ -43,21 +40,14 @@ async def process_document_endpoint(
 @router.get("/{document_id}")
 async def get_document_metadata(
     document_id: str,
-    current_user: dict = Depends(get_current_user),
 ):
     """Get document metadata."""
     try:
         validate_uuid(document_id, "document_id")
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("*").eq("id", document_id).single().execute()
-        )
-
-        if not result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
-
-        document = result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         return {"success": True, "document": document}
 
@@ -71,36 +61,19 @@ async def get_document_metadata(
 @router.get("/{document_id}/content")
 async def get_document_content(
     document_id: str,
-    current_user: dict = Depends(get_current_user),
 ):
     """Get document content by reconstructing from chunks."""
     try:
         validate_uuid(document_id, "document_id")
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, filename, title, mime_type, uploaded_by, storage_path")
-            .eq("id", document_id)
-            .single()
-            .execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        document = doc_result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
+        chunks = doc_repo.list_document_chunks(document_id)
 
-        chunks_result = await asyncio.to_thread(
-            lambda: supabase.table("document_chunks")
-            .select("content, chunk_index")
-            .eq("document_id", document_id)
-            .order("chunk_index")
-            .execute()
-        )
-
-        if chunks_result.data:
-            content = "\n\n".join(chunk["content"] for chunk in chunks_result.data)
+        if chunks:
+            content = "\n\n".join(chunk["content"] for chunk in chunks)
         else:
             content = ""
 
@@ -113,7 +86,7 @@ async def get_document_content(
                 "mime_type": document.get("mime_type"),
             },
             "content": content,
-            "chunk_count": len(chunks_result.data) if chunks_result.data else 0,
+            "chunk_count": len(chunks),
         }
 
     except HTTPException:
@@ -129,7 +102,6 @@ async def delete_document(
     request: Request,
     document_id: str,
     check_only: bool = False,
-    current_user: dict = Depends(get_current_user),
 ):
     """Delete a document and all its chunks.
 
@@ -137,39 +109,30 @@ async def delete_document(
         request: FastAPI request object for rate limiting.
         document_id: UUID of document to delete.
         check_only: If True, only check for DISCo links without deleting.
-        current_user: Injected by FastAPI dependency.
     """
     try:
         validate_uuid(document_id, "document_id")
 
-        doc_result = await retry_supabase_operation(
-            lambda: supabase.table("documents").select("*").eq("id", document_id).single().execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
-
-        document = doc_result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         # Check for DISCo initiative links
         disco_links = []
         try:
-            links_result = await retry_supabase_operation(
-                lambda: supabase.table("disco_initiative_documents")
-                .select("initiative_id, disco_initiatives(id, name)")
-                .eq("document_id", document_id)
-                .execute()
+            links = pb.get_all(
+                "disco_initiative_documents",
+                filter=f"document_id='{pb.escape_filter(document_id)}'",
             )
-            if links_result.data:
-                for link in links_result.data:
-                    if link.get("disco_initiatives"):
-                        disco_links.append(
-                            {
-                                "initiative_id": link["initiative_id"],
-                                "initiative_name": link["disco_initiatives"]["name"],
-                            }
-                        )
+            for link in links:
+                initiative = pb.get_record("disco_initiatives", link["initiative_id"])
+                if initiative:
+                    disco_links.append(
+                        {
+                            "initiative_id": link["initiative_id"],
+                            "initiative_name": initiative["name"],
+                        }
+                    )
         except Exception as e:
             logger.debug(f"Could not check DISCo links: {e}")
 
@@ -185,23 +148,21 @@ async def delete_document(
         # Delete DISCo initiative links
         if disco_links:
             try:
-                await retry_supabase_operation(
-                    lambda: supabase.table("disco_initiative_documents")
-                    .delete()
-                    .eq("document_id", document_id)
-                    .execute()
+                links_to_delete = pb.get_all(
+                    "disco_initiative_documents",
+                    filter=f"document_id='{pb.escape_filter(document_id)}'",
                 )
+                for link in links_to_delete:
+                    pb.delete_record("disco_initiative_documents", link["id"])
                 logger.info(f"Removed {len(disco_links)} DISCo initiative links for document {document_id}")
             except Exception as e:
                 logger.warning(f"Could not delete DISCo links: {e}")
 
         # Delete vectors from Pinecone before deleting chunks
         try:
-            chunks_for_pc = await retry_supabase_operation(
-                lambda: supabase.table("document_chunks").select("id").eq("document_id", document_id).execute()
-            )
-            if chunks_for_pc and chunks_for_pc.data:
-                pc_ids = [str(c["id"]) for c in chunks_for_pc.data]
+            chunks_for_pc = doc_repo.list_document_chunks(document_id)
+            if chunks_for_pc:
+                pc_ids = [str(c["id"]) for c in chunks_for_pc]
                 from services.pinecone_service import delete_vectors
 
                 delete_vectors(ids=pc_ids, namespace="document_chunks")
@@ -209,21 +170,20 @@ async def delete_document(
             logger.warning(f"Could not delete Pinecone vectors: {e}")
 
         # Delete chunks
-        await retry_supabase_operation(
-            lambda: supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
-        )
+        chunks = doc_repo.list_document_chunks(document_id)
+        for chunk in chunks:
+            doc_repo.delete_document_chunk(chunk["id"])
 
-        # Delete from storage
+        # Delete from storage -- PocketBase file storage TBD
         if document.get("storage_path"):
             try:
-                await retry_supabase_operation(
-                    lambda: supabase.storage.from_("documents").remove([document["storage_path"]])
-                )
+                # TODO: PocketBase file storage migration pending
+                logger.info(f"Skipping storage delete (PocketBase migration pending): {document['storage_path']}")
             except Exception as e:
                 logger.warning(f"Could not delete from storage: {e}")
 
         # Delete document record
-        await retry_supabase_operation(lambda: supabase.table("documents").delete().eq("id", document_id).execute())
+        doc_repo.delete_document(document_id)
 
         logger.info(f"Document deleted: {document_id}")
 
@@ -245,14 +205,9 @@ async def delete_document(
 async def bulk_delete_documents(
     request: Request,
     document_ids: List[str],
-    current_user: dict = Depends(get_current_user),
 ):
     """Delete multiple documents."""
     try:
-        # Check admin role
-        if current_user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Admin access required")
-
         # Validate all UUIDs first
         valid_doc_ids = []
         errors = []
@@ -266,13 +221,13 @@ async def bulk_delete_documents(
         deleted_count = 0
         if valid_doc_ids:
             try:
-                # Batch delete chunks for all documents
-                await asyncio.to_thread(
-                    lambda: supabase.table("document_chunks").delete().in_("document_id", valid_doc_ids).execute()
-                )
-
-                # Batch delete documents
-                await asyncio.to_thread(lambda: supabase.table("documents").delete().in_("id", valid_doc_ids).execute())
+                for doc_id in valid_doc_ids:
+                    # Delete chunks first
+                    chunks = doc_repo.list_document_chunks(doc_id)
+                    for chunk in chunks:
+                        doc_repo.delete_document_chunk(chunk["id"])
+                    # Delete document
+                    doc_repo.delete_document(doc_id)
 
                 deleted_count = len(valid_doc_ids)
 
@@ -291,31 +246,21 @@ async def bulk_delete_documents(
 @router.get("/{document_id}/download")
 async def download_document(
     document_id: str,
-    current_user: dict = Depends(get_current_user),
 ):
     """Generate a signed URL for document download."""
     try:
         validate_uuid(document_id, "document_id")
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("*").eq("id", document_id).single().execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        document = doc_result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
-
-        signed_url = await asyncio.to_thread(
-            lambda: supabase.storage.from_("documents").create_signed_url(document["storage_path"], 3600)
+        # TODO: PocketBase file storage migration pending
+        # PocketBase has its own file URL generation mechanism
+        raise HTTPException(
+            status_code=501,
+            detail="Document download not yet available (PocketBase storage migration pending)",
         )
-
-        return {
-            "success": True,
-            "download_url": signed_url["signedURL"],
-            "expires_in": 3600,
-        }
 
     except HTTPException:
         raise
@@ -327,33 +272,24 @@ async def download_document(
 @router.get("/{document_id}/initiative-links")
 async def get_document_initiative_links(
     document_id: str,
-    current_user: dict = Depends(get_current_user),
 ):
     """Get DISCo initiatives that link to this document."""
     try:
         validate_uuid(document_id, "document_id")
 
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
-        )
-
-        if not doc_result.data:
+        document = doc_repo.get_document(document_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        document = doc_result.data
-        check_owner_or_admin(current_user, document["uploaded_by"], "document")
-
-        links_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_initiative_documents")
-            .select("initiative_id, disco_initiatives(id, name, status)")
-            .eq("document_id", document_id)
-            .execute()
+        links = pb.get_all(
+            "disco_initiative_documents",
+            filter=f"document_id='{pb.escape_filter(document_id)}'",
         )
 
         initiatives = []
-        for link in links_result.data or []:
-            if link.get("disco_initiatives"):
-                initiative = link["disco_initiatives"]
+        for link in links:
+            initiative = pb.get_record("disco_initiatives", link["initiative_id"])
+            if initiative:
                 initiatives.append(
                     {
                         "id": initiative["id"],
