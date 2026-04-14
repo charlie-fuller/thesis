@@ -1,18 +1,14 @@
 """Shared models and utilities for DISCo routes."""
 
-import asyncio
 from typing import List, Literal, Optional
 
-from fastapi import Depends, HTTPException
+from fastapi import HTTPException
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from auth import get_current_user
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
-from services.disco import check_permission
 
 logger = get_logger(__name__)
-supabase = get_supabase()
 
 
 # ============================================================================
@@ -416,50 +412,6 @@ class ExtractProjectResponse(BaseModel):
 # ============================================================================
 
 
-async def check_disco_access(user: dict) -> bool:
-    """Check if user has DISCo access."""
-    user_id = user.get("id")
-    if not user_id:
-        return False
-
-    # Retry on transient HTTP/2 connection errors
-    last_error = None
-    for attempt in range(3):
-        try:
-            result = await asyncio.to_thread(
-                lambda: supabase.table("users").select("app_access").eq("id", user_id).single().execute()
-            )
-            break
-        except Exception as e:
-            error_str = str(e)
-            if "ConnectionTerminated" in error_str or "RemoteProtocolError" in error_str:
-                last_error = e
-                logger.warning(
-                    f"Supabase connection error in check_disco_access (attempt {attempt + 1}/3): {error_str}"
-                )
-                await asyncio.sleep(0.3 * (attempt + 1))
-            else:
-                raise
-    else:
-        raise last_error
-
-    if not result.data:
-        return False
-
-    app_access = result.data.get("app_access", ["thesis"])
-    return "disco" in app_access or "purdy" in app_access or "all" in app_access
-
-
-async def require_disco_access(
-    current_user: dict = Depends(get_current_user),
-) -> dict:
-    """Dependency to require DISCo access."""
-    has_access = await check_disco_access(current_user)
-    if not has_access:
-        raise HTTPException(status_code=403, detail="DISCo access required")
-    return current_user
-
-
 def _is_valid_uuid(value: str) -> bool:
     """Check if a string is a valid UUID."""
     try:
@@ -471,7 +423,7 @@ def _is_valid_uuid(value: str) -> bool:
         return False
 
 
-async def resolve_initiative_id(initiative_id: str) -> str:
+def resolve_initiative_id(initiative_id: str) -> str:
     """Resolve an initiative ID (UUID or name) to its UUID.
 
     Args:
@@ -487,26 +439,21 @@ async def resolve_initiative_id(initiative_id: str) -> str:
         return initiative_id
 
     # Look up by name
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_initiatives").select("id").eq("name", initiative_id).single().execute()
+    record = pb.get_first(
+        "disco_initiatives",
+        filter=f"name='{pb.escape_filter(initiative_id)}'",
     )
 
-    if not result.data:
+    if not record:
         raise HTTPException(status_code=404, detail="Initiative not found")
 
-    return result.data["id"]
+    return record["id"]
 
 
-async def require_initiative_access(initiative_id: str, current_user: dict, required_role: str = "viewer") -> str:
-    """Check user has access to initiative.
+def require_initiative_access(initiative_id: str) -> str:
+    """Resolve initiative ID and verify the initiative exists.
 
     Returns:
         The resolved initiative UUID (useful when input was a name)
     """
-    # Resolve to UUID if needed
-    resolved_id = await resolve_initiative_id(initiative_id)
-
-    has_permission = await check_permission(resolved_id, current_user["id"], required_role)
-    if not has_permission:
-        raise HTTPException(status_code=403, detail=f"Insufficient permissions. Required: {required_role}")
-    return resolved_id
+    return resolve_initiative_id(initiative_id)

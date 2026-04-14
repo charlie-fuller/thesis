@@ -1,14 +1,14 @@
 """DISCo Initiatives routes."""
 
-import asyncio
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 
-from config import get_default_client_id
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
+from repositories import disco as disco_repo
+from repositories import tasks as tasks_repo
 from services.disco import (
     add_member,
     create_initiative,
@@ -33,7 +33,6 @@ from ._shared import (
     MemberInvite,
     MemberRoleUpdate,
     ResolutionAnnotations,
-    require_disco_access,
     require_initiative_access,
 )
 
@@ -51,12 +50,10 @@ async def api_list_initiatives(
     status: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
-    current_user: dict = Depends(require_disco_access),
 ):
     """List all initiatives accessible to the user."""
     try:
         result = await list_initiatives(
-            user_id=current_user["id"],
             status_filter=status,
             limit=limit,
             offset=offset,
@@ -70,14 +67,12 @@ async def api_list_initiatives(
 @router.post("/initiatives")
 async def api_create_initiative(
     data: InitiativeCreate,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Create a new initiative."""
     try:
         initiative = await create_initiative(
             name=data.name,
             description=data.description,
-            user_id=current_user["id"],
             throughline=data.throughline.model_dump() if data.throughline else None,
             target_department=data.target_department,
             value_alignment=data.value_alignment.model_dump(exclude_none=True) if data.value_alignment else None,
@@ -91,17 +86,14 @@ async def api_create_initiative(
 
 
 @router.get("/initiatives/as-tags")
-async def api_get_initiatives_as_tags(
-    current_user: dict = Depends(require_disco_access),
-):
+async def api_get_initiatives_as_tags():
     """Get all initiatives formatted as tag options.
 
     Used by TagSelector component when showInitiatives=true.
     Returns initiative names sorted alphabetically.
     """
     try:
-        user_id = current_user["id"]
-        result = await list_initiatives(user_id=user_id, limit=500)
+        result = await list_initiatives(limit=500)
         initiatives = result.get("initiatives", [])
 
         tags = sorted(
@@ -128,11 +120,10 @@ async def api_get_initiatives_as_tags(
 @router.get("/initiatives/{initiative_id}")
 async def api_get_initiative(
     initiative_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Get initiative details."""
     try:
-        initiative = await get_initiative(initiative_id, current_user["id"])
+        initiative = await get_initiative(initiative_id)
         if not initiative:
             raise HTTPException(status_code=404, detail="Initiative not found")
         return {"success": True, "initiative": initiative}
@@ -147,10 +138,9 @@ async def api_get_initiative(
 async def api_update_initiative(
     initiative_id: str,
     data: InitiativeUpdate,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Update initiative details."""
-    await require_initiative_access(initiative_id, current_user, "editor")
+    require_initiative_access(initiative_id)
 
     try:
         updates = data.model_dump(exclude_unset=True)
@@ -163,7 +153,6 @@ async def api_update_initiative(
                     updates[field] = updates[field].model_dump()
         initiative = await update_initiative(
             initiative_id=initiative_id,
-            user_id=current_user["id"],
             updates=updates,
         )
         return {"success": True, "initiative": initiative}
@@ -180,18 +169,17 @@ async def api_update_initiative(
 async def api_update_resolution_annotations(
     initiative_id: str,
     data: ResolutionAnnotations,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Update resolution annotations (user overrides for hypothesis/gap resolutions).
 
     Performs a merge-patch: incoming overrides are merged with existing annotations,
     so you only need to send the keys you want to add or change.
     """
-    await require_initiative_access(initiative_id, current_user, "editor")
+    require_initiative_access(initiative_id)
 
     try:
         # Get current initiative to read existing annotations
-        initiative = await get_initiative(initiative_id, current_user["id"])
+        initiative = await get_initiative(initiative_id)
         if not initiative:
             raise HTTPException(status_code=404, detail="Initiative not found")
 
@@ -206,7 +194,6 @@ async def api_update_resolution_annotations(
 
         updated = await update_initiative(
             initiative_id=initiative_id,
-            user_id=current_user["id"],
             updates={"resolution_annotations": merged},
         )
         return {"success": True, "initiative": updated}
@@ -222,11 +209,10 @@ async def api_update_resolution_annotations(
 @router.delete("/initiatives/{initiative_id}")
 async def api_delete_initiative(
     initiative_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Delete an initiative (owner only)."""
     try:
-        await delete_initiative(initiative_id, current_user["id"])
+        await delete_initiative(initiative_id)
         return {"success": True, "message": "Initiative deleted"}
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e)) from None
@@ -244,12 +230,11 @@ async def api_delete_initiative(
 async def api_get_initiative_projects(
     initiative_id: str,
     status: Optional[str] = Query(None, description="Filter by project status"),
-    current_user: dict = Depends(require_disco_access),
 ):
     """Get all projects linked to this initiative."""
     try:
-        # Verify access to initiative
-        await require_initiative_access(initiative_id, current_user, "viewer")
+        # Verify initiative exists
+        require_initiative_access(initiative_id)
 
         # Get projects
         result = await get_initiative_projects(initiative_id, status=status)
@@ -299,35 +284,24 @@ def _priority_to_int(priority: str | None) -> int:
 async def api_create_tasks_from_resolution(
     initiative_id: str,
     data: CreateTasksFromResolution,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Create tasks from throughline resolution state changes.
 
     Extracts state_changes and so_what.next_human_action from a convergence
     output's throughline_resolution and creates project_tasks for each.
     """
-    resolved_id = await require_initiative_access(initiative_id, current_user, "editor")
+    resolved_id = require_initiative_access(initiative_id)
 
     try:
-        supabase = get_supabase()
-        client_id = current_user.get("client_id") or get_default_client_id()
-        user_id = current_user["id"]
-
-        # 1. Get the output by ID
-        output_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_outputs")
-            .select("id, initiative_id, throughline_resolution")
-            .eq("id", data.output_id)
-            .eq("initiative_id", resolved_id)
-            .single()
-            .execute()
-        )
-
-        if not output_result.data:
+        # 1. Get the output by ID and verify it belongs to the initiative
+        output = disco_repo.get_output(data.output_id)
+        if not output or output.get("initiative_id") != resolved_id:
             raise HTTPException(status_code=404, detail="Output not found")
 
-        output = output_result.data
         resolution = output.get("throughline_resolution")
+        if isinstance(resolution, str):
+            import json
+            resolution = json.loads(resolution)
 
         if not resolution:
             raise HTTPException(status_code=400, detail="Output has no throughline resolution")
@@ -375,22 +349,17 @@ async def api_create_tasks_from_resolution(
             raise HTTPException(status_code=400, detail="No tasks selected for creation")
 
         # 4. Get next position in pending column
-        pos_result = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks")
-            .select("position")
-            .eq("client_id", client_id)
-            .eq("status", "pending")
-            .order("position", desc=True)
-            .limit(1)
-            .execute()
+        pending_tasks = pb.get_all(
+            "project_tasks",
+            filter="status='pending'",
+            sort="-position",
         )
-        next_position = (pos_result.data[0]["position"] + 1) if pos_result.data else 0
+        next_position = (pending_tasks[0]["position"] + 1) if pending_tasks else 0
 
         # 5. Create tasks
         created_tasks = []
         for task_data in tasks_to_create:
             task_record = {
-                "client_id": client_id,
                 "title": task_data["title"],
                 "status": "pending",
                 "priority": task_data["priority"],
@@ -400,20 +369,14 @@ async def api_create_tasks_from_resolution(
                 "source_initiative_id": resolved_id,
                 "source_disco_output_id": data.output_id,
                 "linked_project_id": data.project_id,
-                "created_by": user_id,
-                "updated_by": user_id,
                 "position": next_position,
                 "category": "disco_resolution",
                 "tags": ["disco"],
             }
 
-            result = await asyncio.to_thread(
-                lambda rec=task_record: supabase.table("project_tasks").insert(rec).execute()
-            )
-
-            if result.data:
-                created_tasks.append(result.data[0])
-                next_position += 1
+            result = tasks_repo.create_task(task_record)
+            created_tasks.append(result)
+            next_position += 1
 
         logger.info(f"Created {len(created_tasks)} tasks from resolution for initiative {resolved_id}")
 
@@ -439,18 +402,16 @@ async def api_create_tasks_from_resolution(
 @router.post("/initiatives/{initiative_id}/analyze-alignment")
 async def api_analyze_initiative_alignment(
     initiative_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Analyze initiative alignment with IS FY27 strategic goals.
 
     Requires editor or owner role. Uses rich context from agent outputs.
     """
-    await require_initiative_access(initiative_id, current_user, "editor")
+    require_initiative_access(initiative_id)
 
     try:
         score, details = await analyze_initiative_alignment(
             initiative_id=initiative_id,
-            user_id=current_user["id"],
         )
 
         # Determine alignment level
@@ -479,10 +440,9 @@ async def api_analyze_initiative_alignment(
 @router.get("/initiatives/{initiative_id}/alignment-rollup")
 async def api_get_alignment_rollup(
     initiative_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Get alignment score rollup for projects linked to this initiative."""
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     try:
         rollup = await get_project_alignment_rollup(initiative_id)
@@ -500,10 +460,9 @@ async def api_get_alignment_rollup(
 @router.get("/initiatives/{initiative_id}/members")
 async def api_list_members(
     initiative_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """List initiative members."""
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     try:
         members = await list_members(initiative_id)
@@ -517,17 +476,15 @@ async def api_list_members(
 async def api_add_member(
     initiative_id: str,
     data: MemberInvite,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Invite a member to an initiative."""
-    await require_initiative_access(initiative_id, current_user, "editor")
+    require_initiative_access(initiative_id)
 
     try:
         member = await add_member(
             initiative_id=initiative_id,
             user_email=data.email,
             role=data.role,
-            inviter_id=current_user["id"],
         )
         return {"success": True, "member": member}
     except ValueError as e:
@@ -544,7 +501,6 @@ async def api_update_member_role(
     initiative_id: str,
     user_id: str,
     data: MemberRoleUpdate,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Update a member's role."""
     try:
@@ -552,7 +508,6 @@ async def api_update_member_role(
             initiative_id=initiative_id,
             user_id=user_id,
             new_role=data.role,
-            updater_id=current_user["id"],
         )
         return {"success": True, "member": member}
     except ValueError as e:
@@ -568,14 +523,12 @@ async def api_update_member_role(
 async def api_remove_member(
     initiative_id: str,
     user_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Remove a member from an initiative."""
     try:
         await remove_member(
             initiative_id=initiative_id,
             user_id=user_id,
-            remover_id=current_user["id"],
         )
         return {"success": True, "message": "Member removed"}
     except ValueError as e:

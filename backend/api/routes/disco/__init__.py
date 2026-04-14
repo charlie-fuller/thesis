@@ -27,8 +27,6 @@ from ._shared import (
     MemberInvite,
     MemberRoleUpdate,
     PRDUpdate,
-    check_disco_access,
-    require_disco_access,
     require_initiative_access,
 )
 
@@ -64,8 +62,6 @@ __all__ = [
     "ExtractedField",
     "ExtractedScore",
     "ExtractProjectResponse",
-    # Auth helpers
-    "check_disco_access",
-    "require_disco_access",
+    # Helpers
     "require_initiative_access",
 ]

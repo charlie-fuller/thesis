@@ -1,15 +1,15 @@
 """DISCo Workflow routes - Runs, Outputs, and Checkpoints."""
 
-import asyncio
 import json
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
+from repositories import disco as disco_repo
 from services.disco import promote_output_to_document, run_agent
 from services.disco.agent_service import (
     MULTI_PASS_CONFIG,
@@ -23,13 +23,11 @@ from ._shared import (
     AgentRunRequest,
     CheckpointApprove,
     CheckpointReset,
-    require_disco_access,
     require_initiative_access,
 )
 
 logger = get_logger(__name__)
 router = APIRouter()
-supabase = get_supabase()
 
 
 # ============================================================================
@@ -41,10 +39,9 @@ supabase = get_supabase()
 async def api_list_runs(
     initiative_id: str,
     limit: int = 20,
-    current_user: dict = Depends(require_disco_access),
 ):
     """List agent runs for an initiative."""
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     try:
         runs = await list_runs(initiative_id, limit)
@@ -58,10 +55,9 @@ async def api_list_runs(
 async def api_start_run(
     initiative_id: str,
     data: AgentRunRequest,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Start a new agent run with streaming response."""
-    await require_initiative_access(initiative_id, current_user, "editor")
+    require_initiative_access(initiative_id)
 
     # Check if multi-pass is requested and valid
     use_multi_pass = data.multi_pass and data.agent_type in MULTI_PASS_CONFIG.get("supported_agents", [])
@@ -75,14 +71,12 @@ async def api_start_run(
                 agent_gen = run_agent_multi_pass(
                     initiative_id=initiative_id,
                     agent_type=data.agent_type,
-                    user_id=current_user["id"],
                     document_ids=data.document_ids,
                 )
             else:
                 agent_gen = run_agent(
                     initiative_id=initiative_id,
                     agent_type=data.agent_type,
-                    user_id=current_user["id"],
                     document_ids=data.document_ids,
                     kb_folder=data.kb_folder,
                     kb_tags=data.kb_tags,
@@ -125,10 +119,9 @@ async def api_start_run(
 async def api_get_run(
     initiative_id: str,
     run_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Get a run by ID."""
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     try:
         run = await get_run(run_id)
@@ -151,22 +144,15 @@ async def api_get_run(
 async def api_list_outputs(
     initiative_id: str,
     agent_type: Optional[str] = None,
-    current_user: dict = Depends(require_disco_access),
 ):
     """List outputs for an initiative."""
     # Resolve to UUID and check access
-    resolved_id = await require_initiative_access(initiative_id, current_user, "viewer")
+    resolved_id = require_initiative_access(initiative_id)
 
     try:
-        query = supabase.table("disco_outputs").select("*").eq("initiative_id", resolved_id)
+        outputs = disco_repo.list_outputs(resolved_id, agent_type=agent_type or "", sort="-created")
 
-        if agent_type:
-            query = query.eq("agent_type", agent_type)
-
-        query = query.order("created_at", desc=True)
-        result = await asyncio.to_thread(lambda: query.execute())
-
-        return {"success": True, "outputs": result.data or []}
+        return {"success": True, "outputs": outputs}
     except Exception as e:
         logger.error(f"Error listing outputs: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -176,26 +162,25 @@ async def api_list_outputs(
 async def api_get_latest_output(
     initiative_id: str,
     agent_type: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Get the latest output of a specific type."""
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_outputs")
-            .select("*")
-            .eq("initiative_id", initiative_id)
-            .eq("agent_type", agent_type)
-            .order("version", desc=True)
-            .limit(1)
-            .execute()
+        esc_init = pb.escape_filter(initiative_id)
+        esc_agent = pb.escape_filter(agent_type)
+        result = pb.list_records(
+            "disco_outputs",
+            filter=f"initiative_id='{esc_init}' && agent_type='{esc_agent}'",
+            sort="-version",
+            per_page=1,
         )
+        items = result.get("items", [])
 
-        if not result.data:
+        if not items:
             raise HTTPException(status_code=404, detail=f"No {agent_type} output found")
 
-        return {"success": True, "output": result.data[0]}
+        return {"success": True, "output": items[0]}
     except HTTPException:
         raise
     except Exception as e:
@@ -207,22 +192,20 @@ async def api_get_latest_output(
 async def api_list_output_versions(
     initiative_id: str,
     agent_type: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """List all versions of an output type."""
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_outputs")
-            .select("id, version, created_at, title, recommendation, confidence_level")
-            .eq("initiative_id", initiative_id)
-            .eq("agent_type", agent_type)
-            .order("version", desc=True)
-            .execute()
+        esc_init = pb.escape_filter(initiative_id)
+        esc_agent = pb.escape_filter(agent_type)
+        versions = pb.get_all(
+            "disco_outputs",
+            filter=f"initiative_id='{esc_init}' && agent_type='{esc_agent}'",
+            sort="-version",
         )
 
-        return {"success": True, "versions": result.data or []}
+        return {"success": True, "versions": versions}
     except Exception as e:
         logger.error(f"Error listing output versions: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -232,29 +215,19 @@ async def api_list_output_versions(
 async def api_export_output(
     initiative_id: str,
     output_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Export an output as markdown."""
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_outputs")
-            .select("agent_type, version, content_markdown")
-            .eq("id", output_id)
-            .eq("initiative_id", initiative_id)
-            .single()
-            .execute()
-        )
-
-        if not result.data:
+        output = disco_repo.get_output(output_id)
+        if not output or output.get("initiative_id") != initiative_id:
             raise HTTPException(status_code=404, detail="Output not found")
 
-        output = result.data
         filename = f"{output['agent_type']}_v{output['version']}.md"
 
         return StreamingResponse(
-            iter([output["content_markdown"]]),
+            iter([output.get("content_markdown", "")]),
             media_type="text/markdown",
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
@@ -269,10 +242,9 @@ async def api_export_output(
 async def api_promote_output(
     initiative_id: str,
     output_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Promote an output to a document."""
-    await require_initiative_access(initiative_id, current_user, "editor")
+    require_initiative_access(initiative_id)
 
     try:
         document = await promote_output_to_document(output_id, initiative_id)
@@ -288,30 +260,21 @@ async def api_promote_output(
 async def api_delete_output(
     initiative_id: str,
     output_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Delete an output."""
-    await require_initiative_access(initiative_id, current_user, "editor")
+    require_initiative_access(initiative_id)
 
     try:
         # Verify output belongs to initiative
-        output_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_outputs")
-            .select("id, agent_type, version")
-            .eq("id", output_id)
-            .eq("initiative_id", initiative_id)
-            .single()
-            .execute()
-        )
-
-        if not output_result.data:
+        output = disco_repo.get_output(output_id)
+        if not output or output.get("initiative_id") != initiative_id:
             raise HTTPException(status_code=404, detail="Output not found")
 
         # Delete the output
-        await asyncio.to_thread(lambda: supabase.table("disco_outputs").delete().eq("id", output_id).execute())
+        pb.delete_record("disco_outputs", output_id)
 
         logger.info(
-            f"[DISCO] Deleted output {output_id} ({output_result.data['agent_type']} v{output_result.data['version']})"
+            f"[DISCO] Deleted output {output_id} ({output['agent_type']} v{output['version']})"
         )
 
         return {"success": True, "deleted_output_id": output_id}
@@ -326,16 +289,15 @@ async def api_delete_output(
 async def api_condense_output(
     initiative_id: str,
     output_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Apply Smart Brevity condensation to an output."""
-    await require_initiative_access(initiative_id, current_user, "editor")
+    require_initiative_access(initiative_id)
 
     async def event_stream():
         yield ": " + " " * 2048 + "\n\n"
 
         try:
-            async for event in condense_output(output_id, current_user["id"]):
+            async for event in condense_output(output_id):
                 event_type = event.get("type", "unknown")
                 event_data = event.get("data", "")
 
@@ -385,7 +347,6 @@ def _get_next_agent_for_checkpoint(checkpoint_number: int) -> Optional[str]:
 @router.get("/initiatives/{initiative_id}/checkpoints")
 async def api_list_checkpoints(
     initiative_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """List all checkpoints for an initiative.
 
@@ -395,37 +356,32 @@ async def api_list_checkpoints(
     3. Initiative Builder -> Requirements Generator
     4. Requirements Generator -> Done
     """
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     try:
-        # Initialize checkpoints if they don't exist
-        await asyncio.to_thread(
-            lambda: supabase.rpc("initialize_disco_checkpoints", {"p_initiative_id": initiative_id}).execute()
-        )
-
         # Fetch checkpoints
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_checkpoints")
-            .select("*")
-            .eq("initiative_id", initiative_id)
-            .order("checkpoint_number")
-            .execute()
-        )
+        checkpoints = disco_repo.list_checkpoints(initiative_id, sort="checkpoint_number")
 
-        checkpoints = result.data or []
+        # If no checkpoints exist, initialize them
+        if not checkpoints:
+            for num in range(1, 5):
+                disco_repo.create_checkpoint({
+                    "initiative_id": initiative_id,
+                    "checkpoint_number": num,
+                    "status": "locked" if num > 1 else "needs_review",
+                })
+            checkpoints = disco_repo.list_checkpoints(initiative_id, sort="checkpoint_number")
 
         # Calculate staleness for each checkpoint
         for checkpoint in checkpoints:
-            if checkpoint["status"] == "approved":
-                docs_result = await asyncio.to_thread(
-                    lambda cp=checkpoint: supabase.table("disco_initiative_documents")
-                    .select("linked_at")
-                    .eq("initiative_id", initiative_id)
-                    .gt("linked_at", cp["approved_at"])
-                    .limit(1)
-                    .execute()
+            if checkpoint.get("status") == "approved" and checkpoint.get("approved_at"):
+                esc_init = pb.escape_filter(initiative_id)
+                esc_date = pb.escape_filter(checkpoint["approved_at"])
+                new_docs = pb.get_first(
+                    "disco_initiative_documents",
+                    filter=f"initiative_id='{esc_init}' && created>'{esc_date}'",
                 )
-                if docs_result.data:
+                if new_docs:
                     checkpoint["status"] = "stale"
                     checkpoint["stale_reason"] = "New documents added since approval"
 
@@ -439,28 +395,22 @@ async def api_list_checkpoints(
 async def api_get_checkpoint(
     initiative_id: str,
     checkpoint_number: int,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Get a specific checkpoint with details."""
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     if checkpoint_number not in [1, 2, 3, 4]:
         raise HTTPException(status_code=400, detail="Checkpoint number must be 1-4")
 
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_checkpoints")
-            .select("*")
-            .eq("initiative_id", initiative_id)
-            .eq("checkpoint_number", checkpoint_number)
-            .single()
-            .execute()
+        esc_init = pb.escape_filter(initiative_id)
+        checkpoint = pb.get_first(
+            "disco_checkpoints",
+            filter=f"initiative_id='{esc_init}' && checkpoint_number={checkpoint_number}",
         )
 
-        if not result.data:
+        if not checkpoint:
             raise HTTPException(status_code=404, detail="Checkpoint not found")
-
-        checkpoint = result.data
 
         # Checkpoint-specific checklist content
         checkpoint_checklists = {
@@ -537,32 +487,26 @@ async def api_approve_checkpoint(
     initiative_id: str,
     checkpoint_number: int,
     body: CheckpointApprove,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Approve a checkpoint to unlock the next agent.
 
     This is the human-in-the-loop gate between DISCo stages.
     """
-    await require_initiative_access(initiative_id, current_user, "editor")
+    require_initiative_access(initiative_id)
 
     if checkpoint_number not in [1, 2, 3, 4]:
         raise HTTPException(status_code=400, detail="Checkpoint number must be 1-4")
 
     try:
         # Get current checkpoint
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_checkpoints")
-            .select("*")
-            .eq("initiative_id", initiative_id)
-            .eq("checkpoint_number", checkpoint_number)
-            .single()
-            .execute()
+        esc_init = pb.escape_filter(initiative_id)
+        checkpoint = pb.get_first(
+            "disco_checkpoints",
+            filter=f"initiative_id='{esc_init}' && checkpoint_number={checkpoint_number}",
         )
 
-        if not result.data:
+        if not checkpoint:
             raise HTTPException(status_code=404, detail="Checkpoint not found")
-
-        checkpoint = result.data
 
         if checkpoint["status"] not in ["needs_review", "stale"]:
             raise HTTPException(
@@ -574,31 +518,25 @@ async def api_approve_checkpoint(
         update_data = {
             "status": "approved",
             "approved_at": datetime.now(timezone.utc).isoformat(),
-            "approved_by": current_user["id"],
             "notes": body.notes,
         }
 
         if body.checklist_items:
             update_data["checklist_items"] = body.checklist_items
 
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_checkpoints").update(update_data).eq("id", checkpoint["id"]).execute()
-        )
+        disco_repo.update_checkpoint(checkpoint["id"], update_data)
 
         # Unlock the next checkpoint if not the last one
         if checkpoint_number < 4:
-            await asyncio.to_thread(
-                lambda: supabase.table("disco_checkpoints")
-                .update({"status": "locked"})
-                .eq("initiative_id", initiative_id)
-                .eq("checkpoint_number", checkpoint_number + 1)
-                .eq("status", "locked")
-                .execute()
+            next_cp = pb.get_first(
+                "disco_checkpoints",
+                filter=f"initiative_id='{esc_init}' && checkpoint_number={checkpoint_number + 1} && status='locked'",
             )
+            if next_cp:
+                disco_repo.update_checkpoint(next_cp["id"], {"status": "locked"})
 
         logger.info(
-            f"[DISCO] Checkpoint {checkpoint_number} approved for initiative "
-            f"{initiative_id} by user {current_user['id']}"
+            f"[DISCO] Checkpoint {checkpoint_number} approved for initiative {initiative_id}"
         )
 
         return {
@@ -618,32 +556,26 @@ async def api_reset_checkpoint(
     initiative_id: str,
     checkpoint_number: int,
     body: CheckpointReset,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Reset a checkpoint to needs_review.
 
     Used when re-running an agent after approval, or when requesting changes.
     """
-    await require_initiative_access(initiative_id, current_user, "editor")
+    require_initiative_access(initiative_id)
 
     if checkpoint_number not in [1, 2, 3, 4]:
         raise HTTPException(status_code=400, detail="Checkpoint number must be 1-4")
 
     try:
         # Get current checkpoint
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_checkpoints")
-            .select("*")
-            .eq("initiative_id", initiative_id)
-            .eq("checkpoint_number", checkpoint_number)
-            .single()
-            .execute()
+        esc_init = pb.escape_filter(initiative_id)
+        checkpoint = pb.get_first(
+            "disco_checkpoints",
+            filter=f"initiative_id='{esc_init}' && checkpoint_number={checkpoint_number}",
         )
 
-        if not result.data:
+        if not checkpoint:
             raise HTTPException(status_code=404, detail="Checkpoint not found")
-
-        checkpoint = result.data
 
         if checkpoint["status"] == "locked":
             raise HTTPException(status_code=400, detail="Cannot reset a locked checkpoint")
@@ -658,22 +590,23 @@ async def api_reset_checkpoint(
         if body.reason:
             update_data["notes"] = f"Reset: {body.reason}"
 
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_checkpoints").update(update_data).eq("id", checkpoint["id"]).execute()
-        )
+        disco_repo.update_checkpoint(checkpoint["id"], update_data)
 
         # Also reset subsequent checkpoints to locked
         if checkpoint_number < 4:
-            await asyncio.to_thread(
-                lambda: supabase.table("disco_checkpoints")
-                .update({"status": "locked", "approved_at": None, "approved_by": None})
-                .eq("initiative_id", initiative_id)
-                .gt("checkpoint_number", checkpoint_number)
-                .execute()
+            subsequent = pb.get_all(
+                "disco_checkpoints",
+                filter=f"initiative_id='{esc_init}' && checkpoint_number>{checkpoint_number}",
             )
+            for cp in subsequent:
+                disco_repo.update_checkpoint(cp["id"], {
+                    "status": "locked",
+                    "approved_at": None,
+                    "approved_by": None,
+                })
 
         logger.info(
-            f"[DISCO] Checkpoint {checkpoint_number} reset for initiative {initiative_id} by user {current_user['id']}"
+            f"[DISCO] Checkpoint {checkpoint_number} reset for initiative {initiative_id}"
         )
 
         return {
@@ -695,23 +628,21 @@ async def api_reset_checkpoint(
 @router.get("/initiatives/{initiative_id}/debug/outputs")
 async def api_debug_outputs(
     initiative_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Debug endpoint to check raw output data."""
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_outputs")
-            .select("id, agent_type, version, title, content_markdown, created_at")
-            .eq("initiative_id", initiative_id)
-            .order("created_at", desc=True)
-            .limit(5)
-            .execute()
+        esc_init = pb.escape_filter(initiative_id)
+        result = pb.list_records(
+            "disco_outputs",
+            filter=f"initiative_id='{esc_init}'",
+            sort="-created",
+            per_page=5,
         )
 
         outputs = []
-        for o in result.data or []:
+        for o in result.get("items", []):
             outputs.append(
                 {
                     "id": o.get("id"),
@@ -721,11 +652,11 @@ async def api_debug_outputs(
                     "title": o.get("title"),
                     "content_length": len(o.get("content_markdown", "") or ""),
                     "content_preview": (o.get("content_markdown", "") or "")[:200],
-                    "created_at": o.get("created_at"),
+                    "created_at": o.get("created"),
                 }
             )
 
-        return {"success": True, "count": len(result.data or []), "outputs": outputs}
+        return {"success": True, "count": len(outputs), "outputs": outputs}
     except Exception as e:
         logger.error(f"Debug outputs error: {e}")
         return {"success": False, "error": str(e)}

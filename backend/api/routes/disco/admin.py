@@ -1,14 +1,12 @@
 """DISCo Admin routes - Agents, System KB, and Analytics."""
 
-import asyncio
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 
-from auth import get_current_user, require_admin
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
 from services.disco import (
     get_agent_types,
@@ -19,11 +17,8 @@ from services.disco import (
 )
 from services.disco.agent_service import get_consolidated_agents
 
-from ._shared import require_disco_access
-
 logger = get_logger(__name__)
 router = APIRouter()
-supabase = get_supabase()
 
 
 # ============================================================================
@@ -34,14 +29,12 @@ supabase = get_supabase()
 @router.get("/agents")
 async def api_list_agents(
     include_legacy: bool = False,
-    current_user: dict = Depends(require_disco_access),
 ):
     """List available agent types.
 
     Args:
         include_legacy: If True, includes legacy agents for backwards compatibility.
                        Default returns only the 4 consolidated stage-aligned agents.
-        current_user: Injected by FastAPI dependency.
     """
     if include_legacy:
         return {"success": True, "agents": get_agent_types(include_legacy=True)}
@@ -52,7 +45,6 @@ async def api_list_agents(
 @router.get("/agents/{agent_type}")
 async def api_get_agent_prompt(
     agent_type: str,
-    current_user: dict = Depends(require_admin),
 ):
     """Get agent prompt (admin only)."""
     try:
@@ -73,7 +65,7 @@ async def api_get_agent_prompt(
 
 
 @router.get("/system-kb")
-async def api_list_kb_files(current_user: dict = Depends(require_admin)):
+async def api_list_kb_files():
     """List system KB files (admin only)."""
     try:
         files = await get_kb_files()
@@ -86,10 +78,10 @@ async def api_list_kb_files(current_user: dict = Depends(require_admin)):
 @router.post("/system-kb/sync")
 async def api_sync_kb(
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(require_admin),
 ):
     """Sync system KB from filesystem (admin only)."""
     try:
+        import asyncio
 
         async def do_sync():
             try:
@@ -111,7 +103,6 @@ async def api_search_kb(
     q: str,
     limit: int = 10,
     category: Optional[str] = None,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Search system KB."""
     try:
@@ -130,7 +121,6 @@ async def api_search_kb(
 @router.get("/analytics/usage")
 async def api_disco_usage_analytics(
     days: int = 30,
-    current_user: dict = Depends(get_current_user),
 ):
     """Get DISCo usage analytics - agent runs over time.
 
@@ -142,15 +132,12 @@ async def api_disco_usage_analytics(
         start_date = end_date - timedelta(days=days)
 
         # Fetch all runs in the date range
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_runs")
-            .select("id, agent_type, status, started_at")
-            .gte("started_at", start_date.isoformat())
-            .order("started_at", desc=False)
-            .execute()
+        esc_date = pb.escape_filter(start_date.isoformat())
+        runs = pb.get_all(
+            "disco_runs",
+            filter=f"started_at>='{esc_date}'",
+            sort="started_at",
         )
-
-        runs = result.data or []
 
         # Build daily counts per agent
         daily_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
@@ -159,7 +146,7 @@ async def api_disco_usage_analytics(
 
         for run in runs:
             agent_type = run["agent_type"]
-            started_at = run["started_at"]
+            started_at = run.get("started_at") or run.get("created", "")
             if started_at:
                 date_str = started_at.split("T")[0]
                 daily_counts[date_str][agent_type] += 1

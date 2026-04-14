@@ -3,11 +3,11 @@
 import json
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from logger_config import get_logger
-from services.disco import check_permission, get_initiative, run_agent
+from services.disco import get_initiative, run_agent
 from services.disco.prd_service import (
     OUTPUT_TYPE_CONFIG,
     approve_prd,
@@ -40,7 +40,7 @@ from ._shared import (
     BundleSplit,
     BundleUpdate,
     PRDUpdate,
-    require_disco_access,
+    require_initiative_access,
 )
 
 logger = get_logger(__name__)
@@ -56,17 +56,12 @@ router = APIRouter()
 async def api_list_bundles(
     initiative_id: str,
     status: Optional[str] = None,
-    current_user: dict = Depends(require_disco_access),
 ):
     """List bundles for an initiative."""
     try:
         initiative = await get_initiative(initiative_id)
         if not initiative:
             raise HTTPException(status_code=404, detail="Initiative not found")
-
-        can_view = await check_permission(initiative_id, current_user["id"], "viewer")
-        if not can_view:
-            raise HTTPException(status_code=403, detail="No access to this initiative")
 
         bundles = await list_bundles(initiative_id, status=status)
         return {"success": True, "bundles": bundles}
@@ -81,13 +76,10 @@ async def api_list_bundles(
 async def api_create_bundle(
     initiative_id: str,
     body: BundleCreate,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Create a new bundle for an initiative."""
     try:
-        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+        require_initiative_access(initiative_id)
 
         bundle = await create_bundle(
             initiative_id=initiative_id,
@@ -119,13 +111,10 @@ async def api_create_bundle(
 async def api_get_bundle(
     initiative_id: str,
     bundle_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Get a specific bundle."""
     try:
-        can_view = await check_permission(initiative_id, current_user["id"], "viewer")
-        if not can_view:
-            raise HTTPException(status_code=403, detail="No access to this initiative")
+        require_initiative_access(initiative_id)
 
         bundle = await get_bundle(bundle_id)
         if not bundle or bundle["initiative_id"] != initiative_id:
@@ -146,13 +135,10 @@ async def api_update_bundle(
     initiative_id: str,
     bundle_id: str,
     body: BundleUpdate,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Update a bundle."""
     try:
-        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+        require_initiative_access(initiative_id)
 
         bundle = await get_bundle(bundle_id)
         if not bundle or bundle["initiative_id"] != initiative_id:
@@ -166,7 +152,6 @@ async def api_update_bundle(
         updated_bundle = await update_bundle(
             bundle_id=bundle_id,
             updates=updates,
-            user_id=current_user["id"],
             feedback=body.feedback,
         )
         return {"success": True, "bundle": updated_bundle}
@@ -184,13 +169,10 @@ async def api_approve_bundle(
     initiative_id: str,
     bundle_id: str,
     body: BundleApproval,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Approve a bundle for PRD generation."""
     try:
-        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+        require_initiative_access(initiative_id)
 
         bundle = await get_bundle(bundle_id)
         if not bundle or bundle["initiative_id"] != initiative_id:
@@ -201,7 +183,6 @@ async def api_approve_bundle(
 
         approved_bundle = await approve_bundle(
             bundle_id=bundle_id,
-            user_id=current_user["id"],
             feedback=body.feedback,
         )
         return {"success": True, "bundle": approved_bundle}
@@ -217,13 +198,10 @@ async def api_reject_bundle(
     initiative_id: str,
     bundle_id: str,
     body: BundleApproval,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Reject a bundle."""
     try:
-        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+        require_initiative_access(initiative_id)
 
         bundle = await get_bundle(bundle_id)
         if not bundle or bundle["initiative_id"] != initiative_id:
@@ -237,7 +215,6 @@ async def api_reject_bundle(
 
         rejected_bundle = await reject_bundle(
             bundle_id=bundle_id,
-            user_id=current_user["id"],
             feedback=body.feedback,
         )
         return {"success": True, "bundle": rejected_bundle}
@@ -252,13 +229,10 @@ async def api_reject_bundle(
 async def api_merge_bundles(
     initiative_id: str,
     body: BundleMerge,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Merge multiple bundles into one."""
     try:
-        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+        require_initiative_access(initiative_id)
 
         # Verify all bundles belong to this initiative
         for bid in body.bundle_ids:
@@ -270,7 +244,6 @@ async def api_merge_bundles(
             bundle_ids=body.bundle_ids,
             merged_name=body.merged_name,
             merged_description=body.merged_description,
-            user_id=current_user["id"],
             feedback=body.feedback,
         )
         return {"success": True, "bundle": merged_bundle}
@@ -288,13 +261,10 @@ async def api_split_bundle(
     initiative_id: str,
     bundle_id: str,
     body: BundleSplit,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Split a bundle into multiple bundles."""
     try:
-        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+        require_initiative_access(initiative_id)
 
         bundle = await get_bundle(bundle_id)
         if not bundle or bundle["initiative_id"] != initiative_id:
@@ -303,7 +273,6 @@ async def api_split_bundle(
         new_bundles = await split_bundle(
             bundle_id=bundle_id,
             split_definitions=body.split_definitions,
-            user_id=current_user["id"],
             feedback=body.feedback,
         )
         return {"success": True, "bundles": new_bundles}
@@ -320,13 +289,10 @@ async def api_split_bundle(
 async def api_create_project_from_bundle(
     initiative_id: str,
     bundle_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Create a project from an approved bundle."""
     try:
-        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+        require_initiative_access(initiative_id)
 
         bundle = await get_bundle(bundle_id)
         if not bundle or bundle["initiative_id"] != initiative_id:
@@ -341,8 +307,6 @@ async def api_create_project_from_bundle(
         project = await create_project_from_bundle(
             bundle=bundle,
             initiative_id=initiative_id,
-            user_id=current_user["id"],
-            client_id=current_user["client_id"],
         )
         return {"success": True, "project": project}
     except HTTPException:
@@ -355,7 +319,6 @@ async def api_create_project_from_bundle(
 @router.post("/initiatives/{initiative_id}/synthesize")
 async def api_run_synthesis(
     initiative_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Run the Synthesis agent and create bundles from its output.
 
@@ -365,9 +328,7 @@ async def api_run_synthesis(
     3. Creates bundle records in the database
     """
     try:
-        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+        require_initiative_access(initiative_id)
 
         async def stream_and_create_bundles():
             output_id = None
@@ -376,7 +337,6 @@ async def api_run_synthesis(
             async for event in run_agent(
                 initiative_id=initiative_id,
                 agent_type="strategist",
-                user_id=current_user["id"],
             ):
                 if event["type"] == "complete":
                     output_id = event.get("data", {}).get("id")
@@ -445,13 +405,10 @@ async def api_list_prds(
     initiative_id: str,
     bundle_id: Optional[str] = None,
     status: Optional[str] = None,
-    current_user: dict = Depends(require_disco_access),
 ):
     """List PRDs for an initiative."""
     try:
-        can_view = await check_permission(initiative_id, current_user["id"], "viewer")
-        if not can_view:
-            raise HTTPException(status_code=403, detail="No access to this initiative")
+        require_initiative_access(initiative_id)
 
         prds = await list_prds(initiative_id, bundle_id=bundle_id, status=status)
         return {"success": True, "prds": prds}
@@ -466,13 +423,10 @@ async def api_list_prds(
 async def api_get_prd(
     initiative_id: str,
     prd_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Get a specific PRD."""
     try:
-        can_view = await check_permission(initiative_id, current_user["id"], "viewer")
-        if not can_view:
-            raise HTTPException(status_code=403, detail="No access to this initiative")
+        require_initiative_access(initiative_id)
 
         prd = await get_prd(prd_id)
         if not prd or prd["initiative_id"] != initiative_id:
@@ -491,13 +445,10 @@ async def api_update_prd(
     initiative_id: str,
     prd_id: str,
     body: PRDUpdate,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Update a PRD."""
     try:
-        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+        require_initiative_access(initiative_id)
 
         prd = await get_prd(prd_id)
         if not prd or prd["initiative_id"] != initiative_id:
@@ -520,13 +471,10 @@ async def api_update_prd(
 async def api_extract_project_from_prd(
     initiative_id: str,
     prd_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Extract project fields from PRD content using AI."""
     try:
-        can_view = await check_permission(initiative_id, current_user["id"], "viewer")
-        if not can_view:
-            raise HTTPException(status_code=403, detail="No access to this initiative")
+        require_initiative_access(initiative_id)
 
         prd = await get_prd(prd_id)
         if not prd or prd["initiative_id"] != initiative_id:
@@ -550,19 +498,16 @@ async def api_extract_project_from_prd(
 async def api_approve_prd(
     initiative_id: str,
     prd_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Approve a PRD."""
     try:
-        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+        require_initiative_access(initiative_id)
 
         prd = await get_prd(prd_id)
         if not prd or prd["initiative_id"] != initiative_id:
             raise HTTPException(status_code=404, detail="PRD not found")
 
-        approved_prd = await approve_prd(prd_id, current_user["id"])
+        approved_prd = await approve_prd(prd_id)
         return {"success": True, "prd": approved_prd}
     except HTTPException:
         raise
@@ -575,13 +520,10 @@ async def api_approve_prd(
 async def api_suggest_output_type(
     initiative_id: str,
     bundle_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """AI-powered suggestion for the appropriate output type based on bundle content."""
     try:
-        can_view = await check_permission(initiative_id, current_user["id"], "viewer")
-        if not can_view:
-            raise HTTPException(status_code=403, detail="No access to this initiative")
+        require_initiative_access(initiative_id)
 
         bundle = await get_bundle(bundle_id)
         if not bundle or bundle["initiative_id"] != initiative_id:
@@ -600,13 +542,10 @@ async def api_suggest_output_type(
 @router.get("/initiatives/{initiative_id}/output-types")
 async def api_get_output_types(
     initiative_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Get available output types for document generation."""
     try:
-        can_view = await check_permission(initiative_id, current_user["id"], "viewer")
-        if not can_view:
-            raise HTTPException(status_code=403, detail="No access to this initiative")
+        require_initiative_access(initiative_id)
 
         output_types = [
             {
@@ -629,13 +568,10 @@ async def api_generate_document(
     initiative_id: str,
     bundle_id: str,
     output_type: str = Query(default="prd", description="Output type: prd, evaluation_framework, decision_framework"),
-    current_user: dict = Depends(require_disco_access),
 ):
     """Generate a document for an approved bundle with specified output type."""
     try:
-        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+        require_initiative_access(initiative_id)
 
         bundle = await get_bundle(bundle_id)
         if not bundle or bundle["initiative_id"] != initiative_id:
@@ -657,7 +593,6 @@ async def api_generate_document(
             async for event in generate_prd_for_bundle(
                 bundle_id=bundle_id,
                 initiative_id=initiative_id,
-                user_id=current_user["id"],
                 output_type=output_type,
             ):
                 event_type = event["type"]
@@ -691,13 +626,10 @@ async def api_generate_document(
 async def api_generate_prd(
     initiative_id: str,
     bundle_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Generate a PRD for an approved bundle (legacy endpoint, use generate-document instead)."""
     try:
-        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+        require_initiative_access(initiative_id)
 
         bundle = await get_bundle(bundle_id)
         if not bundle or bundle["initiative_id"] != initiative_id:
@@ -713,7 +645,6 @@ async def api_generate_prd(
             async for event in generate_prd_for_bundle(
                 bundle_id=bundle_id,
                 initiative_id=initiative_id,
-                user_id=current_user["id"],
             ):
                 event_type = event["type"]
                 data = event.get("data", "")
@@ -745,16 +676,13 @@ async def api_generate_prd(
 @router.post("/initiatives/{initiative_id}/generate-summary")
 async def api_generate_executive_summary(
     initiative_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Generate an executive summary across all approved bundles."""
     try:
-        can_view = await check_permission(initiative_id, current_user["id"], "viewer")
-        if not can_view:
-            raise HTTPException(status_code=403, detail="No access to this initiative")
+        require_initiative_access(initiative_id)
 
         async def generate():
-            async for event in generate_executive_summary(initiative_id=initiative_id, user_id=current_user["id"]):
+            async for event in generate_executive_summary(initiative_id=initiative_id):
                 event_type = event["type"]
                 data = event.get("data", "")
 

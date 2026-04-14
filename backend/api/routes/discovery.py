@@ -10,11 +10,10 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from auth import get_current_user
-from database import get_supabase
+import pb_client as pb
 
 # Only show candidates from the last N weeks
 DISCOVERY_MAX_AGE_WEEKS = 2
@@ -111,50 +110,32 @@ class DiscoveryAllResponse(BaseModel):
 
 
 @router.get("/counts", response_model=DiscoveryCounts)
-async def get_discovery_counts(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
+async def get_discovery_counts():
     """Get counts of pending candidates across all types.
 
     Used for dashboard badge display showing total pending items.
     """
-    client_id = current_user["client_id"]
-    if not client_id:
-        raise HTTPException(status_code=400, detail="User has no client_id assigned")
-
     # Only show candidates from the last N weeks
     cutoff_date = (datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)).isoformat()
+    esc_cutoff = pb.escape_filter(cutoff_date)
 
     # Get task candidates count
-    tasks_result = (
-        supabase.table("task_candidates")
-        .select("id", count="exact")
-        .eq("client_id", client_id)
-        .eq("status", "pending")
-        .gte("created_at", cutoff_date)
-        .execute()
+    tasks_count = pb.count(
+        "task_candidates",
+        filter=f"status='pending' && created>='{esc_cutoff}'",
     )
-    tasks_count = tasks_result.count or 0
 
     # Get project candidates count
-    opps_result = (
-        supabase.table("project_candidates")
-        .select("id", count="exact")
-        .eq("client_id", client_id)
-        .eq("status", "pending")
-        .gte("created_at", cutoff_date)
-        .execute()
+    opps_count = pb.count(
+        "project_candidates",
+        filter=f"status='pending' && created>='{esc_cutoff}'",
     )
-    opps_count = opps_result.count or 0
 
     # Get stakeholder candidates count
-    stakeholders_result = (
-        supabase.table("stakeholder_candidates")
-        .select("id", count="exact")
-        .eq("client_id", client_id)
-        .eq("status", "pending")
-        .gte("created_at", cutoff_date)
-        .execute()
+    stakeholders_count = pb.count(
+        "stakeholder_candidates",
+        filter=f"status='pending' && created>='{esc_cutoff}'",
     )
-    stakeholders_count = stakeholders_result.count or 0
 
     return {
         "tasks": tasks_count,
@@ -167,31 +148,22 @@ async def get_discovery_counts(current_user: dict = Depends(get_current_user), s
 @router.get("/all", response_model=DiscoveryAllResponse)
 async def get_all_pending_candidates(
     limit: int = Query(20, ge=1, le=100),
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get all pending candidates for inline review.
 
     Returns tasks, projects, and stakeholders with their counts.
     Used by the unified discovery panel for carousel-style review.
     """
-    client_id = current_user["client_id"]
-    if not client_id:
-        raise HTTPException(status_code=400, detail="User has no client_id assigned")
-
     # Only show candidates from the last N weeks
     cutoff_date = (datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)).isoformat()
+    esc_cutoff = pb.escape_filter(cutoff_date)
 
     # Get pending task candidates
-    tasks_result = (
-        supabase.table("task_candidates")
-        .select("*")
-        .eq("client_id", client_id)
-        .eq("status", "pending")
-        .gte("created_at", cutoff_date)
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
+    tasks_result = pb.list_records(
+        "task_candidates",
+        filter=f"status='pending' && created>='{esc_cutoff}'",
+        sort="-created",
+        per_page=limit,
     )
 
     tasks = [
@@ -204,21 +176,17 @@ async def get_all_pending_candidates(
             "team": t.get("team"),
             "source_document_name": t.get("source_document_name"),
             "confidence": t.get("confidence", "medium"),
-            "created_at": t["created_at"],
+            "created_at": t.get("created", ""),
         }
-        for t in tasks_result.data
+        for t in tasks_result.get("items", [])
     ]
 
     # Get pending project candidates
-    opps_result = (
-        supabase.table("project_candidates")
-        .select("*")
-        .eq("client_id", client_id)
-        .eq("status", "pending")
-        .gte("created_at", cutoff_date)
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
+    opps_result = pb.list_records(
+        "project_candidates",
+        filter=f"status='pending' && created>='{esc_cutoff}'",
+        sort="-created",
+        per_page=limit,
     )
 
     projects = [
@@ -235,21 +203,17 @@ async def get_all_pending_candidates(
             "confidence": o.get("confidence", "medium"),
             "matched_project_id": o.get("matched_project_id"),
             "match_reason": o.get("match_reason"),
-            "created_at": o["created_at"],
+            "created_at": o.get("created", ""),
         }
-        for o in opps_result.data
+        for o in opps_result.get("items", [])
     ]
 
     # Get pending stakeholder candidates
-    stakeholders_result = (
-        supabase.table("stakeholder_candidates")
-        .select("*")
-        .eq("client_id", client_id)
-        .eq("status", "pending")
-        .gte("created_at", cutoff_date)
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
+    stakeholders_result = pb.list_records(
+        "stakeholder_candidates",
+        filter=f"status='pending' && created>='{esc_cutoff}'",
+        sort="-created",
+        per_page=limit,
     )
 
     stakeholders = [
@@ -262,56 +226,39 @@ async def get_all_pending_candidates(
             "initial_sentiment": s.get("initial_sentiment"),
             "confidence": s.get("confidence", "medium"),
             "potential_match_stakeholder_id": s.get("potential_match_stakeholder_id"),
-            "created_at": s["created_at"],
+            "created_at": s.get("created", ""),
         }
-        for s in stakeholders_result.data
+        for s in stakeholders_result.get("items", [])
     ]
 
     # Get actual counts (not limited)
-    tasks_count_result = (
-        supabase.table("task_candidates")
-        .select("id", count="exact")
-        .eq("client_id", client_id)
-        .eq("status", "pending")
-        .gte("created_at", cutoff_date)
-        .execute()
+    tasks_count = pb.count(
+        "task_candidates",
+        filter=f"status='pending' && created>='{esc_cutoff}'",
     )
-    tasks_count = tasks_count_result.count or 0
 
-    opps_count_result = (
-        supabase.table("project_candidates")
-        .select("id", count="exact")
-        .eq("client_id", client_id)
-        .eq("status", "pending")
-        .gte("created_at", cutoff_date)
-        .execute()
+    opps_count = pb.count(
+        "project_candidates",
+        filter=f"status='pending' && created>='{esc_cutoff}'",
     )
-    opps_count = opps_count_result.count or 0
 
-    stakeholders_count_result = (
-        supabase.table("stakeholder_candidates")
-        .select("id", count="exact")
-        .eq("client_id", client_id)
-        .eq("status", "pending")
-        .gte("created_at", cutoff_date)
-        .execute()
+    stakeholders_count = pb.count(
+        "stakeholder_candidates",
+        filter=f"status='pending' && created>='{esc_cutoff}'",
     )
-    stakeholders_count = stakeholders_count_result.count or 0
 
     # Check for pending Granola documents (synced but not yet scanned for extraction)
     scanning_status = None
     try:
         from services.granola_scanner import get_scan_status
 
-        user_id = current_user["id"]
-
-        # Check if a background scan is actually running for this user
+        # Check if a background scan is actually running
         from api.routes.pipeline import _active_user_scans
 
-        scan_actually_running = user_id in _active_user_scans
+        scan_actually_running = len(_active_user_scans) > 0
 
         # Use Granola scanner's status function to get accurate pending count
-        granola_status = get_scan_status(user_id)
+        granola_status = get_scan_status()
         pending_count = granola_status.get("pending_files", 0)
 
         if scan_actually_running and pending_count > 0:

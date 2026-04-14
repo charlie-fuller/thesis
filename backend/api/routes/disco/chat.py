@@ -4,15 +4,13 @@ import json
 import os
 
 import anthropic
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
 from services.disco import ask_question, get_conversation, get_initiative
 
-from ._shared import ChatQuestion, require_disco_access, require_initiative_access
-
-supabase = get_supabase()
+from ._shared import ChatQuestion, require_initiative_access
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -26,7 +24,6 @@ router = APIRouter()
 @router.get("/initiatives/{initiative_id}/chat", deprecated=True)
 async def api_get_chat(
     initiative_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Get or create chat conversation.
 
@@ -36,10 +33,10 @@ async def api_get_chat(
     logger.warning(
         f"Deprecated endpoint GET /initiatives/{initiative_id}/chat called. Use /chat?initiative_id={initiative_id} instead."
     )
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     try:
-        conversation = await get_conversation(initiative_id, current_user["id"])
+        conversation = await get_conversation(initiative_id)
         return {"success": True, "conversation": conversation}
     except Exception as e:
         logger.error(f"Error getting conversation: {e}")
@@ -50,7 +47,6 @@ async def api_get_chat(
 async def api_ask_question(
     initiative_id: str,
     data: ChatQuestion,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Ask a question about the initiative.
 
@@ -60,13 +56,12 @@ async def api_ask_question(
     logger.warning(
         f"Deprecated endpoint POST /initiatives/{initiative_id}/chat called. Use /chat?initiative_id={initiative_id} instead."
     )
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     try:
         result = await ask_question(
             initiative_id=initiative_id,
             question=data.question,
-            user_id=current_user["id"],
             conversation_id=data.conversation_id,
         )
         return {"success": True, **result}
@@ -138,7 +133,6 @@ Return ONLY valid JSON, no markdown formatting."""
 @router.post("/initiatives/{initiative_id}/extract-project")
 async def api_extract_project_from_chat(
     initiative_id: str,
-    current_user: dict = Depends(require_disco_access),
 ):
     """Extract project fields from initiative chat conversation using AI.
 
@@ -146,30 +140,28 @@ async def api_extract_project_from_chat(
     Returns extracted fields with confidence levels.
     Skips projects that have already been created from this initiative.
     """
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    require_initiative_access(initiative_id)
 
     try:
         # Get initiative name for context
-        initiative = await get_initiative(initiative_id, current_user["id"])
+        initiative = await get_initiative(initiative_id)
         initiative_name = initiative.get("name", "Unknown Initiative") if initiative else "Unknown Initiative"
 
         # Check for existing projects linked to this initiative
         existing_projects = []
         try:
-            # Query projects that have this initiative in their initiative_ids array
-            # or have source_id matching this initiative
-            result = (
-                supabase.table("projects")
-                .select("id, title, project_code")
-                .or_(f"source_id.eq.{initiative_id},initiative_ids.cs.{{{initiative_id}}}")
-                .execute()
+            # Query projects that have this initiative as source_id
+            esc_id = pb.escape_filter(initiative_id)
+            results = pb.get_all(
+                "ai_projects",
+                filter=f"source_id='{esc_id}'",
             )
-            existing_projects = result.data or []
+            existing_projects = results
         except Exception as e:
             logger.warning(f"Failed to check existing projects: {e}")
 
         # Get conversation
-        conversation = await get_conversation(initiative_id, current_user["id"])
+        conversation = await get_conversation(initiative_id)
 
         if not conversation or not conversation.get("messages"):
             return {
