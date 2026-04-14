@@ -8,11 +8,18 @@ import logging
 from datetime import date
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from auth import get_current_user
-from database import get_supabase
+import pb_client as pb
+from repositories.stakeholders import (
+    get_stakeholder,
+    list_stakeholder_metrics,
+    get_stakeholder_metric,
+    create_stakeholder_metric,
+    update_stakeholder_metric,
+    delete_stakeholder_metric,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -111,8 +118,8 @@ def _format_metric(
         "source_date": metric.get("source_date"),
         "notes": metric.get("notes"),
         "questions_to_confirm": metric.get("questions_to_confirm") or [],
-        "created_at": metric["created_at"],
-        "updated_at": metric.get("updated_at", metric["created_at"]),
+        "created_at": metric.get("created", metric.get("created_at", "")),
+        "updated_at": metric.get("updated", metric.get("updated_at", metric.get("created", ""))),
     }
 
     if stakeholder_name is not None:
@@ -128,44 +135,47 @@ def _format_metric(
 
 
 @router.get("/validation-summary")
-async def get_validation_summary(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
+async def get_validation_summary():
     """Get a summary of metric validation status across all stakeholders.
 
     Returns counts by validation status and lists metrics needing validation.
     """
-    result = (
-        supabase.table("stakeholder_metrics")
-        .select("*, stakeholders(name, department)")
-        .eq("client_id", current_user["client_id"])
-        .execute()
-    )
+    all_metrics = pb.get_all("stakeholder_metrics")
 
     # Count by validation status
     status_counts = {"red": 0, "yellow": 0, "green": 0}
     needs_validation = []
 
-    for metric in result.data:
+    for metric in all_metrics:
         status = metric.get("validation_status", "red")
         status_counts[status] = status_counts.get(status, 0) + 1
 
         if status in ("red", "yellow"):
-            stakeholder = metric.get("stakeholders", {})
+            # Look up stakeholder name separately
+            stakeholder_name = None
+            stakeholder_dept = None
+            if metric.get("stakeholder_id"):
+                stakeholder = get_stakeholder(metric["stakeholder_id"])
+                if stakeholder:
+                    stakeholder_name = stakeholder.get("name")
+                    stakeholder_dept = stakeholder.get("department")
+
             needs_validation.append(
                 {
                     "id": metric["id"],
                     "metric_name": metric["metric_name"],
                     "stakeholder_id": metric["stakeholder_id"],
-                    "stakeholder_name": stakeholder.get("name") if stakeholder else None,
-                    "stakeholder_department": stakeholder.get("department") if stakeholder else None,
+                    "stakeholder_name": stakeholder_name,
+                    "stakeholder_department": stakeholder_dept,
                     "validation_status": status,
                     "questions_to_confirm": metric.get("questions_to_confirm") or [],
                 }
             )
 
     return {
-        "total": len(result.data),
+        "total": len(all_metrics),
         "by_status": status_counts,
-        "validation_rate": status_counts["green"] / len(result.data) if result.data else 0,
+        "validation_rate": status_counts["green"] / len(all_metrics) if all_metrics else 0,
         "needs_validation": sorted(
             needs_validation,
             key=lambda x: (
@@ -180,68 +190,56 @@ async def get_validation_summary(current_user: dict = Depends(get_current_user),
 async def get_metrics_needing_validation(
     status: Optional[str] = Query(None, pattern="^(red|yellow)$"),
     limit: int = Query(50, ge=1, le=200),
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get all metrics that need validation (red or yellow status).
 
     Useful for meeting prep to know which metrics to verify.
     """
-    query = (
-        supabase.table("stakeholder_metrics")
-        .select("*, stakeholders(name, department)")
-        .eq("client_id", current_user["client_id"])
-    )
-
     if status:
-        query = query.eq("validation_status", status)
+        filter_str = f"validation_status='{pb.escape_filter(status)}'"
     else:
-        query = query.in_("validation_status", ["red", "yellow"])
+        filter_str = "validation_status='red' || validation_status='yellow'"
 
-    result = query.limit(limit).execute()
+    result = pb.list_records("stakeholder_metrics", filter=filter_str, per_page=limit)
+    metrics = result.get("items", [])
 
-    return [
-        _format_metric(
-            m,
-            m.get("stakeholders", {}).get("name") if m.get("stakeholders") else None,
-            m.get("stakeholders", {}).get("department") if m.get("stakeholders") else None,
-        )
-        for m in result.data
-    ]
+    formatted = []
+    for m in metrics:
+        # Look up stakeholder name separately
+        stakeholder_name = None
+        stakeholder_dept = None
+        if m.get("stakeholder_id"):
+            stakeholder = get_stakeholder(m["stakeholder_id"])
+            if stakeholder:
+                stakeholder_name = stakeholder.get("name")
+                stakeholder_dept = stakeholder.get("department")
+
+        formatted.append(_format_metric(m, stakeholder_name, stakeholder_dept))
+
+    return formatted
 
 
 @router.get("/by-stakeholder/{stakeholder_id}", response_model=List[MetricResponse])
-async def get_stakeholder_metrics(
+async def get_stakeholder_metrics_endpoint(
     stakeholder_id: str,
     category: Optional[str] = None,
     validation_status: Optional[str] = Query(None, pattern="^(red|yellow|green)$"),
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get all metrics for a specific stakeholder."""
-    # Verify stakeholder exists and belongs to client
-    stakeholder = (
-        supabase.table("stakeholders")
-        .select("id")
-        .eq("id", stakeholder_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not stakeholder.data:
+    # Verify stakeholder exists
+    stakeholder = get_stakeholder(stakeholder_id)
+    if not stakeholder:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
 
-    query = supabase.table("stakeholder_metrics").select("*").eq("stakeholder_id", stakeholder_id)
+    metrics = list_stakeholder_metrics(stakeholder_id)
 
+    # Apply filters
     if category:
-        query = query.eq("metric_category", category)
+        metrics = [m for m in metrics if m.get("metric_category") == category]
     if validation_status:
-        query = query.eq("validation_status", validation_status)
+        metrics = [m for m in metrics if m.get("validation_status") == validation_status]
 
-    result = query.order("metric_category").order("metric_name").execute()
-
-    return [_format_metric(m) for m in result.data]
+    return [_format_metric(m) for m in metrics]
 
 
 # ============================================================================
@@ -253,21 +251,11 @@ async def get_stakeholder_metrics(
 async def create_metric(
     stakeholder_id: str,
     metric: MetricCreate,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Create a new metric for a stakeholder."""
-    # Verify stakeholder exists and belongs to client
-    stakeholder = (
-        supabase.table("stakeholders")
-        .select("id")
-        .eq("id", stakeholder_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not stakeholder.data:
+    # Verify stakeholder exists
+    stakeholder = get_stakeholder(stakeholder_id)
+    if not stakeholder:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
 
     # Validate validation_status
@@ -276,7 +264,6 @@ async def create_metric(
 
     data = {
         "stakeholder_id": stakeholder_id,
-        "client_id": current_user["client_id"],
         "metric_name": metric.metric_name,
         "metric_category": metric.metric_category,
         "unit": metric.unit,
@@ -290,7 +277,7 @@ async def create_metric(
     }
 
     try:
-        result = supabase.table("stakeholder_metrics").insert(data).execute()
+        result = create_stakeholder_metric(data)
     except Exception as e:
         if "duplicate" in str(e).lower():
             raise HTTPException(
@@ -299,46 +286,29 @@ async def create_metric(
             ) from None
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
-    return _format_metric(result.data[0])
+    return _format_metric(result)
 
 
 @router.get("/{metric_id}", response_model=MetricResponse)
-async def get_metric(metric_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
+async def get_metric(metric_id: str):
     """Get a single metric by ID."""
-    result = (
-        supabase.table("stakeholder_metrics")
-        .select("*")
-        .eq("id", metric_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
+    result = get_stakeholder_metric(metric_id)
 
-    if not result.data:
+    if not result:
         raise HTTPException(status_code=404, detail="Metric not found")
 
-    return _format_metric(result.data)
+    return _format_metric(result)
 
 
 @router.patch("/{metric_id}", response_model=MetricResponse)
-async def update_metric(
+async def update_metric_endpoint(
     metric_id: str,
     update: MetricUpdate,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Update a metric."""
-    # Verify ownership
-    existing = (
-        supabase.table("stakeholder_metrics")
-        .select("id")
-        .eq("id", metric_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not existing.data:
+    # Verify metric exists
+    existing = get_stakeholder_metric(metric_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Metric not found")
 
     # Build update dict
@@ -361,17 +331,15 @@ async def update_metric(
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
 
-    result = supabase.table("stakeholder_metrics").update(update_data).eq("id", metric_id).execute()
+    result = update_stakeholder_metric(metric_id, update_data)
 
-    return _format_metric(result.data[0])
+    return _format_metric(result)
 
 
 @router.patch("/{metric_id}/validate", response_model=MetricResponse)
 async def validate_metric(
     metric_id: str,
     validation: MetricValidate,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Update the validation status of a metric.
 
@@ -380,17 +348,9 @@ async def validate_metric(
     - yellow: Partially validated (directionally correct)
     - green: Confirmed (stakeholder verified)
     """
-    # Verify ownership
-    existing = (
-        supabase.table("stakeholder_metrics")
-        .select("id")
-        .eq("id", metric_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not existing.data:
+    # Verify metric exists
+    existing = get_stakeholder_metric(metric_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Metric not found")
 
     update_data = {"validation_status": validation.validation_status}
@@ -402,28 +362,20 @@ async def validate_metric(
     if validation.notes:
         update_data["notes"] = validation.notes
 
-    result = supabase.table("stakeholder_metrics").update(update_data).eq("id", metric_id).execute()
+    result = update_stakeholder_metric(metric_id, update_data)
 
-    return _format_metric(result.data[0])
+    return _format_metric(result)
 
 
 @router.delete("/{metric_id}")
-async def delete_metric(metric_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
+async def delete_metric(metric_id: str):
     """Delete a metric."""
-    # Verify ownership
-    existing = (
-        supabase.table("stakeholder_metrics")
-        .select("id")
-        .eq("id", metric_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not existing.data:
+    # Verify metric exists
+    existing = get_stakeholder_metric(metric_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Metric not found")
 
-    supabase.table("stakeholder_metrics").delete().eq("id", metric_id).execute()
+    delete_stakeholder_metric(metric_id)
 
     return {"message": "Metric deleted"}
 
@@ -437,51 +389,38 @@ async def delete_metric(metric_id: str, current_user: dict = Depends(get_current
 async def create_metrics_bulk(
     stakeholder_id: str,
     metrics: List[MetricCreate],
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Create multiple metrics for a stakeholder at once.
 
     Useful for data migration or importing metrics from spreadsheets.
     """
     # Verify stakeholder exists
-    stakeholder = (
-        supabase.table("stakeholders")
-        .select("id")
-        .eq("id", stakeholder_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not stakeholder.data:
+    stakeholder = get_stakeholder(stakeholder_id)
+    if not stakeholder:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
 
     if len(metrics) > 50:
         raise HTTPException(status_code=400, detail="Maximum 50 metrics per bulk operation")
 
-    # Prepare data
-    data = [
-        {
-            "stakeholder_id": stakeholder_id,
-            "client_id": current_user["client_id"],
-            "metric_name": m.metric_name,
-            "metric_category": m.metric_category,
-            "unit": m.unit,
-            "current_value": m.current_value,
-            "target_value": m.target_value,
-            "validation_status": m.validation_status,
-            "source": m.source,
-            "source_date": str(m.source_date) if m.source_date else None,
-            "notes": m.notes,
-            "questions_to_confirm": m.questions_to_confirm,
-        }
-        for m in metrics
-    ]
-
+    created = []
     try:
-        result = supabase.table("stakeholder_metrics").insert(data).execute()
+        for m in metrics:
+            data = {
+                "stakeholder_id": stakeholder_id,
+                "metric_name": m.metric_name,
+                "metric_category": m.metric_category,
+                "unit": m.unit,
+                "current_value": m.current_value,
+                "target_value": m.target_value,
+                "validation_status": m.validation_status,
+                "source": m.source,
+                "source_date": str(m.source_date) if m.source_date else None,
+                "notes": m.notes,
+                "questions_to_confirm": m.questions_to_confirm,
+            }
+            result = create_stakeholder_metric(data)
+            created.append(result)
     except Exception:
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from None
 
-    return {"created": len(result.data), "metrics": [_format_metric(m) for m in result.data]}
+    return {"created": len(created), "metrics": [_format_metric(m) for m in created]}

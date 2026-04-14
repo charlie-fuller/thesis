@@ -12,11 +12,26 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from auth import get_current_user
-from database import get_supabase
+import pb_client as pb
+from repositories.agents import (
+    create_agent as repo_create_agent,
+    get_agent as repo_get_agent,
+    get_agent_by_name,
+    list_agents as repo_list_agents,
+    update_agent as repo_update_agent,
+    list_instruction_versions,
+    get_instruction_version as repo_get_instruction_version,
+    create_instruction_version as repo_create_instruction_version,
+    update_instruction_version as repo_update_instruction_version,
+    delete_instruction_version as repo_delete_instruction_version,
+    list_agent_knowledge_base,
+    create_agent_knowledge_base_item,
+    update_agent_knowledge_base_item,
+    delete_agent_knowledge_base_item,
+)
 from services.instruction_loader import (
     get_instruction_file_mtime,
     instruction_file_exists,
@@ -24,7 +39,6 @@ from services.instruction_loader import (
     load_instruction_from_file,
     save_instruction_to_file,
 )
-from supabase import Client
 
 logger = logging.getLogger(__name__)
 
@@ -130,58 +144,43 @@ class AgentInstructionVersion(BaseModel):
 @router.get("")
 async def list_agents(
     include_inactive: bool = False,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """List all agents with summary stats."""
     try:
-        query = supabase.table("agents").select("*")
-        if not include_inactive:
-            query = query.eq("is_active", True)
-
-        result = query.order("name").execute()
+        agents_data = repo_list_agents(is_active=not include_inactive) if not include_inactive else repo_list_agents(is_active=False)
+        if include_inactive:
+            # list all agents regardless of active status
+            agents_data = pb.get_all("agents", sort="name")
 
         agents = []
-        for agent in result.data:
+        for agent in agents_data:
             # Get instruction version count
-            versions_result = (
-                supabase.table("agent_instruction_versions")
-                .select("id", count="exact")
-                .eq("agent_id", agent["id"])
-                .execute()
-            )
+            versions = list_instruction_versions(agent["id"])
+            versions_count = len(versions)
 
             # Get conversation count
-            convs_result = (
-                supabase.table("conversations").select("id", count="exact").eq("agent_id", agent["id"]).execute()
-            )
+            convs_count = pb.count("conversations", filter=f"agent_id='{pb.escape_filter(agent['id'])}'")
 
             # Get KB document count
-            kb_result = (
-                supabase.table("agent_knowledge_base").select("id", count="exact").eq("agent_id", agent["id"]).execute()
-            )
+            kb_docs = list_agent_knowledge_base(agent["id"])
+            kb_count = len(kb_docs)
 
             # Get meeting room participation count (count unique meetings where agent has messages)
-            meetings_result = (
-                supabase.table("meeting_room_messages")
-                .select("meeting_room_id", count="exact")
-                .eq("agent_id", agent["id"])
-                .execute()
+            meeting_msgs = pb.get_all(
+                "meeting_room_messages",
+                filter=f"agent_id='{pb.escape_filter(agent['id'])}'",
             )
-
-            # Count unique meeting rooms from messages
             unique_meetings = set()
-            if meetings_result.data:
-                for msg in meetings_result.data:
-                    if msg.get("meeting_room_id"):
-                        unique_meetings.add(msg["meeting_room_id"])
+            for msg in meeting_msgs:
+                if msg.get("meeting_room_id"):
+                    unique_meetings.add(msg["meeting_room_id"])
 
             agents.append(
                 {
                     **agent,
-                    "instruction_versions_count": versions_result.count or 0,
-                    "kb_documents_count": kb_result.count or 0,
-                    "conversations_count": convs_result.count or 0,
+                    "instruction_versions_count": versions_count,
+                    "kb_documents_count": kb_count,
+                    "conversations_count": convs_count,
                     "meeting_rooms_count": len(unique_meetings),
                 }
             )
@@ -198,49 +197,37 @@ async def get_agent_conversations(
     agent_id: str,
     limit: int = 50,
     include_archived: bool = False,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Get conversations for a specific agent."""
     try:
         # Verify agent exists
-        agent_result = supabase.table("agents").select("id, name, display_name").eq("id", agent_id).execute()
-
-        if not agent_result.data:
+        agent = repo_get_agent(agent_id)
+        if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
 
-        # Build query for conversations
-        query = (
-            supabase.table("conversations")
-            .select("id, title, created_at, updated_at, archived, user_id")
-            .eq("agent_id", agent_id)
-        )
-
+        # Build filter for conversations
+        parts = [f"agent_id='{pb.escape_filter(agent_id)}'"]
         if not include_archived:
-            query = query.eq("archived", False)
+            parts.append("archived=false")
+        filter_str = " && ".join(parts)
 
-        result = query.order("updated_at", desc=True).limit(limit).execute()
+        result = pb.list_records(
+            "conversations",
+            filter=filter_str,
+            sort="-updated_at",
+            per_page=limit,
+        )
+        conversations = result.get("items", [])
 
-        conversations = result.data or []
-
-        # Get message counts for all conversations in a single batch query
+        # Get message counts for all conversations
         if conversations:
-            conv_ids = [c["id"] for c in conversations]
-            msg_result = supabase.table("messages").select("conversation_id").in_("conversation_id", conv_ids).execute()
-
-            # Count messages per conversation
-            msg_counts = {}
-            for msg in msg_result.data:
-                conv_id = msg["conversation_id"]
-                msg_counts[conv_id] = msg_counts.get(conv_id, 0) + 1
-
-            # Apply counts to conversations
             for conv in conversations:
-                conv["message_count"] = msg_counts.get(conv["id"], 0)
+                msg_count = pb.count("messages", filter=f"conversation_id='{pb.escape_filter(conv['id'])}'")
+                conv["message_count"] = msg_count
 
         return {
             "success": True,
-            "agent": agent_result.data[0],
+            "agent": {"id": agent["id"], "name": agent["name"], "display_name": agent["display_name"]},
             "conversations": conversations,
             "count": len(conversations),
         }
@@ -255,73 +242,51 @@ async def get_agent_conversations(
 @router.get("/{agent_id}")
 async def get_agent(
     agent_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Get full agent details including current instructions."""
     try:
-        result = supabase.table("agents").select("*").eq("id", agent_id).execute()
-
-        if not result.data or len(result.data) == 0:
+        agent = repo_get_agent(agent_id)
+        if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
 
-        agent = result.data[0]
-
-        # Get active instruction version (use limit(1) instead of single() to avoid error when no rows)
-        active_version_result = (
-            supabase.table("agent_instruction_versions")
-            .select("*")
-            .eq("agent_id", agent_id)
-            .eq("is_active", True)
-            .limit(1)
-            .execute()
-        )
-
-        active_version = active_version_result.data[0] if active_version_result.data else None
-
         # Get all instruction versions
-        all_versions = (
-            supabase.table("agent_instruction_versions")
-            .select("*")
-            .eq("agent_id", agent_id)
-            .order("created_at", desc=True)
-            .execute()
-        )
+        all_versions = list_instruction_versions(agent_id)
+
+        # Get active instruction version
+        active_version = None
+        for v in all_versions:
+            if v.get("is_active"):
+                active_version = v
+                break
 
         # Get conversation count
-        convs_result = supabase.table("conversations").select("id", count="exact").eq("agent_id", agent_id).execute()
+        convs_count = pb.count("conversations", filter=f"agent_id='{pb.escape_filter(agent_id)}'")
 
-        # Get linked KB documents
-        kb_result = (
-            supabase.table("agent_knowledge_base")
-            .select("*, documents(*)")
-            .eq("agent_id", agent_id)
-            .order("priority", desc=True)
-            .execute()
-        )
+        # Get linked KB documents (without join -- separate lookup for documents)
+        kb_links = list_agent_knowledge_base(agent_id)
 
-        # Format KB documents
         kb_documents = []
-        for link in kb_result.data or []:
-            if link.get("documents"):
+        for link in kb_links:
+            doc = pb.get_record("documents", link.get("document_id", ""))
+            if doc:
                 kb_documents.append(
                     {
                         "link_id": link["id"],
-                        "document": link["documents"],
+                        "document": doc,
                         "notes": link.get("notes"),
                         "priority": link.get("priority", 0),
-                        "added_at": link.get("created_at"),
+                        "added_at": link.get("created"),
                     }
                 )
 
         return {
             "agent": agent,
             "active_instruction_version": active_version,
-            "instruction_versions": all_versions.data or [],
+            "instruction_versions": all_versions,
             "kb_documents": kb_documents,
             "stats": {
-                "conversations_count": convs_result.count or 0,
-                "instruction_versions_count": len(all_versions.data or []),
+                "conversations_count": convs_count,
+                "instruction_versions_count": len(all_versions),
                 "kb_documents_count": len(kb_documents),
             },
         }
@@ -336,33 +301,26 @@ async def get_agent(
 @router.post("")
 async def create_agent(
     agent: AgentCreate,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Create a new agent."""
     try:
         # Check if name already exists
-        existing = supabase.table("agents").select("id").eq("name", agent.name).execute()
-
-        if existing.data:
+        existing = get_agent_by_name(agent.name)
+        if existing:
             raise HTTPException(status_code=400, detail=f"Agent '{agent.name}' already exists")
 
-        result = (
-            supabase.table("agents")
-            .insert(
-                {
-                    "name": agent.name,
-                    "display_name": agent.display_name,
-                    "description": agent.description,
-                    "system_instruction": agent.system_instruction,
-                    "is_active": agent.is_active,
-                    "config": agent.config,
-                }
-            )
-            .execute()
+        result = repo_create_agent(
+            {
+                "name": agent.name,
+                "display_name": agent.display_name,
+                "description": agent.description,
+                "system_instruction": agent.system_instruction,
+                "is_active": agent.is_active,
+                "config": agent.config,
+            }
         )
 
-        return {"agent": result.data[0]}
+        return {"agent": result}
 
     except HTTPException:
         raise
@@ -375,20 +333,19 @@ async def create_agent(
 async def update_agent(
     agent_id: str,
     updates: AgentUpdate,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Update agent metadata (not instructions - use instruction versioning for that)."""
     try:
         update_data = {k: v for k, v in updates.model_dump().items() if v is not None}
         update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-        result = supabase.table("agents").update(update_data).eq("id", agent_id).execute()
-
-        if not result.data:
+        existing = repo_get_agent(agent_id)
+        if not existing:
             raise HTTPException(status_code=404, detail="Agent not found")
 
-        return {"agent": result.data[0]}
+        result = repo_update_agent(agent_id, update_data)
+
+        return {"agent": result}
 
     except HTTPException:
         raise
@@ -405,20 +362,11 @@ async def update_agent(
 @router.get("/{agent_id}/instructions")
 async def get_agent_instructions(
     agent_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Get all instruction versions for an agent."""
     try:
-        result = (
-            supabase.table("agent_instruction_versions")
-            .select("*")
-            .eq("agent_id", agent_id)
-            .order("created_at", desc=True)
-            .execute()
-        )
-
-        return {"versions": result.data or []}
+        versions = list_instruction_versions(agent_id)
+        return {"versions": versions}
 
     except Exception as e:
         logger.error(f"Failed to get instructions for agent {agent_id}: {e}")
@@ -429,24 +377,15 @@ async def get_agent_instructions(
 async def create_instruction_version(
     agent_id: str,
     instruction: AgentInstructionUpdate,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Create a new instruction version for an agent."""
     try:
         # Get current version count to generate version number
-        existing = (
-            supabase.table("agent_instruction_versions")
-            .select("version_number")
-            .eq("agent_id", agent_id)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
+        versions = list_instruction_versions(agent_id)
 
-        if existing.data:
+        if versions:
             # Parse version and increment
-            last_version = existing.data[0]["version_number"]
+            last_version = versions[0]["version_number"]
             try:
                 major, minor = last_version.split(".")
                 new_version = f"{major}.{int(minor) + 1}"
@@ -456,22 +395,17 @@ async def create_instruction_version(
             new_version = "1.0"
 
         # Create new version
-        result = (
-            supabase.table("agent_instruction_versions")
-            .insert(
-                {
-                    "agent_id": agent_id,
-                    "version_number": new_version,
-                    "instructions": instruction.instructions,
-                    "description": instruction.description,
-                    "is_active": False,  # Don't auto-activate
-                    "created_by": current_user["id"],
-                }
-            )
-            .execute()
+        result = repo_create_instruction_version(
+            {
+                "agent_id": agent_id,
+                "version_number": new_version,
+                "instructions": instruction.instructions,
+                "description": instruction.description,
+                "is_active": False,  # Don't auto-activate
+            }
         )
 
-        return {"version": result.data[0]}
+        return {"version": result}
 
     except Exception as e:
         logger.error(f"Failed to create instruction version for agent {agent_id}: {e}")
@@ -482,8 +416,6 @@ async def create_instruction_version(
 async def activate_instruction_version(
     agent_id: str,
     version_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Activate a specific instruction version (deactivates others).
 
@@ -492,29 +424,27 @@ async def activate_instruction_version(
     """
     try:
         # Deactivate all versions for this agent
-        supabase.table("agent_instruction_versions").update({"is_active": False}).eq("agent_id", agent_id).execute()
+        all_versions = list_instruction_versions(agent_id)
+        for v in all_versions:
+            if v.get("is_active"):
+                repo_update_instruction_version(v["id"], {"is_active": False})
 
         # Activate the specified version
-        result = (
-            supabase.table("agent_instruction_versions")
-            .update({"is_active": True, "activated_at": datetime.now(timezone.utc).isoformat()})
-            .eq("id", version_id)
-            .execute()
+        result = repo_update_instruction_version(
+            version_id,
+            {"is_active": True, "activated_at": datetime.now(timezone.utc).isoformat()},
         )
 
-        if not result.data:
+        if not result:
             raise HTTPException(status_code=404, detail="Version not found")
 
-        # Update agent's updated_at timestamp (but NOT copying system_instruction)
-        # The agent_instruction_versions table is the single source of truth
-        supabase.table("agents").update({"updated_at": datetime.now(timezone.utc).isoformat()}).eq(
-            "id", agent_id
-        ).execute()
+        # Update agent's updated_at timestamp
+        repo_update_agent(agent_id, {"updated_at": datetime.now(timezone.utc).isoformat()})
 
         return {
-            "version": result.data[0],
+            "version": result,
             "message": "Version activated. Running agents will use this on next request.",
-            "reload_required": True,  # Signal to frontend that a reload may be needed
+            "reload_required": True,
         }
 
     except HTTPException:
@@ -535,24 +465,15 @@ class VersionCompareRequest(BaseModel):
 async def get_instruction_version(
     agent_id: str,
     version_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Get a specific instruction version."""
     try:
-        result = (
-            supabase.table("agent_instruction_versions")
-            .select("*")
-            .eq("id", version_id)
-            .eq("agent_id", agent_id)
-            .single()
-            .execute()
-        )
+        version = repo_get_instruction_version(version_id)
 
-        if not result.data:
+        if not version or version.get("agent_id") != agent_id:
             raise HTTPException(status_code=404, detail="Version not found")
 
-        return {"success": True, "version": result.data}
+        return {"success": True, "version": version}
 
     except HTTPException:
         raise
@@ -565,30 +486,21 @@ async def get_instruction_version(
 async def delete_instruction_version(
     agent_id: str,
     version_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Delete an instruction version (cannot delete active version)."""
     try:
         # Check if version is active
-        version = (
-            supabase.table("agent_instruction_versions")
-            .select("is_active, version_number")
-            .eq("id", version_id)
-            .eq("agent_id", agent_id)
-            .single()
-            .execute()
-        )
+        version = repo_get_instruction_version(version_id)
 
-        if not version.data:
+        if not version or version.get("agent_id") != agent_id:
             raise HTTPException(status_code=404, detail="Version not found")
 
-        if version.data.get("is_active"):
+        if version.get("is_active"):
             raise HTTPException(status_code=400, detail="Cannot delete active version")
 
-        (supabase.table("agent_instruction_versions").delete().eq("id", version_id).execute())
+        repo_delete_instruction_version(version_id)
 
-        return {"success": True, "message": f"Version {version.data['version_number']} deleted"}
+        return {"success": True, "message": f"Version {version['version_number']} deleted"}
 
     except HTTPException:
         raise
@@ -602,21 +514,18 @@ async def compare_instruction_versions(
     agent_id: str,
     v1: str,
     v2: str,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Compare two instruction versions (GET for simple comparison)."""
     try:
-        version1 = supabase.table("agent_instruction_versions").select("*").eq("id", v1).single().execute()
+        version1 = repo_get_instruction_version(v1)
+        version2 = repo_get_instruction_version(v2)
 
-        version2 = supabase.table("agent_instruction_versions").select("*").eq("id", v2).single().execute()
-
-        if not version1.data or not version2.data:
+        if not version1 or not version2:
             raise HTTPException(status_code=404, detail="One or both versions not found")
 
         return {
-            "version1": version1.data,
-            "version2": version2.data,
+            "version1": version1,
+            "version2": version2,
         }
 
     except HTTPException:
@@ -630,44 +539,29 @@ async def compare_instruction_versions(
 async def compare_versions_detailed(
     agent_id: str,
     request: VersionCompareRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Compare two instruction versions with detailed diff."""
     import difflib
 
     try:
-        version_a = (
-            supabase.table("agent_instruction_versions")
-            .select("*")
-            .eq("id", request.version_a_id)
-            .eq("agent_id", agent_id)
-            .single()
-            .execute()
-        )
+        version_a = repo_get_instruction_version(request.version_a_id)
+        version_b = repo_get_instruction_version(request.version_b_id)
 
-        version_b = (
-            supabase.table("agent_instruction_versions")
-            .select("*")
-            .eq("id", request.version_b_id)
-            .eq("agent_id", agent_id)
-            .single()
-            .execute()
-        )
-
-        if not version_a.data or not version_b.data:
+        if not version_a or not version_b:
+            raise HTTPException(status_code=404, detail="One or both versions not found")
+        if version_a.get("agent_id") != agent_id or version_b.get("agent_id") != agent_id:
             raise HTTPException(status_code=404, detail="One or both versions not found")
 
         # Generate unified diff
-        content_a = version_a.data.get("instructions", "").splitlines(keepends=True)
-        content_b = version_b.data.get("instructions", "").splitlines(keepends=True)
+        content_a = version_a.get("instructions", "").splitlines(keepends=True)
+        content_b = version_b.get("instructions", "").splitlines(keepends=True)
 
         diff = list(
             difflib.unified_diff(
                 content_a,
                 content_b,
-                fromfile=f"v{version_a.data['version_number']}",
-                tofile=f"v{version_b.data['version_number']}",
+                fromfile=f"v{version_a['version_number']}",
+                tofile=f"v{version_b['version_number']}",
                 lineterm="",
             )
         )
@@ -679,14 +573,14 @@ async def compare_versions_detailed(
         return {
             "success": True,
             "version_a": {
-                "id": version_a.data["id"],
-                "version_number": version_a.data["version_number"],
-                "created_at": version_a.data["created_at"],
+                "id": version_a["id"],
+                "version_number": version_a["version_number"],
+                "created": version_a["created"],
             },
             "version_b": {
-                "id": version_b.data["id"],
-                "version_number": version_b.data["version_number"],
-                "created_at": version_b.data["created_at"],
+                "id": version_b["id"],
+                "version_number": version_b["version_number"],
+                "created": version_b["created"],
             },
             "diff": diff,
             "stats": {
@@ -707,8 +601,6 @@ async def compare_versions_detailed(
 async def generate_comparison_summary(
     agent_id: str,
     request: VersionCompareRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Generate an AI summary of changes between two instruction versions."""
     import difflib
@@ -717,42 +609,26 @@ async def generate_comparison_summary(
     import anthropic
 
     try:
-        version_a = (
-            supabase.table("agent_instruction_versions")
-            .select("*")
-            .eq("id", request.version_a_id)
-            .eq("agent_id", agent_id)
-            .single()
-            .execute()
-        )
+        version_a = repo_get_instruction_version(request.version_a_id)
+        version_b = repo_get_instruction_version(request.version_b_id)
 
-        version_b = (
-            supabase.table("agent_instruction_versions")
-            .select("*")
-            .eq("id", request.version_b_id)
-            .eq("agent_id", agent_id)
-            .single()
-            .execute()
-        )
-
-        if not version_a.data or not version_b.data:
+        if not version_a or not version_b:
             raise HTTPException(status_code=404, detail="One or both versions not found")
 
         # Get agent info for context
-        agent = supabase.table("agents").select("name, display_name").eq("id", agent_id).single().execute()
-
-        agent_name = agent.data.get("display_name", "Unknown Agent") if agent.data else "Unknown Agent"
+        agent = repo_get_agent(agent_id)
+        agent_name = agent.get("display_name", "Unknown Agent") if agent else "Unknown Agent"
 
         # Generate diff
-        content_a = version_a.data.get("instructions", "").splitlines(keepends=True)
-        content_b = version_b.data.get("instructions", "").splitlines(keepends=True)
+        content_a = version_a.get("instructions", "").splitlines(keepends=True)
+        content_b = version_b.get("instructions", "").splitlines(keepends=True)
 
         diff = list(
             difflib.unified_diff(
                 content_a,
                 content_b,
-                fromfile=f"v{version_a.data['version_number']}",
-                tofile=f"v{version_b.data['version_number']}",
+                fromfile=f"v{version_a['version_number']}",
+                tofile=f"v{version_b['version_number']}",
                 lineterm="",
             )
         )
@@ -798,14 +674,14 @@ Provide a clear, bulleted summary of the changes (3-7 bullet points).""",
         return {
             "success": True,
             "version_a": {
-                "id": version_a.data["id"],
-                "version_number": version_a.data["version_number"],
-                "created_at": version_a.data["created_at"],
+                "id": version_a["id"],
+                "version_number": version_a["version_number"],
+                "created": version_a["created"],
             },
             "version_b": {
-                "id": version_b.data["id"],
-                "version_number": version_b.data["version_number"],
-                "created_at": version_b.data["created_at"],
+                "id": version_b["id"],
+                "version_number": version_b["version_number"],
+                "created": version_b["created"],
             },
             "summary": summary,
             "stats": {
@@ -834,26 +710,16 @@ Provide a clear, bulleted summary of the changes (3-7 bullet points).""",
 @router.get("/documents/available")
 async def get_available_documents(
     agent_id: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Get all documents available for linking. If agent_id provided, excludes already linked docs."""
     try:
         # Get all documents
-        docs_result = (
-            supabase.table("documents")
-            .select("id, filename, content_type, file_size, uploaded_at")
-            .order("uploaded_at", desc=True)
-            .execute()
-        )
-
-        documents = docs_result.data or []
+        documents = pb.get_all("documents", sort="-uploaded_at")
 
         # If agent_id provided, filter out already linked documents
         if agent_id:
-            linked = supabase.table("agent_knowledge_base").select("document_id").eq("agent_id", agent_id).execute()
-
-            linked_ids = {link["document_id"] for link in linked.data or []}
+            kb_links = list_agent_knowledge_base(agent_id)
+            linked_ids = {link["document_id"] for link in kb_links}
             documents = [doc for doc in documents if doc["id"] not in linked_ids]
 
         return {"documents": documents}
@@ -866,29 +732,22 @@ async def get_available_documents(
 @router.get("/{agent_id}/documents")
 async def get_agent_documents(
     agent_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Get documents linked to an agent's knowledge base."""
     try:
-        result = (
-            supabase.table("agent_knowledge_base")
-            .select("*, documents(*)")
-            .eq("agent_id", agent_id)
-            .order("priority", desc=True)
-            .execute()
-        )
+        kb_links = list_agent_knowledge_base(agent_id)
 
         documents = []
-        for link in result.data or []:
-            if link.get("documents"):
+        for link in kb_links:
+            doc = pb.get_record("documents", link.get("document_id", ""))
+            if doc:
                 documents.append(
                     {
                         "link_id": link["id"],
-                        "document": link["documents"],
+                        "document": doc,
                         "notes": link.get("notes"),
                         "priority": link.get("priority", 0),
-                        "added_at": link.get("created_at"),
+                        "added_at": link.get("created"),
                     }
                 )
 
@@ -903,48 +762,37 @@ async def get_agent_documents(
 async def link_document_to_agent(
     agent_id: str,
     doc_link: AgentKBDocLink,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Link a document to an agent's knowledge base."""
     try:
         # Check if link already exists
-        existing = (
-            supabase.table("agent_knowledge_base")
-            .select("id")
-            .eq("agent_id", agent_id)
-            .eq("document_id", doc_link.document_id)
-            .execute()
+        existing = pb.get_first(
+            "agent_knowledge_base",
+            filter=f"agent_id='{pb.escape_filter(agent_id)}' && document_id='{pb.escape_filter(doc_link.document_id)}'",
         )
 
-        if existing.data:
+        if existing:
             raise HTTPException(status_code=400, detail="Document already linked to this agent")
 
         # Verify document exists
-        doc_check = supabase.table("documents").select("id, filename").eq("id", doc_link.document_id).single().execute()
-
-        if not doc_check.data:
+        doc = pb.get_record("documents", doc_link.document_id)
+        if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
         # Create link
-        result = (
-            supabase.table("agent_knowledge_base")
-            .insert(
-                {
-                    "agent_id": agent_id,
-                    "document_id": doc_link.document_id,
-                    "notes": doc_link.notes,
-                    "priority": doc_link.priority,
-                    "added_by": current_user["id"],
-                }
-            )
-            .execute()
+        result = create_agent_knowledge_base_item(
+            {
+                "agent_id": agent_id,
+                "document_id": doc_link.document_id,
+                "notes": doc_link.notes,
+                "priority": doc_link.priority,
+            }
         )
 
         return {
-            "link": result.data[0],
-            "document": doc_check.data,
-            "message": f"Document '{doc_check.data['filename']}' linked to agent",
+            "link": result,
+            "document": doc,
+            "message": f"Document '{doc['filename']}' linked to agent",
         }
 
     except HTTPException:
@@ -959,26 +807,19 @@ async def update_document_link(
     agent_id: str,
     link_id: str,
     updates: AgentKBDocUpdate,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Update a KB document link (notes, priority)."""
     try:
         update_data = {k: v for k, v in updates.model_dump().items() if v is not None}
-        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-        result = (
-            supabase.table("agent_knowledge_base")
-            .update(update_data)
-            .eq("id", link_id)
-            .eq("agent_id", agent_id)
-            .execute()
-        )
-
-        if not result.data:
+        # Verify link exists and belongs to this agent
+        existing = pb.get_record("agent_knowledge_base", link_id)
+        if not existing or existing.get("agent_id") != agent_id:
             raise HTTPException(status_code=404, detail="Link not found")
 
-        return {"link": result.data[0]}
+        result = update_agent_knowledge_base_item(link_id, update_data)
+
+        return {"link": result}
 
     except HTTPException:
         raise
@@ -991,17 +832,17 @@ async def update_document_link(
 async def unlink_document_from_agent(
     agent_id: str,
     link_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Remove a document from an agent's knowledge base."""
     try:
-        result = supabase.table("agent_knowledge_base").delete().eq("id", link_id).eq("agent_id", agent_id).execute()
-
-        if not result.data:
+        # Verify link exists and belongs to this agent
+        existing = pb.get_record("agent_knowledge_base", link_id)
+        if not existing or existing.get("agent_id") != agent_id:
             raise HTTPException(status_code=404, detail="Link not found")
 
-        return {"message": "Document unlinked from agent", "deleted_link": result.data[0]}
+        delete_agent_knowledge_base_item(link_id)
+
+        return {"message": "Document unlinked from agent", "deleted_link": existing}
 
     except HTTPException:
         raise
@@ -1018,8 +859,6 @@ async def unlink_document_from_agent(
 @router.get("/{agent_id}/xml-instructions")
 async def get_xml_instructions(
     agent_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Get the XML instruction file content for an agent.
 
@@ -1027,13 +866,12 @@ async def get_xml_instructions(
     """
     try:
         # Get agent name
-        agent_result = supabase.table("agents").select("name, display_name").eq("id", agent_id).execute()
-
-        if not agent_result.data:
+        agent = repo_get_agent(agent_id)
+        if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
 
-        agent_name = agent_result.data[0]["name"]
-        display_name = agent_result.data[0]["display_name"]
+        agent_name = agent["name"]
+        display_name = agent["display_name"]
 
         # Check if XML file exists
         if not instruction_file_exists(agent_name):
@@ -1071,8 +909,6 @@ async def get_xml_instructions(
 async def sync_instructions_from_xml(
     agent_id: str,
     description: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Sync instructions from XML file to database.
 
@@ -1081,12 +917,11 @@ async def sync_instructions_from_xml(
     """
     try:
         # Get agent info
-        agent_result = supabase.table("agents").select("name, display_name").eq("id", agent_id).execute()
-
-        if not agent_result.data:
+        agent = repo_get_agent(agent_id)
+        if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
 
-        agent_name = agent_result.data[0]["name"]
+        agent_name = agent["name"]
 
         # Check if XML file exists
         if not instruction_file_exists(agent_name):
@@ -1098,17 +933,10 @@ async def sync_instructions_from_xml(
             raise HTTPException(status_code=400, detail="XML file is empty or too short")
 
         # Get current version count to generate version number
-        existing = (
-            supabase.table("agent_instruction_versions")
-            .select("version_number")
-            .eq("agent_id", agent_id)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
+        versions = list_instruction_versions(agent_id)
 
-        if existing.data:
-            last_version = existing.data[0]["version_number"]
+        if versions:
+            last_version = versions[0]["version_number"]
             try:
                 major, minor = last_version.split(".")
                 new_version = f"{major}.{int(minor) + 1}"
@@ -1118,36 +946,31 @@ async def sync_instructions_from_xml(
             new_version = "1.0"
 
         # Deactivate all existing versions
-        supabase.table("agent_instruction_versions").update({"is_active": False}).eq("agent_id", agent_id).execute()
+        for v in versions:
+            if v.get("is_active"):
+                repo_update_instruction_version(v["id"], {"is_active": False})
 
         # Create new version from XML
-        version_result = (
-            supabase.table("agent_instruction_versions")
-            .insert(
-                {
-                    "agent_id": agent_id,
-                    "version_number": new_version,
-                    "instructions": xml_content,
-                    "description": description or "Synced from XML file",
-                    "is_active": True,
-                    "activated_at": datetime.now(timezone.utc).isoformat(),
-                    "created_by": current_user["id"],
-                }
-            )
-            .execute()
+        version_result = repo_create_instruction_version(
+            {
+                "agent_id": agent_id,
+                "version_number": new_version,
+                "instructions": xml_content,
+                "description": description or "Synced from XML file",
+                "is_active": True,
+                "activated_at": datetime.now(timezone.utc).isoformat(),
+            }
         )
 
         # Update agent timestamp
-        supabase.table("agents").update({"updated_at": datetime.now(timezone.utc).isoformat()}).eq(
-            "id", agent_id
-        ).execute()
+        repo_update_agent(agent_id, {"updated_at": datetime.now(timezone.utc).isoformat()})
 
         file_mtime = get_instruction_file_mtime(agent_name)
 
         return {
             "success": True,
             "message": f"Synced XML to database as version {new_version}",
-            "version": version_result.data[0],
+            "version": version_result,
             "character_count": len(xml_content),
             "file_modified_at": file_mtime.isoformat() if file_mtime else None,
         }
@@ -1162,8 +985,6 @@ async def sync_instructions_from_xml(
 @router.post("/{agent_id}/sync-to-xml")
 async def sync_instructions_to_xml(
     agent_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Sync active database instructions to XML file.
 
@@ -1172,28 +993,25 @@ async def sync_instructions_to_xml(
     """
     try:
         # Get agent info
-        agent_result = supabase.table("agents").select("name, display_name").eq("id", agent_id).execute()
-
-        if not agent_result.data:
+        agent = repo_get_agent(agent_id)
+        if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
 
-        agent_name = agent_result.data[0]["name"]
+        agent_name = agent["name"]
 
         # Get active version
-        version_result = (
-            supabase.table("agent_instruction_versions")
-            .select("*")
-            .eq("agent_id", agent_id)
-            .eq("is_active", True)
-            .limit(1)
-            .execute()
-        )
+        versions = list_instruction_versions(agent_id)
+        active_version = None
+        for v in versions:
+            if v.get("is_active"):
+                active_version = v
+                break
 
-        if not version_result.data:
+        if not active_version:
             raise HTTPException(status_code=404, detail="No active instruction version found")
 
-        instructions = version_result.data[0]["instructions"]
-        version_number = version_result.data[0]["version_number"]
+        instructions = active_version["instructions"]
+        version_number = active_version["version_number"]
 
         # Save to XML file
         success = save_instruction_to_file(agent_name, instructions)
@@ -1219,7 +1037,7 @@ async def sync_instructions_to_xml(
 
 
 @router.get("/xml-files")
-async def list_xml_instruction_files(current_user: dict = Depends(get_current_user)):
+async def list_xml_instruction_files():
     """List all available XML instruction files.
 
     Returns information about each XML file in backend/system_instructions/agents/
@@ -1240,8 +1058,6 @@ async def list_xml_instruction_files(current_user: dict = Depends(get_current_us
 @router.get("/{agent_id}/default-instructions")
 async def get_agent_default_instructions(
     agent_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Get the Python default instructions for an agent.
 
@@ -1250,13 +1066,12 @@ async def get_agent_default_instructions(
     """
     try:
         # Get the agent name
-        agent_result = supabase.table("agents").select("name, display_name").eq("id", agent_id).execute()
-
-        if not agent_result.data:
+        agent = repo_get_agent(agent_id)
+        if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
 
-        agent_name = agent_result.data[0]["name"]
-        display_name = agent_result.data[0]["display_name"]
+        agent_name = agent["name"]
+        display_name = agent["display_name"]
 
         # Import and instantiate the agent to get default instructions
         import os
@@ -1309,7 +1124,8 @@ async def get_agent_default_instructions(
             }
 
         # Instantiate the agent to get default instructions
-        agent_instance = agent_class(supabase, anthropic_client)
+        # NOTE: services will be rewritten later; passing None for supabase
+        agent_instance = agent_class(None, anthropic_client)
         default_instructions = agent_instance._get_default_instruction()
 
         return {
@@ -1332,29 +1148,24 @@ async def get_agent_default_instructions(
 @router.get("/{agent_id}/stats")
 async def get_agent_stats(
     agent_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
 ):
     """Get usage statistics for an agent."""
     try:
         # Conversation count
-        convs = (
-            supabase.table("conversations").select("id, created_at", count="exact").eq("agent_id", agent_id).execute()
-        )
+        convs_count = pb.count("conversations", filter=f"agent_id='{pb.escape_filter(agent_id)}'")
 
         # Recent conversations
-        recent_convs = (
-            supabase.table("conversations")
-            .select("id, title, created_at")
-            .eq("agent_id", agent_id)
-            .order("created_at", desc=True)
-            .limit(5)
-            .execute()
+        recent_result = pb.list_records(
+            "conversations",
+            filter=f"agent_id='{pb.escape_filter(agent_id)}'",
+            sort="-created_at",
+            per_page=5,
         )
+        recent_convs = recent_result.get("items", [])
 
         return {
-            "total_conversations": convs.count or 0,
-            "recent_conversations": recent_convs.data or [],
+            "total_conversations": convs_count,
+            "recent_conversations": recent_convs,
         }
 
     except Exception as e:

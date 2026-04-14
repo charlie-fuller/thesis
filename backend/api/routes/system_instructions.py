@@ -4,7 +4,6 @@ Handles upload, versioning, activation, and comparison of global system instruct
 Admin-only endpoints for managing system instruction versions.
 """
 
-import asyncio
 import difflib
 import os
 import re
@@ -12,18 +11,16 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import anthropic
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, field_validator
 
-from auth import get_current_user, require_admin
+import pb_client as pb
 from cache import invalidate_all_system_instructions
-from database import get_supabase
 from logger_config import get_logger
 from validation import validate_uuid
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/admin/system-instructions", tags=["system-instructions"])
-supabase = get_supabase()
 
 # ============================================================================
 # Constants
@@ -105,27 +102,20 @@ def validate_instruction_file(file: UploadFile) -> None:
         )
 
 
-async def get_version_by_id(version_id: str) -> dict:
+def get_version_by_id(version_id: str) -> dict:
     """Fetch a version by ID, raises 404 if not found."""
-    result = await asyncio.to_thread(
-        lambda: supabase.table("system_instruction_versions").select("*").eq("id", version_id).single().execute()
-    )
-
-    if not result.data:
+    result = pb.get_record("system_instruction_versions", version_id)
+    if not result:
         raise HTTPException(status_code=404, detail="Version not found")
+    return result
 
-    return result.data
 
-
-async def count_conversations_using_version(version_id: str) -> int:
+def count_conversations_using_version(version_id: str) -> int:
     """Count how many conversations are using a specific version."""
-    result = await asyncio.to_thread(
-        lambda: supabase.table("conversations")
-        .select("id", count="exact")
-        .eq("system_instruction_version_id", version_id)
-        .execute()
+    return pb.count(
+        "conversations",
+        filter=f"system_instruction_version_id='{pb.escape_filter(version_id)}'",
     )
-    return result.count or 0
 
 
 # ============================================================================
@@ -138,7 +128,6 @@ async def upload_system_instructions(
     file: UploadFile = File(...),
     version_number: str = Form(...),
     version_notes: str = Form(None),
-    current_user: dict = Depends(require_admin),
 ):
     """Upload new system instructions file as a new version.
 
@@ -151,14 +140,12 @@ async def upload_system_instructions(
         version_number = validate_version_number(version_number)
 
         # Check if version number already exists
-        existing = await asyncio.to_thread(
-            lambda: supabase.table("system_instruction_versions")
-            .select("id")
-            .eq("version_number", version_number)
-            .execute()
+        existing = pb.get_first(
+            "system_instruction_versions",
+            filter=f"version_number='{pb.escape_filter(version_number)}'",
         )
 
-        if existing.data:
+        if existing:
             raise HTTPException(status_code=409, detail=f"Version {version_number} already exists")
 
         # Read file content
@@ -185,23 +172,15 @@ async def upload_system_instructions(
             "status": "active",
             "is_active": False,  # Not active until explicitly activated
             "version_notes": version_notes,
-            "created_by": current_user["id"],
             "metadata": {
                 "original_filename": file.filename,
                 "uploaded_at": datetime.now(timezone.utc).isoformat(),
             },
         }
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("system_instruction_versions").insert(version_data).execute()
-        )
+        version = pb.create_record("system_instruction_versions", version_data)
 
-        if not result.data:
-            raise HTTPException(status_code=500, detail="Failed to create version")
-
-        version = result.data[0]
-
-        logger.info(f"✅ System instruction version {version_number} created by {current_user['email']}")
+        logger.info(f"System instruction version {version_number} created")
 
         return {
             "success": True,
@@ -212,7 +191,7 @@ async def upload_system_instructions(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Upload error: {str(e)}")
+        logger.error(f"Upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}") from None
 
 
@@ -226,33 +205,30 @@ async def list_versions(
     limit: int = 50,
     offset: int = 0,
     status: Optional[str] = None,
-    current_user: dict = Depends(require_admin),
 ):
     """List all system instruction versions with metadata.
 
-    Ordered by created_at descending (newest first).
+    Ordered by created descending (newest first).
     """
     try:
-        query = supabase.table("system_instruction_versions").select(
-            "id, version_number, file_size, status, is_active, version_notes, created_by, activated_by, created_at, activated_at, updated_at"
+        parts = []
+        if status:
+            parts.append(f"status='{pb.escape_filter(status)}'")
+        filter_str = " && ".join(parts)
+
+        page = (offset // limit) + 1 if limit else 1
+        result = pb.list_records(
+            "system_instruction_versions",
+            filter=filter_str,
+            sort="-created",
+            page=page,
+            per_page=limit,
         )
 
-        if status:
-            query = query.eq("status", status)
-
-        result = await asyncio.to_thread(
-            lambda: query.order("created_at", desc=True).limit(limit).offset(offset).execute()
-        )
-
-        # Get total count
-        count_query = supabase.table("system_instruction_versions").select("id", count="exact")
-        if status:
-            count_query = count_query.eq("status", status)
-
-        count_result = await asyncio.to_thread(lambda: count_query.execute())
+        versions = result.get("items", [])
+        total = result.get("totalItems", 0)
 
         # Enrich with creator names
-        versions = result.data or []
         user_ids = set()
         for v in versions:
             if v.get("created_by"):
@@ -261,12 +237,10 @@ async def list_versions(
                 user_ids.add(v["activated_by"])
 
         user_names = {}
-        if user_ids:
-            users_result = await asyncio.to_thread(
-                lambda: supabase.table("users").select("id, name, email").in_("id", list(user_ids)).execute()
-            )
-            for u in users_result.data or []:
-                user_names[u["id"]] = u.get("name") or u.get("email", "Unknown")
+        for uid in user_ids:
+            user = pb.get_record("users", uid)
+            if user:
+                user_names[uid] = user.get("name") or user.get("email", "Unknown")
 
         # Add user names to versions
         for v in versions:
@@ -276,65 +250,64 @@ async def list_versions(
         return {
             "success": True,
             "versions": versions,
-            "total": count_result.count or 0,
+            "total": total,
             "limit": limit,
             "offset": offset,
         }
 
     except Exception as e:
-        logger.error(f"❌ Error listing versions: {str(e)}")
+        logger.error(f"Error listing versions: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/versions/active")
-async def get_active_version(current_user: dict = Depends(get_current_user)):
+async def get_active_version():
     """Get the currently active system instruction version.
 
-    Available to all authenticated users.
+    Available to all users.
     """
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("system_instruction_versions").select("*").eq("is_active", True).single().execute()
+        result = pb.get_first(
+            "system_instruction_versions",
+            filter="is_active=true",
         )
 
-        if not result.data:
+        if not result:
             raise HTTPException(status_code=404, detail="No active version found")
 
-        return {"success": True, "version": result.data}
+        return {"success": True, "version": result}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error fetching active version: {str(e)}")
+        logger.error(f"Error fetching active version: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/versions/{version_id}")
-async def get_version(version_id: str, current_user: dict = Depends(require_admin)):
+async def get_version(version_id: str):
     """Get full details of a specific version including content."""
     try:
         validate_uuid(version_id, "version_id")
 
-        version = await get_version_by_id(version_id)
+        version = get_version_by_id(version_id)
 
         # Get conversation count
-        conversation_count = await count_conversations_using_version(version_id)
+        conversation_count = count_conversations_using_version(version_id)
         version["conversation_count"] = conversation_count
 
         # Get creator name
         if version.get("created_by"):
-            user_result = await asyncio.to_thread(
-                lambda: supabase.table("users").select("name, email").eq("id", version["created_by"]).single().execute()
-            )
-            if user_result.data:
-                version["created_by_name"] = user_result.data.get("name") or user_result.data.get("email")
+            user = pb.get_record("users", version["created_by"])
+            if user:
+                version["created_by_name"] = user.get("name") or user.get("email")
 
         return {"success": True, "version": version}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error fetching version: {str(e)}")
+        logger.error(f"Error fetching version: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
@@ -344,7 +317,7 @@ async def get_version(version_id: str, current_user: dict = Depends(require_admi
 
 
 @router.post("/versions/{version_id}/activate")
-async def activate_version(version_id: str, current_user: dict = Depends(require_admin)):
+async def activate_version(version_id: str):
     """Activate a version, making it the default for new chats.
 
     This operation:
@@ -356,47 +329,37 @@ async def activate_version(version_id: str, current_user: dict = Depends(require
         validate_uuid(version_id, "version_id")
 
         # Get the version to activate
-        version = await get_version_by_id(version_id)
+        version = get_version_by_id(version_id)
 
         if version.get("is_active"):
             return {"success": True, "version": version, "message": "Version is already active"}
 
-        # Use a transaction-like approach:
-        # 1. Deactivate current active version
-        await asyncio.to_thread(
-            lambda: supabase.table("system_instruction_versions")
-            .update({"is_active": False})
-            .eq("is_active", True)
-            .execute()
+        # Deactivate current active version(s)
+        active_versions = pb.get_all(
+            "system_instruction_versions",
+            filter="is_active=true",
+        )
+        for av in active_versions:
+            pb.update_record("system_instruction_versions", av["id"], {"is_active": False})
+
+        # Activate the specified version
+        updated_version = pb.update_record(
+            "system_instruction_versions",
+            version_id,
+            {
+                "is_active": True,
+                "activated_at": datetime.now(timezone.utc).isoformat(),
+            },
         )
 
-        # 2. Activate the specified version
-        result = await asyncio.to_thread(
-            lambda: supabase.table("system_instruction_versions")
-            .update(
-                {
-                    "is_active": True,
-                    "activated_by": current_user["id"],
-                    "activated_at": datetime.now(timezone.utc).isoformat(),
-                }
-            )
-            .eq("id", version_id)
-            .execute()
-        )
-
-        if not result.data:
-            raise HTTPException(status_code=500, detail="Failed to activate version")
-
-        updated_version = result.data[0]
-
-        # 3. Invalidate all system instruction caches
+        # Invalidate all system instruction caches
         try:
             invalidate_all_system_instructions()
-            logger.info("✅ System instruction caches invalidated")
+            logger.info("System instruction caches invalidated")
         except Exception as cache_error:
-            logger.warning(f"⚠️ Failed to invalidate caches: {cache_error}")
+            logger.warning(f"Failed to invalidate caches: {cache_error}")
 
-        logger.info(f"✅ Version {version['version_number']} activated by {current_user['email']}")
+        logger.info(f"Version {version['version_number']} activated")
 
         return {
             "success": True,
@@ -407,7 +370,7 @@ async def activate_version(version_id: str, current_user: dict = Depends(require
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Activation error: {str(e)}")
+        logger.error(f"Activation error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
@@ -417,15 +380,15 @@ async def activate_version(version_id: str, current_user: dict = Depends(require
 
 
 @router.post("/versions/compare")
-async def compare_versions(request: VersionCompareRequest, current_user: dict = Depends(require_admin)):
+async def compare_versions(request: VersionCompareRequest):
     """Generate a diff between two versions.
 
     Returns unified diff format with statistics.
     """
     try:
         # Fetch both versions
-        version_a = await get_version_by_id(request.version_a_id)
-        version_b = await get_version_by_id(request.version_b_id)
+        version_a = get_version_by_id(request.version_a_id)
+        version_b = get_version_by_id(request.version_b_id)
 
         # Generate diff
         content_a = version_a["content"].splitlines(keepends=True)
@@ -450,12 +413,12 @@ async def compare_versions(request: VersionCompareRequest, current_user: dict = 
             "version_a": {
                 "id": version_a["id"],
                 "version_number": version_a["version_number"],
-                "created_at": version_a["created_at"],
+                "created_at": version_a.get("created", version_a.get("created_at", "")),
             },
             "version_b": {
                 "id": version_b["id"],
                 "version_number": version_b["version_number"],
-                "created_at": version_b["created_at"],
+                "created_at": version_b.get("created", version_b.get("created_at", "")),
             },
             "diff": diff,
             "stats": {
@@ -468,20 +431,20 @@ async def compare_versions(request: VersionCompareRequest, current_user: dict = 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Comparison error: {str(e)}")
+        logger.error(f"Comparison error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/versions/compare/summary")
-async def compare_versions_with_summary(request: VersionCompareRequest, current_user: dict = Depends(require_admin)):
+async def compare_versions_with_summary(request: VersionCompareRequest):
     """Generate an AI-powered narrative summary comparing two versions.
 
     Uses Claude to analyze the differences and provide human-readable insights.
     """
     try:
         # Fetch both versions
-        version_a = await get_version_by_id(request.version_a_id)
-        version_b = await get_version_by_id(request.version_b_id)
+        version_a = get_version_by_id(request.version_a_id)
+        version_b = get_version_by_id(request.version_b_id)
 
         # Generate diff for context
         content_a = version_a["content"].splitlines(keepends=True)
@@ -506,12 +469,15 @@ async def compare_versions_with_summary(request: VersionCompareRequest, current_
         if len(diff) > 500:
             diff_text += f"\n\n... and {len(diff) - 500} more changes ..."
 
+        created_a = version_a.get("created", version_a.get("created_at", ""))
+        created_b = version_b.get("created", version_b.get("created_at", ""))
+
         # Create the prompt for Claude
         prompt = f"""You are analyzing changes between two versions of system instructions for an AI assistant called "Thesis" (an L&D design assistant).
 
 ## Version Information
-- **From:** Version {version_a["version_number"]} (created {version_a["created_at"][:10]})
-- **To:** Version {version_b["version_number"]} (created {version_b["created_at"][:10]})
+- **From:** Version {version_a["version_number"]} (created {created_a[:10] if created_a else "unknown"})
+- **To:** Version {version_b["version_number"]} (created {created_b[:10] if created_b else "unknown"})
 
 ## Version Notes
 - **Version A Notes:** {version_a.get("version_notes") or "None provided"}
@@ -546,19 +512,17 @@ Keep your response professional and focused on actionable insights for the admin
 
         client = anthropic.Anthropic(api_key=api_key)
 
-        message = await asyncio.to_thread(
-            lambda: client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=1500,
-                messages=[{"role": "user", "content": prompt}],
-            )
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}],
         )
 
         # Extract the summary text
         summary = message.content[0].text if message.content else "Unable to generate summary."
 
         logger.info(
-            f"✅ AI summary generated for versions {version_a['version_number']} -> {version_b['version_number']}"
+            f"AI summary generated for versions {version_a['version_number']} -> {version_b['version_number']}"
         )
 
         return {
@@ -566,12 +530,12 @@ Keep your response professional and focused on actionable insights for the admin
             "version_a": {
                 "id": version_a["id"],
                 "version_number": version_a["version_number"],
-                "created_at": version_a["created_at"],
+                "created_at": created_a,
             },
             "version_b": {
                 "id": version_b["id"],
                 "version_number": version_b["version_number"],
-                "created_at": version_b["created_at"],
+                "created_at": created_b,
             },
             "summary": summary,
             "stats": {
@@ -584,15 +548,15 @@ Keep your response professional and focused on actionable insights for the admin
     except HTTPException:
         raise
     except anthropic.APIError as e:
-        logger.error(f"❌ Anthropic API error: {str(e)}")
+        logger.error(f"Anthropic API error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AI summary generation failed: {str(e)}") from None
     except Exception as e:
-        logger.error(f"❌ Summary generation error: {str(e)}")
+        logger.error(f"Summary generation error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/versions/{version_id}/changelog")
-async def get_version_changelog(version_id: str, current_user: dict = Depends(require_admin)):
+async def get_version_changelog(version_id: str):
     """Fetch the changelog file for a specific version if it exists.
 
     Looks for files like v1.1-update-log.md or v1.3-changelog.md.
@@ -603,7 +567,7 @@ async def get_version_changelog(version_id: str, current_user: dict = Depends(re
         validate_uuid(version_id, "version_id")
 
         # Get the version to find its version number
-        version = await get_version_by_id(version_id)
+        version = get_version_by_id(version_id)
         version_number = version["version_number"]
 
         # Look for changelog files in docs/system-instructions/
@@ -643,7 +607,7 @@ async def get_version_changelog(version_id: str, current_user: dict = Depends(re
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Changelog fetch error: {str(e)}")
+        logger.error(f"Changelog fetch error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
@@ -654,42 +618,38 @@ async def get_version_changelog(version_id: str, current_user: dict = Depends(re
 
 @router.patch("/versions/{version_id}")
 async def update_version_notes(
-    version_id: str, update: VersionNotesUpdate, current_user: dict = Depends(require_admin)
+    version_id: str, update: VersionNotesUpdate,
 ):
     """Update version notes/changelog for a version."""
     try:
         validate_uuid(version_id, "version_id")
 
         # Verify version exists
-        await get_version_by_id(version_id)
+        get_version_by_id(version_id)
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("system_instruction_versions")
-            .update({"version_notes": update.version_notes})
-            .eq("id", version_id)
-            .execute()
+        result = pb.update_record(
+            "system_instruction_versions",
+            version_id,
+            {"version_notes": update.version_notes},
         )
 
-        if not result.data:
-            raise HTTPException(status_code=500, detail="Failed to update version")
-
-        logger.info(f"✅ Version {version_id} notes updated by {current_user['email']}")
+        logger.info(f"Version {version_id} notes updated")
 
         return {
             "success": True,
-            "version": result.data[0],
+            "version": result,
             "message": "Version notes updated successfully",
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Update error: {str(e)}")
+        logger.error(f"Update error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/versions/{version_id}")
-async def delete_version(version_id: str, current_user: dict = Depends(require_admin)):
+async def delete_version(version_id: str):
     """Delete a version.
 
     Cannot delete:
@@ -700,7 +660,7 @@ async def delete_version(version_id: str, current_user: dict = Depends(require_a
         validate_uuid(version_id, "version_id")
 
         # Get the version
-        version = await get_version_by_id(version_id)
+        version = get_version_by_id(version_id)
 
         # Check if active
         if version.get("is_active"):
@@ -710,7 +670,7 @@ async def delete_version(version_id: str, current_user: dict = Depends(require_a
             )
 
         # Check if bound to conversations
-        conversation_count = await count_conversations_using_version(version_id)
+        conversation_count = count_conversations_using_version(version_id)
         if conversation_count > 0:
             raise HTTPException(
                 status_code=403,
@@ -718,11 +678,9 @@ async def delete_version(version_id: str, current_user: dict = Depends(require_a
             )
 
         # Delete the version
-        await asyncio.to_thread(
-            lambda: supabase.table("system_instruction_versions").delete().eq("id", version_id).execute()
-        )
+        pb.delete_record("system_instruction_versions", version_id)
 
-        logger.info(f"✅ Version {version['version_number']} deleted by {current_user['email']}")
+        logger.info(f"Version {version['version_number']} deleted")
 
         return {
             "success": True,
@@ -732,12 +690,12 @@ async def delete_version(version_id: str, current_user: dict = Depends(require_a
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Delete error: {str(e)}")
+        logger.error(f"Delete error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/versions/{version_id}/archive")
-async def archive_version(version_id: str, current_user: dict = Depends(require_admin)):
+async def archive_version(version_id: str):
     """Archive a version (soft delete).
 
     Archived versions remain in the database but are not shown in the default list.
@@ -746,7 +704,7 @@ async def archive_version(version_id: str, current_user: dict = Depends(require_
         validate_uuid(version_id, "version_id")
 
         # Get the version
-        version = await get_version_by_id(version_id)
+        version = get_version_by_id(version_id)
 
         # Check if active
         if version.get("is_active"):
@@ -756,26 +714,22 @@ async def archive_version(version_id: str, current_user: dict = Depends(require_
             )
 
         # Archive the version
-        result = await asyncio.to_thread(
-            lambda: supabase.table("system_instruction_versions")
-            .update({"status": "archived"})
-            .eq("id", version_id)
-            .execute()
+        result = pb.update_record(
+            "system_instruction_versions",
+            version_id,
+            {"status": "archived"},
         )
 
-        if not result.data:
-            raise HTTPException(status_code=500, detail="Failed to archive version")
-
-        logger.info(f"✅ Version {version['version_number']} archived by {current_user['email']}")
+        logger.info(f"Version {version['version_number']} archived")
 
         return {
             "success": True,
-            "version": result.data[0],
+            "version": result,
             "message": f"Version {version['version_number']} archived successfully",
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Archive error: {str(e)}")
+        logger.error(f"Archive error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

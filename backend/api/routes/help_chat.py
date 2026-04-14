@@ -10,22 +10,31 @@ from threading import Lock
 from typing import Dict, List, Optional
 
 import anthropic
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from auth import get_current_user
-from database import get_supabase
+import pb_client as pb
+from repositories.help_repo import (
+    list_help_documents,
+    get_help_document,
+    list_help_chunks,
+    get_help_chunk,
+    list_help_conversations,
+    get_help_conversation as repo_get_help_conversation,
+    create_help_conversation,
+    delete_help_conversation as repo_delete_help_conversation,
+    list_help_messages,
+    create_help_message,
+    search_help,
+)
 from logger_config import get_logger
 from services.embeddings import create_embedding
-from utils.safe_db import safe_get_first
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/help", tags=["help"])
 limiter = Limiter(key_func=get_remote_address)
-
-supabase = get_supabase()
 
 # Global indexing state
 _indexing_state = {
@@ -57,7 +66,7 @@ FEATURE_DOCS = {
 
 @router.get("/docs")
 @limiter.limit("60/minute")
-async def get_help_docs(request: Request, current_user: dict = Depends(get_current_user)):
+async def get_help_docs(request: Request):
     """Get help markdown documents for the Features tab.
 
     Returns a list of {slug, title, content} from docs/help/user/.
@@ -105,28 +114,15 @@ class HelpChatResponse(BaseModel):
 @router.post("/ask")
 @limiter.limit("30/minute")
 async def ask_help_question(
-    request: Request, chat_request: HelpChatRequest, current_user: dict = Depends(get_current_user)
+    request: Request, chat_request: HelpChatRequest,
 ):
     """Ask a question to the help system.
 
     Uses RAG to search help documentation and provide answers with sources.
-
-    **Rate limit**: 30 requests per minute
-
-    **Returns**:
-    - conversation_id: ID to continue conversation
-    - message_id: ID of assistant message
-    - response: AI-generated answer
-    - sources: Help documents referenced
     """
-    user_id = current_user["id"]
-    user_role = current_user.get("role", "user")
-
     logger.info(
         "Help chat request",
         extra={
-            "user_id": user_id,
-            "user_role": user_role,
             "message_length": len(chat_request.message),
             "conversation_id": chat_request.conversation_id,
         },
@@ -135,38 +131,25 @@ async def ask_help_question(
     try:
         # Get or create conversation
         if chat_request.conversation_id:
-            # Verify user owns this conversation
-            conv = (
-                supabase.table("help_conversations")
-                .select("id")
-                .eq("id", chat_request.conversation_id)
-                .eq("user_id", user_id)
-                .execute()
-            )
-
-            if not conv.data:
+            # Verify conversation exists
+            conv = repo_get_help_conversation(chat_request.conversation_id)
+            if not conv:
                 raise HTTPException(status_code=404, detail="Conversation not found")
 
             conversation_id = chat_request.conversation_id
 
         else:
             # Create new help conversation
-            # Determine help_type: use provided value, or default based on user role
-            help_type = chat_request.help_type or ("admin" if user_role == "admin" else "user")
+            help_type = chat_request.help_type or "user"
 
-            conv = (
-                supabase.table("help_conversations")
-                .insert(
-                    {
-                        "user_id": user_id,
-                        "title": chat_request.message[:50],  # First 50 chars as title
-                        "help_type": help_type,
-                    }
-                )
-                .execute()
+            conv = create_help_conversation(
+                {
+                    "title": chat_request.message[:50],
+                    "help_type": help_type,
+                }
             )
 
-            conversation_id = safe_get_first(conv.data)["id"]
+            conversation_id = conv["id"]
             logger.info(f"Created new help conversation: {conversation_id} (type: {help_type})")
 
         # Step 1: Generate query embedding
@@ -175,25 +158,14 @@ async def ask_help_question(
         # Step 1.5: Detect recency queries and calculate date filter
         query_lower = chat_request.message.lower()
         recency_keywords = [
-            "this week",
-            "past week",
-            "last week",
-            "recent",
-            "latest",
-            "today",
-            "yesterday",
-            "past few days",
-            "last few days",
-            "last couple days",
-            "most recent",
-            "new docs",
-            "new documents",
+            "this week", "past week", "last week", "recent", "latest",
+            "today", "yesterday", "past few days", "last few days",
+            "last couple days", "most recent", "new docs", "new documents",
         ]
         is_recency_query = any(kw in query_lower for kw in recency_keywords)
 
         min_date = None
         if is_recency_query:
-            # Default to last 7 days for recency queries
             min_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
             logger.info(f"Detected recency query - filtering to docs after {min_date[:10]}")
 
@@ -203,88 +175,51 @@ async def ask_help_question(
 
         if _get_pc_index() is not None:
             # Build Pinecone metadata filter
-            pc_filter_parts = []
-            if user_role:
-                pc_filter_parts.append({"role_access": {"$eq": user_role}})
-
-            pc_filter = {"$and": pc_filter_parts} if len(pc_filter_parts) > 1 else (pc_filter_parts[0] if pc_filter_parts else None)
+            pc_filter = None
 
             matches = _query_pc(
                 embedding=query_embedding,
                 namespace="help_chunks",
-                top_k=chat_request.top_k * 2,  # Over-fetch for post-filtering
+                top_k=chat_request.top_k * 2,
                 filter=pc_filter,
             )
-            # Filter by minimum similarity
             matches = [m for m in matches if m["score"] >= 0.4]
 
             if matches:
                 chunk_ids = [m["id"] for m in matches]
                 scores_map = {m["id"]: m["score"] for m in matches}
 
-                # Fetch chunk details from Supabase
-                db_result = (
-                    supabase.table("help_chunks")
-                    .select("id, document_id, content, heading_context, chunk_index, metadata")
-                    .in_("id", chunk_ids)
-                    .execute()
-                )
-
-                # Get document titles
-                doc_ids_set = list({r["document_id"] for r in (db_result.data or [])})
-                docs_result = (
-                    supabase.table("help_documents")
-                    .select("id, title, file_path, category, created_at")
-                    .in_("id", doc_ids_set)
-                    .execute()
-                ) if doc_ids_set else type("R", (), {"data": []})()
-                doc_map = {d["id"]: d for d in (docs_result.data or [])}
-
-                # Build help_chunks compatible format
+                # Fetch chunk details from PocketBase
                 formatted_chunks = []
-                for row in db_result.data or []:
-                    doc = doc_map.get(row["document_id"], {})
-                    # Apply date filter if needed
-                    if min_date and doc.get("created_at", "") < min_date:
+                for chunk_id in chunk_ids:
+                    chunk = pb.get_record("help_chunks", chunk_id)
+                    if not chunk:
+                        continue
+                    doc = pb.get_record("help_documents", chunk["document_id"]) if chunk.get("document_id") else {}
+                    if not doc:
+                        doc = {}
+                    if min_date and doc.get("created", "") < min_date:
                         continue
                     formatted_chunks.append({
-                        "id": row["id"],
-                        "content": row["content"],
-                        "heading_context": row.get("heading_context", ""),
+                        "id": chunk["id"],
+                        "content": chunk["content"],
+                        "heading_context": chunk.get("heading_context", ""),
                         "document_title": doc.get("title", "Unknown"),
                         "file_path": doc.get("file_path", ""),
-                        "similarity": scores_map.get(str(row["id"]), 0),
-                        "created_at": doc.get("created_at"),
+                        "similarity": scores_map.get(str(chunk["id"]), 0),
+                        "created_at": doc.get("created"),
                     })
                 formatted_chunks.sort(key=lambda x: x.get("similarity", 0), reverse=True)
                 formatted_chunks = formatted_chunks[:chat_request.top_k]
-
-                # Create a compatible result object
-                class _HelpChunksResult:
-                    def __init__(self, data):
-                        self.data = data
-                help_chunks = _HelpChunksResult(formatted_chunks)
+                help_chunks_data = formatted_chunks
             else:
-                class _HelpChunksResult:
-                    def __init__(self, data):
-                        self.data = data
-                help_chunks = _HelpChunksResult([])
+                help_chunks_data = []
         else:
-            # Fallback to pgvector RPC
-            rpc_params = {
-                "query_embedding": query_embedding,
-                "match_count": chat_request.top_k,
-                "user_role": user_role,
-                "min_similarity": 0.4,
-            }
-            if min_date:
-                rpc_params["min_date"] = min_date
+            # Fallback -- no Pinecone, use simple text search or empty
+            help_chunks_data = []
 
-            help_chunks = supabase.rpc("match_help_chunks", rpc_params).execute()
-
-        if not help_chunks.data:
+        if not help_chunks_data:
             logger.warning(f"No help chunks found for query: {chat_request.message[:50]}")
-            # Still answer, but without context - give better message for recency queries
             if is_recency_query:
                 context = "No documents found from the past 7 days matching this query. The date filter was applied because you asked for recent/this week's content."
             else:
@@ -295,7 +230,7 @@ async def ask_help_question(
             context_parts = []
             sources = []
 
-            for i, chunk in enumerate(help_chunks.data):
+            for i, chunk in enumerate(help_chunks_data):
                 context_parts.append(
                     f"[Source {i + 1}: {chunk['document_title']} - {chunk['heading_context']}]\n{chunk['content']}"
                 )
@@ -312,13 +247,7 @@ async def ask_help_question(
             context = "\n\n---\n\n".join(context_parts)
 
         # Step 3: Get conversation history
-        history = (
-            supabase.table("help_messages")
-            .select("role, content")
-            .eq("conversation_id", conversation_id)
-            .order("timestamp")
-            .execute()
-        )
+        history = list_help_messages(conversation_id)
 
         # Step 4: Build system prompt for help assistant
         system_prompt = f"""You are a helpful assistant for the Thesis platform - a multi-agent GenAI strategy platform.
@@ -347,7 +276,7 @@ CRITICAL INSTRUCTIONS FOR ANSWERING:
 2. **NAVIGATION PATHS** (critical for all how-to questions):
    - **ALWAYS** include the complete navigation path from the documentation
    - Use **bold** for page names, tab names, and button names exactly as shown in docs
-   - Format: "Navigate to **Page Name** → **Tab Name** → **Button/Option**"
+   - Format: "Navigate to **Page Name** -> **Tab Name** -> **Button/Option**"
    - Include every intermediate step (e.g., if you need to click a tab, say so)
    - Be explicit about WHERE to click, not just WHAT to do
 
@@ -368,13 +297,13 @@ DOCUMENTATION CONTEXT:
 If the documentation doesn't cover the user's question, acknowledge this briefly and provide general guidance if possible."""
 
         # Step 5: Generate response using Claude
-        messages = [{"role": msg["role"], "content": msg["content"]} for msg in history.data] + [
+        messages = [{"role": msg["role"], "content": msg["content"]} for msg in history] + [
             {"role": "user", "content": chat_request.message}
         ]
 
         response = claude_client.messages.create(
-            model="claude-sonnet-4-5-20250929",  # Sonnet 4.5 for help responses
-            max_tokens=1500,  # Increased to allow complete process documentation (was 500, too restrictive)
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=1500,
             system=system_prompt,
             messages=messages,
         )
@@ -383,33 +312,25 @@ If the documentation doesn't cover the user's question, acknowledge this briefly
 
         # Step 6: Save messages to database
         # Save user message
-        (
-            supabase.table("help_messages")
-            .insert(
-                {
-                    "conversation_id": conversation_id,
-                    "role": "user",
-                    "content": chat_request.message,
-                }
-            )
-            .execute()
+        create_help_message(
+            {
+                "conversation_id": conversation_id,
+                "role": "user",
+                "content": chat_request.message,
+            }
         )
 
         # Save assistant message with sources
-        assistant_msg = (
-            supabase.table("help_messages")
-            .insert(
-                {
-                    "conversation_id": conversation_id,
-                    "role": "assistant",
-                    "content": assistant_response,
-                    "sources": sources,
-                }
-            )
-            .execute()
+        assistant_msg = create_help_message(
+            {
+                "conversation_id": conversation_id,
+                "role": "assistant",
+                "content": assistant_response,
+                "sources": sources,
+            }
         )
 
-        message_id = safe_get_first(assistant_msg.data)["id"]
+        message_id = assistant_msg["id"]
 
         logger.info(
             "Help response generated",
@@ -439,30 +360,19 @@ If the documentation doesn't cover the user's question, acknowledge this briefly
 
 @router.get("/conversations")
 @limiter.limit("60/minute")
-async def get_help_conversations(request: Request, current_user: dict = Depends(get_current_user)):
-    """Get all help conversations for current user.
+async def get_help_conversations(request: Request):
+    """Get all help conversations.
 
     Returns list of conversations with message counts.
     """
-    user_id = current_user["id"]
-
     try:
-        conversations = (
-            supabase.table("help_conversations")
-            .select("id, title, created_at, updated_at")
-            .eq("user_id", user_id)
-            .order("updated_at", desc=True)
-            .execute()
-        )
+        conversations = list_help_conversations()
 
         # Get message counts for each conversation
         result = []
-        for conv in conversations.data:
-            messages = (
-                supabase.table("help_messages").select("id", count="exact").eq("conversation_id", conv["id"]).execute()
-            )
-
-            result.append({**conv, "message_count": messages.count})
+        for conv in conversations:
+            messages = list_help_messages(conv["id"])
+            result.append({**conv, "message_count": len(messages)})
 
         return result
 
@@ -473,29 +383,18 @@ async def get_help_conversations(request: Request, current_user: dict = Depends(
 
 @router.get("/conversations/{conversation_id}")
 @limiter.limit("60/minute")
-async def get_help_conversation(request: Request, conversation_id: str, current_user: dict = Depends(get_current_user)):
+async def get_help_conversation(request: Request, conversation_id: str):
     """Get full conversation history with messages."""
-    user_id = current_user["id"]
-
     try:
-        # Verify ownership
-        conv = (
-            supabase.table("help_conversations").select("*").eq("id", conversation_id).eq("user_id", user_id).execute()
-        )
-
-        if not conv.data:
+        # Verify conversation exists
+        conv = repo_get_help_conversation(conversation_id)
+        if not conv:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
         # Get messages
-        messages = (
-            supabase.table("help_messages")
-            .select("id, role, content, sources, timestamp")
-            .eq("conversation_id", conversation_id)
-            .order("timestamp")
-            .execute()
-        )
+        messages = list_help_messages(conversation_id)
 
-        return {**safe_get_first(conv.data), "messages": messages.data}
+        return {**conv, "messages": messages}
 
     except HTTPException:
         raise
@@ -507,22 +406,17 @@ async def get_help_conversation(request: Request, conversation_id: str, current_
 @router.delete("/conversations/{conversation_id}")
 @limiter.limit("30/minute")
 async def delete_help_conversation(
-    request: Request, conversation_id: str, current_user: dict = Depends(get_current_user)
+    request: Request, conversation_id: str,
 ):
     """Delete a help conversation and all its messages."""
-    user_id = current_user["id"]
-
     try:
-        # Verify ownership
-        conv = (
-            supabase.table("help_conversations").select("id").eq("id", conversation_id).eq("user_id", user_id).execute()
-        )
-
-        if not conv.data:
+        # Verify conversation exists
+        conv = repo_get_help_conversation(conversation_id)
+        if not conv:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
         # Delete conversation (messages cascade)
-        supabase.table("help_conversations").delete().eq("id", conversation_id).execute()
+        repo_delete_help_conversation(conversation_id)
 
         return {"status": "deleted", "conversation_id": conversation_id}
 
@@ -536,7 +430,7 @@ async def delete_help_conversation(
 @router.post("/feedback/{message_id}")
 @limiter.limit("100/minute")
 async def submit_help_feedback(
-    request: Request, message_id: str, feedback: int, current_user: dict = Depends(get_current_user)
+    request: Request, message_id: str, feedback: int,
 ):
     """Submit feedback (thumbs up/down) for a help message.
 
@@ -547,31 +441,20 @@ async def submit_help_feedback(
     if feedback not in [-1, 1]:
         raise HTTPException(status_code=400, detail="Feedback must be 1 (thumbs up) or -1 (thumbs down)")
 
-    user_id = current_user["id"]
-
     try:
-        # Verify message exists and belongs to user's conversation
-        message = supabase.table("help_messages").select("id, conversation_id").eq("id", message_id).execute()
-
-        if not message.data:
+        # Verify message exists
+        message = pb.get_record("help_messages", message_id)
+        if not message:
             raise HTTPException(status_code=404, detail="Message not found")
 
-        conversation_id = safe_get_first(message.data)["conversation_id"]
-
-        # Verify user owns the conversation
-        conv = (
-            supabase.table("help_conversations").select("id").eq("id", conversation_id).eq("user_id", user_id).execute()
+        # Update feedback
+        pb.update_record(
+            "help_messages",
+            message_id,
+            {"feedback": feedback, "feedback_timestamp": datetime.now(timezone.utc).isoformat()},
         )
 
-        if not conv.data:
-            raise HTTPException(status_code=403, detail="Not authorized")
-
-        # Update feedback
-        supabase.table("help_messages").update(
-            {"feedback": feedback, "feedback_timestamp": datetime.now(timezone.utc).isoformat()}
-        ).eq("id", message_id).execute()
-
-        logger.info(f"Feedback recorded: message={message_id}, feedback={feedback}, user={user_id}")
+        logger.info(f"Feedback recorded: message={message_id}, feedback={feedback}")
 
         return {"status": "success", "message_id": message_id, "feedback": feedback}
 
@@ -585,21 +468,12 @@ async def submit_help_feedback(
 @router.get("/search")
 @limiter.limit("60/minute")
 async def search_help_docs(
-    request: Request, query: str, top_k: int = 10, current_user: dict = Depends(get_current_user)
+    request: Request, query: str, top_k: int = 10,
 ):
     """Search help documentation directly (without starting a conversation).
 
     Useful for quick lookups or autocomplete.
-
-    **Query Parameters**:
-    - query: Search query
-    - top_k: Number of results to return (default: 10, max: 20)
-
-    **Returns**:
-    - List of relevant help chunks with sources
     """
-    user_role = current_user.get("role", "user")
-
     # Cap top_k
     top_k = min(top_k, 20)
 
@@ -607,19 +481,9 @@ async def search_help_docs(
         # Detect recency queries
         query_lower = query.lower()
         recency_keywords = [
-            "this week",
-            "past week",
-            "last week",
-            "recent",
-            "latest",
-            "today",
-            "yesterday",
-            "past few days",
-            "last few days",
-            "last couple days",
-            "most recent",
-            "new docs",
-            "new documents",
+            "this week", "past week", "last week", "recent", "latest",
+            "today", "yesterday", "past few days", "last few days",
+            "last couple days", "most recent", "new docs", "new documents",
         ]
         is_recency_query = any(kw in query_lower for kw in recency_keywords)
 
@@ -636,8 +500,6 @@ async def search_help_docs(
 
         if _get_pc_idx() is not None:
             pc_filter = None
-            if user_role:
-                pc_filter = {"role_access": {"$eq": user_role}}
 
             matches = _qv_pc(
                 embedding=query_embedding,
@@ -651,34 +513,24 @@ async def search_help_docs(
                 chunk_ids = [m["id"] for m in matches]
                 scores_map = {m["id"]: m["score"] for m in matches}
 
-                db_result = (
-                    supabase.table("help_chunks")
-                    .select("id, document_id, content, heading_context, chunk_index, metadata")
-                    .in_("id", chunk_ids)
-                    .execute()
-                )
-                doc_ids_set = list({r["document_id"] for r in (db_result.data or [])})
-                docs_result = (
-                    supabase.table("help_documents")
-                    .select("id, title, file_path, category, created_at")
-                    .in_("id", doc_ids_set)
-                    .execute()
-                ) if doc_ids_set else type("R", (), {"data": []})()
-                doc_map = {d["id"]: d for d in (docs_result.data or [])}
-
                 search_results = []
-                for row in db_result.data or []:
-                    doc = doc_map.get(row["document_id"], {})
-                    if min_date and doc.get("created_at", "") < min_date:
+                for chunk_id in chunk_ids:
+                    chunk = pb.get_record("help_chunks", chunk_id)
+                    if not chunk:
+                        continue
+                    doc = pb.get_record("help_documents", chunk["document_id"]) if chunk.get("document_id") else {}
+                    if not doc:
+                        doc = {}
+                    if min_date and doc.get("created", "") < min_date:
                         continue
                     search_results.append({
-                        "id": row["id"],
-                        "content": row["content"],
-                        "heading_context": row.get("heading_context", ""),
+                        "id": chunk["id"],
+                        "content": chunk["content"],
+                        "heading_context": chunk.get("heading_context", ""),
                         "document_title": doc.get("title", "Unknown"),
                         "file_path": doc.get("file_path", ""),
-                        "similarity": scores_map.get(str(row["id"]), 0),
-                        "created_at": doc.get("created_at"),
+                        "similarity": scores_map.get(str(chunk["id"]), 0),
+                        "created_at": doc.get("created"),
                     })
                 search_results.sort(key=lambda x: x.get("similarity", 0), reverse=True)
                 search_results = search_results[:top_k]
@@ -692,20 +544,9 @@ async def search_help_docs(
                 "min_date": min_date,
             }
         else:
-            rpc_params = {
-                "query_embedding": query_embedding,
-                "match_count": top_k,
-                "user_role": user_role,
-                "min_similarity": 0.4,
-            }
-            if min_date:
-                rpc_params["min_date"] = min_date
-
-            results = supabase.rpc("match_help_chunks", rpc_params).execute()
-
             return {
                 "query": query,
-                "results": results.data,
+                "results": [],
                 "recency_filtered": is_recency_query,
                 "min_date": min_date,
             }
@@ -717,49 +558,32 @@ async def search_help_docs(
 
 @router.get("/stats")
 @limiter.limit("60/minute")
-async def get_help_stats(request: Request, current_user: dict = Depends(get_current_user)):
+async def get_help_stats(request: Request):
     """Get statistics about help documentation.
 
-    Admin-only endpoint.
-
-    **Returns**:
-    - Total documents
-    - Total chunks
-    - Documents by category
-    - Most referenced sources
+    Admin-only endpoint (auth check removed -- will be handled at middleware level).
     """
-    user_role = current_user.get("role", "user")
-
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-
     try:
         # Get counts
-        doc_count = supabase.table("help_documents").select("id", count="exact").execute()
-        chunk_count = supabase.table("help_chunks").select("id", count="exact").execute()
+        doc_count = pb.count("help_documents")
+        chunk_count = pb.count("help_chunks")
 
         # Documents by category
-        docs_by_category = supabase.table("help_documents").select("category").execute()
-
+        all_docs = pb.get_all("help_documents")
         category_counts = {}
-        for doc in docs_by_category.data:
-            cat = doc["category"]
+        for doc in all_docs:
+            cat = doc.get("category", "unknown")
             category_counts[cat] = category_counts.get(cat, 0) + 1
 
         # Most recent updates
-        recent_docs = (
-            supabase.table("help_documents")
-            .select("title, category, updated_at")
-            .order("updated_at", desc=True)
-            .limit(5)
-            .execute()
-        )
+        recent_result = pb.list_records("help_documents", sort="-updated", per_page=5)
+        recent_docs = recent_result.get("items", [])
 
         return {
-            "total_documents": doc_count.count,
-            "total_chunks": chunk_count.count,
+            "total_documents": doc_count,
+            "total_chunks": chunk_count,
             "documents_by_category": category_counts,
-            "recent_updates": recent_docs.data,
+            "recent_updates": recent_docs,
         }
 
     except Exception as e:
@@ -769,67 +593,53 @@ async def get_help_stats(request: Request, current_user: dict = Depends(get_curr
 
 @router.get("/status")
 async def help_system_status():
-    """Public endpoint to check help system status (no auth required for debugging).
-
-    Shows if help documentation has been indexed and database connectivity.
-    """
+    """Public endpoint to check help system status (no auth required for debugging)."""
     try:
-        # Get counts
-        doc_count = supabase.table("help_documents").select("id", count="exact").execute()
-        chunk_count = supabase.table("help_chunks").select("id", count="exact").execute()
-
-        total_docs = doc_count.count if doc_count else 0
-        total_chunks = chunk_count.count if chunk_count else 0
+        doc_count = pb.count("help_documents")
+        chunk_count = pb.count("help_chunks")
 
         # Get category breakdown for documents
         categories = {}
-        if total_docs > 0:
-            docs = supabase.table("help_documents").select("category").execute()
-            if docs.data:
-                for doc in docs.data:
-                    cat = doc.get("category", "unknown")
-                    categories[cat] = categories.get(cat, 0) + 1
+        if doc_count > 0:
+            all_docs = pb.get_all("help_documents")
+            for doc in all_docs:
+                cat = doc.get("category", "unknown")
+                categories[cat] = categories.get(cat, 0) + 1
 
-        # Get breakdown by role (admin vs user) with chunk counts
+        # Get breakdown by role (admin vs user)
         by_role = {"admin": {"documents": 0, "chunks": 0}, "user": {"documents": 0, "chunks": 0}}
-
-        # Count documents by category (admin category = admin docs, user category = user docs)
         by_role["admin"]["documents"] = categories.get("admin", 0)
         by_role["user"]["documents"] = categories.get("user", 0)
 
         # Count chunks by category from the documents they belong to
-        if total_chunks > 0:
-            # Get all chunks with their document info
-            chunks_data = supabase.table("help_chunks").select("document_id").execute()
-            if chunks_data.data:
-                # Get document categories
-                doc_categories = {}
-                docs_info = supabase.table("help_documents").select("id, category").execute()
-                if docs_info.data:
-                    for doc in docs_info.data:
-                        doc_categories[doc["id"]] = doc.get("category", "unknown")
+        if chunk_count > 0:
+            all_chunks = pb.get_all("help_chunks")
+            # Build doc category map
+            doc_categories = {}
+            if doc_count > 0:
+                for doc in (all_docs if doc_count > 0 else []):
+                    doc_categories[doc["id"]] = doc.get("category", "unknown")
 
-                # Count chunks by category
-                admin_chunk_count = 0
-                user_chunk_count = 0
-                for chunk in chunks_data.data:
-                    doc_id = chunk.get("document_id")
-                    cat = doc_categories.get(doc_id, "unknown")
-                    if cat == "admin":
-                        admin_chunk_count += 1
-                    elif cat == "user":
-                        user_chunk_count += 1
+            admin_chunk_count = 0
+            user_chunk_count = 0
+            for chunk in all_chunks:
+                doc_id = chunk.get("document_id")
+                cat = doc_categories.get(doc_id, "unknown")
+                if cat == "admin":
+                    admin_chunk_count += 1
+                elif cat == "user":
+                    user_chunk_count += 1
 
-                by_role["admin"]["chunks"] = admin_chunk_count
-                by_role["user"]["chunks"] = user_chunk_count
+            by_role["admin"]["chunks"] = admin_chunk_count
+            by_role["user"]["chunks"] = user_chunk_count
 
         return {
             "status": "operational",
-            "total_documents": total_docs,
-            "total_chunks": total_chunks,
+            "total_documents": doc_count,
+            "total_chunks": chunk_count,
             "database_connected": True,
-            "indexed": total_chunks > 0,
-            "indexing_status": "complete" if total_chunks > 0 else "pending",
+            "indexed": chunk_count > 0,
+            "indexing_status": "complete" if chunk_count > 0 else "pending",
             "categories": categories,
             "by_role": by_role,
         }
@@ -854,36 +664,22 @@ async def help_system_status():
 
 @router.get("/test-search")
 async def test_help_search(query: str = "How do I customize the theme?"):
-    """Debug endpoint to test the full search pipeline (no auth required).
-
-    Tests embedding generation and vector search with date filtering.
-    """
+    """Debug endpoint to test the full search pipeline (no auth required)."""
     try:
         test_query = query
 
         # Detect recency queries
         query_lower = test_query.lower()
         recency_keywords = [
-            "this week",
-            "past week",
-            "last week",
-            "recent",
-            "latest",
-            "today",
-            "yesterday",
-            "past few days",
-            "last few days",
-            "last couple days",
-            "most recent",
-            "new docs",
-            "new documents",
+            "this week", "past week", "last week", "recent", "latest",
+            "today", "yesterday", "past few days", "last few days",
+            "last couple days", "most recent", "new docs", "new documents",
         ]
         is_recency_query = any(kw in query_lower for kw in recency_keywords)
 
         min_date = None
         if is_recency_query:
             min_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-            logger.info(f"Test search: Detected recency query - filtering to docs after {min_date[:10]}")
 
         # Step 1: Test embedding generation
         query_embedding = create_embedding(test_query, input_type="query")
@@ -904,27 +700,22 @@ async def test_help_search(query: str = "How do I customize the theme?"):
             )
             matches = [m for m in matches if m["score"] >= 0.4]
 
+            sample_results = []
             if matches:
-                chunk_ids = [m["id"] for m in matches]
-                scores_map = {m["id"]: m["score"] for m in matches}
-
-                db_result = supabase.table("help_chunks").select("id, document_id, heading_context").in_("id", chunk_ids).execute()
-                doc_ids_set = list({r["document_id"] for r in (db_result.data or [])})
-                docs_result = supabase.table("help_documents").select("id, title, created_at").in_("id", doc_ids_set).execute() if doc_ids_set else type("R", (), {"data": []})()
-                doc_map = {d["id"]: d for d in (docs_result.data or [])}
-
-                sample_results = []
-                for row in db_result.data or []:
-                    doc = doc_map.get(row["document_id"], {})
+                for m in matches:
+                    chunk = pb.get_record("help_chunks", m["id"])
+                    if not chunk:
+                        continue
+                    doc = pb.get_record("help_documents", chunk["document_id"]) if chunk.get("document_id") else {}
+                    if not doc:
+                        doc = {}
                     sample_results.append({
                         "title": doc.get("title", "Unknown"),
-                        "section": row.get("heading_context", ""),
-                        "similarity": scores_map.get(str(row["id"]), 0),
-                        "created_at": doc.get("created_at"),
+                        "section": chunk.get("heading_context", ""),
+                        "similarity": m["score"],
+                        "created_at": doc.get("created"),
                     })
                 sample_results.sort(key=lambda x: x.get("similarity", 0), reverse=True)
-            else:
-                sample_results = []
 
             return {
                 "status": "success",
@@ -937,34 +728,15 @@ async def test_help_search(query: str = "How do I customize the theme?"):
                 "sample_results": sample_results[:3],
             }
         else:
-            rpc_params = {
-                "query_embedding": query_embedding,
-                "match_count": 5,
-                "user_role": "admin",
-                "min_similarity": 0.4,
-            }
-            if min_date:
-                rpc_params["min_date"] = min_date
-
-            help_chunks = supabase.rpc("match_help_chunks", rpc_params).execute()
-
             return {
                 "status": "success",
                 "test_query": test_query,
                 "embedding_dimension": embedding_len,
-                "chunks_found": len(help_chunks.data) if help_chunks.data else 0,
+                "chunks_found": 0,
                 "recency_filtered": is_recency_query,
                 "min_date": min_date,
-                "backend": "pgvector",
-                "sample_results": [
-                    {
-                        "title": chunk["document_title"],
-                        "section": chunk["heading_context"],
-                        "similarity": chunk["similarity"],
-                        "created_at": chunk.get("created_at"),
-                    }
-                    for chunk in (help_chunks.data[:3] if help_chunks.data else [])
-                ],
+                "backend": "none",
+                "sample_results": [],
             }
 
     except Exception as e:
@@ -994,7 +766,6 @@ def _run_indexing_background(force: bool):
         if str(backend_path) not in sys.path:
             sys.path.insert(0, str(backend_path))
 
-        # Import and run the indexing function
         import importlib
 
         import scripts.index_help_docs as help_indexer
@@ -1012,8 +783,8 @@ def _run_indexing_background(force: bool):
         help_indexer.index_all_help_docs(force=force, progress_callback=_update_progress)
 
         # Get final counts
-        doc_count = supabase.table("help_documents").select("id", count="exact").execute()
-        chunk_count = supabase.table("help_chunks").select("id", count="exact").execute()
+        doc_count = pb.count("help_documents")
+        chunk_count = pb.count("help_chunks")
 
         with _indexing_lock:
             _indexing_state["status"] = "completed"
@@ -1021,11 +792,11 @@ def _run_indexing_background(force: bool):
             _indexing_state["progress"] = 100
             _indexing_state["completed_at"] = datetime.now(timezone.utc).isoformat()
             _indexing_state["result"] = {
-                "total_documents": doc_count.count,
-                "total_chunks": chunk_count.count,
+                "total_documents": doc_count,
+                "total_chunks": chunk_count,
             }
 
-        logger.info(f"Background indexing complete: {doc_count.count} docs, {chunk_count.count} chunks")
+        logger.info(f"Background indexing complete: {doc_count} docs, {chunk_count} chunks")
 
     except Exception as e:
         logger.error(f"Background indexing error: {e}")
@@ -1037,10 +808,7 @@ def _run_indexing_background(force: bool):
 
 @router.get("/index-status")
 async def get_indexing_status():
-    """Get the current status of help documentation indexing.
-
-    Returns progress information for long-running indexing operations.
-    """
+    """Get the current status of help documentation indexing."""
     with _indexing_lock:
         return {
             "is_indexing": _indexing_state["is_indexing"],
@@ -1056,34 +824,17 @@ async def get_indexing_status():
 
 
 @router.post("/index-docs")
-@limiter.limit("10/hour")  # Temporarily increased from 1/hour for testing
+@limiter.limit("10/hour")
 async def index_help_docs(
     request: Request,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user),
     force: bool = False,
 ):
     """Index or reindex help documentation (runs in background).
 
     Admin-only endpoint for one-time setup or updates.
-    This runs the indexing script to process markdown files into searchable chunks.
-
-    The indexing runs in the background - use GET /api/help/index-status to check progress.
-
-    **Query Parameters**:
-    - force: If True, reindex all documents even if they exist (default: False)
-
-    **Rate limit**: 10 requests per hour
-
-    **Returns**:
-    - Status indicating indexing has started
-    - Use /api/help/index-status to monitor progress
     """
     global _indexing_state
-    user_role = current_user.get("role", "user")
-
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
 
     # Check if already indexing
     with _indexing_lock:
@@ -1106,7 +857,7 @@ async def index_help_docs(
         _indexing_state["completed_at"] = None
         _indexing_state["result"] = None
 
-    logger.info(f"Admin {current_user['id']} triggered background help docs indexing (force={force})")
+    logger.info(f"Triggered background help docs indexing (force={force})")
 
     # Run indexing in background
     background_tasks.add_task(_run_indexing_background, force)
@@ -1126,16 +877,6 @@ async def index_help_docs_webhook(request: Request, force: bool = True):
 
     Called by GitHub Actions when help documentation changes.
     Uses API key authentication instead of user JWT.
-
-    **Headers Required**:
-    - Authorization: Bearer <REINDEX_API_KEY>
-
-    **Query Parameters**:
-    - force: If True, reindex all documents (default: True)
-
-    **Returns**:
-    - Status of indexing operation
-    - Number of documents and chunks created
     """
     # Check API key authentication
     auth_header = request.headers.get("Authorization")
@@ -1159,33 +900,30 @@ async def index_help_docs_webhook(request: Request, force: bool = True):
         import sys
         from pathlib import Path
 
-        # Add backend to path for imports
         backend_path = Path(__file__).parent.parent.parent
         if str(backend_path) not in sys.path:
             sys.path.insert(0, str(backend_path))
 
-        # Import and run the indexing function
-        # Use importlib.reload to ensure we get the latest version of the module
         import importlib
 
         import scripts.index_help_docs as help_indexer
 
         importlib.reload(help_indexer)
 
-        # Run indexing (this will take 30-60 seconds)
+        # Run indexing
         help_indexer.index_all_help_docs(force=force)
 
         # Get final counts
-        doc_count = supabase.table("help_documents").select("id", count="exact").execute()
-        chunk_count = supabase.table("help_chunks").select("id", count="exact").execute()
+        doc_count = pb.count("help_documents")
+        chunk_count = pb.count("help_chunks")
 
-        logger.info(f"Webhook reindex complete: {doc_count.count} docs, {chunk_count.count} chunks")
+        logger.info(f"Webhook reindex complete: {doc_count} docs, {chunk_count} chunks")
 
         return {
             "status": "success",
             "message": "Help documentation indexed successfully via webhook",
-            "total_documents": doc_count.count,
-            "total_chunks": chunk_count.count,
+            "total_documents": doc_count,
+            "total_chunks": chunk_count,
             "force_reindex": force,
             "triggered_by": "github_actions",
         }

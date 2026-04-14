@@ -8,11 +8,15 @@ import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from auth import get_current_user
-from database import get_supabase
+import pb_client as pb
+from repositories.stakeholders import (
+    get_stakeholder,
+    list_stakeholder_metrics,
+    list_stakeholder_insights,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +95,6 @@ def _calculate_engagement_status(stakeholder: dict, insights_data: list) -> Stat
 
     # Count recent interactions
     total_interactions = stakeholder.get("total_interactions", 0)
-    stakeholder.get("last_interaction")
 
     if total_interactions == 0:
         notes = "No interactions yet"
@@ -223,8 +226,6 @@ def _build_questions_list(stakeholder: dict, metrics: list, opportunities: list)
 @router.get("/{stakeholder_id}", response_model=MeetingPrepResponse)
 async def get_meeting_prep(
     stakeholder_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Generate meeting prep dashboard for a stakeholder.
 
@@ -236,59 +237,37 @@ async def get_meeting_prep(
     - Recommended approach
     """
     # Get stakeholder
-    stakeholder_result = (
-        supabase.table("stakeholders")
-        .select("*")
-        .eq("id", stakeholder_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not stakeholder_result.data:
+    stakeholder = get_stakeholder(stakeholder_id)
+    if not stakeholder:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
 
-    stakeholder = stakeholder_result.data
-
     # Get stakeholder metrics
-    metrics_result = (
-        supabase.table("stakeholder_metrics")
-        .select("*")
-        .eq("stakeholder_id", stakeholder_id)
-        .order("metric_category")
-        .order("metric_name")
-        .execute()
-    )
-
-    metrics = metrics_result.data
+    metrics = list_stakeholder_metrics(stakeholder_id)
 
     # Get stakeholder opportunities (via link table)
-    opp_links_result = (
-        supabase.table("opportunity_stakeholder_link")
-        .select("*, ai_projects(*)")
-        .eq("stakeholder_id", stakeholder_id)
-        .execute()
+    opp_links = pb.get_all(
+        "opportunity_stakeholder_link",
+        filter=f"stakeholder_id='{pb.escape_filter(stakeholder_id)}'",
     )
 
     opportunities_with_role = []
-    for link in opp_links_result.data:
-        opp = link.get("ai_projects", {})
-        if opp:
-            opp["stakeholder_role"] = link.get("role", "involved")
-            opportunities_with_role.append(opp)
+    for link in opp_links:
+        opp_id = link.get("ai_projects") or link.get("opportunity_id") or link.get("project_id")
+        if opp_id:
+            opp = pb.get_record("ai_projects", opp_id)
+            if opp:
+                opp["stakeholder_role"] = link.get("role", "involved")
+                opportunities_with_role.append(opp)
 
     # Also get opportunities where stakeholder is owner
-    owned_opps_result = (
-        supabase.table("ai_projects")
-        .select("*")
-        .eq("owner_stakeholder_id", stakeholder_id)
-        .eq("client_id", current_user["client_id"])
-        .execute()
+    owned_opps = pb.get_all(
+        "ai_projects",
+        filter=f"owner_stakeholder_id='{pb.escape_filter(stakeholder_id)}'",
     )
 
     # Merge owned opportunities (avoid duplicates)
     opp_ids = {o["id"] for o in opportunities_with_role}
-    for opp in owned_opps_result.data:
+    for opp in owned_opps:
         if opp["id"] not in opp_ids:
             opp["stakeholder_role"] = "owner"
             opportunities_with_role.append(opp)
@@ -297,9 +276,7 @@ async def get_meeting_prep(
     opportunities_with_role.sort(key=lambda x: x.get("total_score", 0), reverse=True)
 
     # Get stakeholder insights (for blockers calculation)
-    insights_result = supabase.table("stakeholder_insights").select("*").eq("stakeholder_id", stakeholder_id).execute()
-
-    insights = insights_result.data
+    insights = list_stakeholder_insights(stakeholder_id)
 
     # Calculate status summary
     status_summary = [
@@ -392,30 +369,28 @@ async def list_meeting_prep_summaries(
     priority_level: Optional[str] = None,
     department: Optional[str] = None,
     limit: int = 20,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get quick meeting prep summaries for multiple stakeholders.
 
     Useful for seeing which stakeholders need attention.
     """
-    query = (
-        supabase.table("stakeholders")
-        .select(
-            "id, name, department, role, priority_level, engagement_level, relationship_status, last_contact, last_interaction"
-        )
-        .eq("client_id", current_user["client_id"])
-    )
-
+    parts = []
     if priority_level:
-        query = query.eq("priority_level", priority_level)
+        parts.append(f"priority_level='{pb.escape_filter(priority_level)}'")
     if department:
-        query = query.eq("department", department)
+        parts.append(f"department='{pb.escape_filter(department)}'")
+    filter_str = " && ".join(parts)
 
-    result = query.order("priority_level").order("name").limit(limit).execute()
+    result = pb.list_records(
+        "stakeholders",
+        filter=filter_str,
+        sort="priority_level,name",
+        per_page=limit,
+    )
+    stakeholders_data = result.get("items", [])
 
     summaries = []
-    for s in result.data:
+    for s in stakeholders_data:
         # Calculate days since contact
         days_since = None
         last_contact = s.get("last_contact") or s.get("last_interaction")
@@ -467,28 +442,18 @@ async def list_meeting_prep_summaries(
 @router.post("/{stakeholder_id}/mark-contacted")
 async def mark_stakeholder_contacted(
     stakeholder_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Mark a stakeholder as contacted today.
 
     Updates last_contact date to today.
     """
-    # Verify ownership
-    existing = (
-        supabase.table("stakeholders")
-        .select("id")
-        .eq("id", stakeholder_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not existing.data:
+    # Verify stakeholder exists
+    existing = get_stakeholder(stakeholder_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
 
     today = datetime.now(timezone.utc).date()
 
-    supabase.table("stakeholders").update({"last_contact": str(today)}).eq("id", stakeholder_id).execute()
+    pb.update_record("stakeholders", stakeholder_id, {"last_contact": str(today)})
 
     return {"message": "Contact date updated", "last_contact": str(today)}
