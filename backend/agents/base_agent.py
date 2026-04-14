@@ -21,8 +21,9 @@ from typing import AsyncGenerator, Optional
 
 import anthropic
 
+import pb_client as pb
+from repositories import agents as agents_repo
 from services.instruction_loader import instruction_file_exists, load_instruction_from_file
-from supabase import Client
 
 logger = logging.getLogger(__name__)
 
@@ -71,20 +72,18 @@ class BaseAgent(ABC):
     - A display name for the UI
     - System instructions loaded from database or file
     - Access to Claude API for responses
-    - Access to Supabase for data
+    - Access to PocketBase for data
     """
 
     def __init__(
         self,
         name: str,
         display_name: str,
-        supabase: Client,
         anthropic_client: anthropic.Anthropic,
         system_instruction: Optional[str] = None,
     ):
         self.name = name
         self.display_name = display_name
-        self.supabase = supabase
         self.anthropic = anthropic_client
         self._system_instruction = system_instruction
         self._agent_id: Optional[str] = None
@@ -100,9 +99,9 @@ class BaseAgent(ABC):
         Called once when the agent is first loaded.
         """
         try:
-            result = self.supabase.table("agents").select("*").eq("name", self.name).single().execute()
-            if result.data:
-                self._agent_id = result.data["id"]
+            record = agents_repo.get_agent_by_name(self.name)
+            if record:
+                self._agent_id = record["id"]
                 # Load active instruction from agent_instruction_versions (single source of truth)
                 await self._load_active_instruction()
                 logger.info(f"Initialized agent: {self.name} (ID: {self._agent_id})")
@@ -124,17 +123,14 @@ class BaseAgent(ABC):
         # First, try to load from DB (active version)
         if self._agent_id:
             try:
-                version_result = (
-                    self.supabase.table("agent_instruction_versions")
-                    .select("instructions")
-                    .eq("agent_id", self._agent_id)
-                    .eq("is_active", True)
-                    .limit(1)
-                    .execute()
+                esc_id = pb.escape_filter(self._agent_id)
+                version_record = pb.get_first(
+                    "agent_instruction_versions",
+                    filter=f"agent_id='{esc_id}' && is_active=true",
                 )
 
-                if version_result.data and version_result.data[0].get("instructions"):
-                    instruction = version_result.data[0]["instructions"]
+                if version_record and version_record.get("instructions"):
+                    instruction = version_record["instructions"]
                     # Only use if it's real content, not a placeholder
                     if not instruction.startswith("--") and len(instruction) > 100:
                         self._system_instruction = instruction
@@ -243,11 +239,13 @@ class BaseAgent(ABC):
         try:
             # Update conversation with agent info
             if self._agent_id:
-                self.supabase.table("conversations").update(
+                pb.update_record(
+                    "conversations",
+                    context.conversation_id,
                     {
                         "agent_id": self._agent_id,
                         "updated_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                ).eq("id", context.conversation_id).execute()
+                    },
+                )
         except Exception as e:
             logger.error(f"Failed to log interaction for {self.name}: {e}")

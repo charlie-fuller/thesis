@@ -16,8 +16,8 @@ from typing import Optional
 
 import anthropic
 
-from supabase import Client
-
+import pb_client as pb
+from repositories import tasks as tasks_repo
 from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
@@ -30,11 +30,10 @@ class TaskmasterAgent(BaseAgent):
     detecting slippage, and providing focus guidance through daily digests.
     """
 
-    def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
+    def __init__(self, anthropic_client: anthropic.Anthropic):
         super().__init__(
             name="taskmaster",
             display_name="Taskmaster",
-            supabase=supabase,
             anthropic_client=anthropic_client,
         )
 
@@ -184,43 +183,27 @@ When creating tasks from extracted items:
             today = date.today()
             week_end = today + timedelta(days=7)
 
-            # Get user's details for assignee matching and client filtering
-            user_result = (
-                self.supabase.table("users")
-                .select("id, full_name, name, email, client_id")
-                .eq("id", context.user_id)
-                .single()
-                .execute()
-            )
+            # Get user's details for assignee matching
+            user_record = pb.get_record("users", context.user_id)
 
             user_name = None
-            client_id = None
-            if user_result.data:
-                user_name = user_result.data.get("full_name") or user_result.data.get("name")
-                client_id = user_result.data.get("client_id")
+            if user_record:
+                user_name = user_record.get("full_name") or user_record.get("name")
 
-            if not client_id:
-                logger.warning(f"No client_id found for user {context.user_id}")
-                return "\n[Task Context: Unable to load tasks - user not associated with a client]\n"
-
-            # Query tasks for this client (limit 200 for performance)
-            result = (
-                self.supabase.table("project_tasks")
-                .select(
-                    "id, title, status, priority, due_date, blocked_at, blocker_reason, assignee_user_id, assignee_name"
-                )
-                .eq("client_id", client_id)
-                .neq("status", "completed")
-                .order("due_date", desc=False)
-                .limit(200)
-                .execute()
+            # Query active tasks (limit 200 for performance)
+            result = pb.list_records(
+                "project_tasks",
+                filter="status!='completed'",
+                sort="due_date",
+                per_page=200,
             )
+            all_tasks = result.get("items", [])
 
-            if not result.data:
+            if not all_tasks:
                 return "\n[Task Context: No active tasks found]\n"
 
             # Filter to user's tasks
-            tasks = self._filter_user_tasks(result.data, context.user_id, user_name)
+            tasks = self._filter_user_tasks(all_tasks, context.user_id, user_name)
 
             if not tasks:
                 return "\n[Task Context: No tasks assigned to you]\n"

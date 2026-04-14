@@ -33,17 +33,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional
 
+import pb_client as pb
 from config import get_assistant_name, get_client_name, get_default_client_id
-from database import get_supabase
-from supabase import Client
-
-# Get centralized Supabase client
-try:
-    supabase: Optional[Client] = get_supabase()
-except ValueError:
-    supabase = None
-    logger.warning("⚠️  WARNING: Supabase not configured for system instructions storage")
-    logger.warning("   Will fall back to local files only (ephemeral on Railway)")
 
 # Path to system instructions directory
 SYSTEM_INSTRUCTIONS_DIR = Path(__file__).parent / "system_instructions"
@@ -104,21 +95,9 @@ def load_user_system_instructions(
     """
     template = None
 
-    # PRIORITY 1: Try Supabase Storage (persistent)
-    if supabase:
-        try:
-            storage_path = f"users/{user_id}.txt"
-            logger.info(f"   📋 Attempting to load from Supabase Storage: {storage_path}")
-
-            # Download from Supabase Storage
-            response = supabase.storage.from_("system-instructions").download(storage_path)
-
-            if response:
-                template = response.decode("utf-8")
-                logger.info("   ✅ Loaded user-specific instructions from Supabase Storage")
-        except Exception as e:
-            logger.info(f"   ℹ️  No instructions in Supabase Storage: {str(e)}")
-            # Not an error - will try local files next
+    # PRIORITY 1: Try PocketBase file storage (persistent)
+    # TODO: PocketBase file API migration pending (Plan 3).
+    # For now, skip remote storage and fall through to local files.
 
     # PRIORITY 2: Try local file (ephemeral on Railway, but works for dev/testing)
     if not template:
@@ -228,30 +207,23 @@ def get_active_system_instruction_version() -> Optional[dict]:
         return cached
 
     # Fetch from database
-    if not supabase:
-        logger.warning("⚠️ Supabase not available for version lookup")
-        return None
-
     try:
-        result = (
-            supabase.table("system_instruction_versions")
-            .select("id, version_number, content, created_at, activated_at, version_notes")
-            .eq("is_active", True)
-            .single()
-            .execute()
+        record = pb.get_first(
+            "system_instruction_versions",
+            filter="is_active=true",
         )
 
-        if result.data:
+        if record:
             # Cache for 5 minutes (invalidated on activation)
-            cache_set("active_version", result.data, ttl=300, namespace="sys_inst_versions")
-            logger.info(f"✅ Active version {result.data['version_number']} loaded from database")
-            return result.data
+            cache_set("active_version", record, ttl=300, namespace="sys_inst_versions")
+            logger.info(f"Active version {record['version_number']} loaded from database")
+            return record
         else:
-            logger.warning("⚠️ No active system instruction version found")
+            logger.warning("No active system instruction version found")
             return None
 
     except Exception as e:
-        logger.warning(f"⚠️ Error fetching active system instruction version: {e}")
+        logger.warning(f"Error fetching active system instruction version: {e}")
         return None
 
 
@@ -283,22 +255,17 @@ def get_system_instructions_for_version(version_id: str, user_data: Optional[Dic
         content = cached
     else:
         # Fetch from database
-        if not supabase:
-            raise ValueError("Supabase not available for version lookup")
-
         try:
-            result = (
-                supabase.table("system_instruction_versions").select("content").eq("id", version_id).single().execute()
-            )
+            record = pb.get_record("system_instruction_versions", version_id)
 
-            if not result.data:
+            if not record:
                 raise ValueError(f"System instruction version {version_id} not found")
 
-            content = result.data["content"]
+            content = record["content"]
 
             # Cache for 1 hour (versions are immutable once created)
             cache_set(cache_key, content, ttl=3600, namespace="sys_inst_versions")
-            logger.info(f"✅ Version {version_id} loaded from database")
+            logger.info(f"Version {version_id} loaded from database")
 
         except Exception as e:
             raise ValueError(f"Error loading system instruction version: {e}") from None

@@ -19,9 +19,11 @@ from api.utils.error_handler import (
     wrap_external_service_error,
 )
 from api.utils.retry import retry_with_backoff
+import pb_client as pb
 from cache import cache_search_results, get_cached_search_results
 from config.constants import DATABASE, EMBEDDING, SEARCH, TEXT_CHUNKING
-from database import get_supabase
+from repositories import conversations as conversations_repo
+from repositories import documents as documents_repo
 
 try:
     from openpyxl import load_workbook
@@ -92,10 +94,8 @@ load_dotenv()
 
 # Initialize clients
 VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY")
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
 
 vo = voyageai.Client(api_key=VOYAGE_API_KEY)
-supabase = get_supabase()
 
 
 def extract_text_from_file(file_data: bytes, filename: str) -> str:
@@ -383,25 +383,28 @@ def process_document(document_id: str) -> Dict:
     Returns:
         Processing result summary
     """
-    logger.info(f"\n📄 Processing document: {document_id}")
+    logger.info(f"\nProcessing document: {document_id}")
 
     try:
         # Get document metadata
-        doc_result = supabase.table("documents").select("*").eq("id", document_id).execute()
+        document = documents_repo.get_document(document_id)
 
-        if not doc_result.data:
+        if not document:
             raise ValueError(f"Document {document_id} not found")
 
-        document = doc_result.data[0]
         logger.info(f"   Filename: {document['filename']}")
-        logger.info(f"   Client ID: {document['client_id']}")
 
         # Set status to processing
-        supabase.table("documents").update({"processing_status": "processing"}).eq("id", document_id).execute()
+        documents_repo.update_document(document_id, {"processing_status": "processing"})
 
         # Download file from storage
+        # TODO: PocketBase file API migration pending (Plan 3).
+        # For now, reconstruct the storage path and use PocketBase file download.
         storage_path = document["storage_url"].split("/documents/")[-1]
-        file_data = supabase.storage.from_("documents").download(storage_path)
+        # TODO: Replace with PocketBase file download once file storage is migrated
+        raise NotImplementedError(
+            f"File download not yet migrated to PocketBase. storage_path={storage_path}"
+        )
 
         # Extract text based on file type
         text = extract_text_from_file(file_data, document["filename"])
@@ -440,19 +443,19 @@ def process_document(document_id: str) -> Dict:
             }
             chunks_to_insert.append(chunk_data)
 
-        # Batch insert with PostgreSQL limit handling
+        # Batch insert chunks into PocketBase
         BATCH_SIZE = DATABASE.BATCH_INSERT_SIZE
         stored_count = 0
         all_inserted_chunks = []
 
         for batch_start in range(0, len(chunks_to_insert), BATCH_SIZE):
             batch = chunks_to_insert[batch_start : batch_start + BATCH_SIZE]
-            insert_result = supabase.table("document_chunks").insert(batch).execute()
-            stored_count += len(batch)
-            if insert_result.data:
-                all_inserted_chunks.extend(insert_result.data)
+            for chunk_data in batch:
+                inserted = documents_repo.create_document_chunk(chunk_data)
+                all_inserted_chunks.append(inserted)
+                stored_count += 1
 
-        # Upsert vectors to Pinecone using the chunk IDs from Supabase
+        # Upsert vectors to Pinecone using the chunk IDs from PocketBase
         for inserted_chunk, embedding in zip(all_inserted_chunks, embeddings, strict=False):
             pinecone_vectors.append(
                 {
@@ -460,8 +463,6 @@ def process_document(document_id: str) -> Dict:
                     "values": embedding,
                     "metadata": {
                         "document_id": document_id,
-                        "client_id": str(document.get("client_id", "")),
-                        "user_id": str(document.get("user_id", "")),
                         "chunk_index": inserted_chunk.get("chunk_index", 0),
                         "source_type": "document",
                     },
@@ -474,13 +475,13 @@ def process_document(document_id: str) -> Dict:
             upsert_vectors(vectors=pinecone_vectors, namespace="document_chunks")
 
         logger.info(
-            f"   ✓ Stored {stored_count} chunks in {(len(chunks_to_insert) + BATCH_SIZE - 1) // BATCH_SIZE} batch(es)"
+            f"   Stored {stored_count} chunks in {(len(chunks_to_insert) + BATCH_SIZE - 1) // BATCH_SIZE} batch(es)"
         )
 
         # Mark document as processed
-        supabase.table("documents").update(
-            {"processed": True, "processing_status": "completed", "processing_error": None}
-        ).eq("id", document_id).execute()
+        documents_repo.update_document(document_id, {
+            "processed": True, "processing_status": "completed", "processing_error": None,
+        })
 
         logger.info("   ✓ Marked document as processed")
 
@@ -497,7 +498,7 @@ def process_document(document_id: str) -> Dict:
         # Handle known document processing errors
         error_message = e.message if hasattr(e, "message") else str(e)
         logger.error(
-            f"   ❌ Document processing error: {error_message}",
+            f"   Document processing error: {error_message}",
             extra={
                 "document_id": document_id,
                 "error_type": e.__class__.__name__,
@@ -507,16 +508,14 @@ def process_document(document_id: str) -> Dict:
 
         # Update document with error status
         try:
-            supabase.table("documents").update(
-                {
-                    "processing_status": "failed",
-                    "processing_error": error_message,
-                    "processed": True,  # Mark as processed even on failure so UI knows processing is done
-                }
-            ).eq("id", document_id).execute()
-            logger.info("   ✓ Marked document as failed")
+            documents_repo.update_document(document_id, {
+                "processing_status": "failed",
+                "processing_error": error_message,
+                "processed": True,
+            })
+            logger.info("   Marked document as failed")
         except Exception as update_error:
-            logger.error(f"   ⚠️  Failed to update error status: {update_error}")
+            logger.error(f"   Failed to update error status: {update_error}")
 
         # Don't re-raise - background task should not fail
         return {"document_id": document_id, "status": "failed", "error": error_message}
@@ -524,20 +523,18 @@ def process_document(document_id: str) -> Dict:
     except Exception as e:
         # Handle unexpected errors
         error_message = f"Unexpected error: {str(e)}"
-        logger.exception("   ❌ Unexpected processing error", extra={"document_id": document_id}, exc_info=True)
+        logger.exception("   Unexpected processing error", extra={"document_id": document_id}, exc_info=True)
 
         # Update document with error status
         try:
-            supabase.table("documents").update(
-                {
-                    "processing_status": "failed",
-                    "processing_error": error_message,
-                    "processed": True,  # Mark as processed even on failure so UI knows processing is done
-                }
-            ).eq("id", document_id).execute()
-            logger.info("   ✓ Marked document as failed")
+            documents_repo.update_document(document_id, {
+                "processing_status": "failed",
+                "processing_error": error_message,
+                "processed": True,
+            })
+            logger.info("   Marked document as failed")
         except Exception as update_error:
-            logger.error(f"   ⚠️  Failed to update error status: {update_error}")
+            logger.error(f"   Failed to update error status: {update_error}")
 
         # Don't re-raise - background task should not fail
         return {"document_id": document_id, "status": "failed", "error": error_message}
@@ -573,21 +570,21 @@ async def process_document_with_classification(
 
     try:
         # Get the first 3 chunks for classification
-        chunks_result = (
-            supabase.table("document_chunks")
-            .select("content")
-            .eq("document_id", document_id)
-            .order("chunk_index")
-            .limit(3)
-            .execute()
+        esc_doc_id = pb.escape_filter(document_id)
+        chunk_list_result = pb.list_records(
+            "document_chunks",
+            filter=f"document_id='{esc_doc_id}'",
+            sort="chunk_index",
+            per_page=3,
         )
+        chunk_items = chunk_list_result.get("items", [])
 
-        if not chunks_result.data:
+        if not chunk_items:
             logger.warning(f"No chunks found for document {document_id}, skipping classification")
             result["classification"] = {"status": "skipped", "reason": "no_chunks"}
             return result
 
-        sample_chunks = [chunk["content"] for chunk in chunks_result.data]
+        sample_chunks = [chunk["content"] for chunk in chunk_items]
 
         # Import classifier here to avoid circular imports
         from services.document_classifier import classify_document_for_agents
@@ -654,15 +651,15 @@ async def process_document_with_classification(
     # Note: Path is case-sensitive, matches Obsidian vault structure
     MEETING_SUMMARIES_FOLDER = "Granola/Meeting-summaries"
     try:
-        doc_result = supabase.table("documents").select("obsidian_file_path").eq("id", document_id).single().execute()
+        doc_record = documents_repo.get_document(document_id)
 
-        obsidian_path = doc_result.data.get("obsidian_file_path", "") if doc_result.data else ""
+        obsidian_path = doc_record.get("obsidian_file_path", "") if doc_record else ""
         is_meeting_summary = obsidian_path.startswith(MEETING_SUMMARIES_FOLDER)
 
         if is_meeting_summary:
             from services.task_auto_extractor import extract_tasks_from_document
 
-            task_result = await extract_tasks_from_document(document_id=document_id, supabase=supabase, auto_store=True)
+            task_result = await extract_tasks_from_document(document_id=document_id, auto_store=True)
             result["task_extraction"] = {
                 "status": task_result.get("status", "unknown"),
                 "tasks_found": task_result.get("tasks_found", 0),
@@ -692,36 +689,26 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
     Returns:
         Processing result summary
     """
-    logger.info(f"\n💬 Processing conversation to KB: {conversation_id}")
+    logger.info(f"\nProcessing conversation to KB: {conversation_id}")
 
-    # Get conversation metadata and verify ownership
-    conv_result = supabase.table("conversations").select("*").eq("id", conversation_id).eq("user_id", user_id).execute()
+    # Get conversation metadata
+    conversation = conversations_repo.get_conversation(conversation_id)
 
-    if not conv_result.data:
+    if not conversation:
         raise ValueError(f"Conversation {conversation_id} not found or access denied")
 
-    conversation = conv_result.data[0]
     logger.info(f"   Title: {conversation.get('title', 'Untitled')}")
-    logger.info(f"   User ID: {conversation['user_id']}")
 
     # Check if conversation is already in knowledge base
     if conversation.get("in_knowledge_base"):
-        logger.warning("   ⚠️  Conversation already in knowledge base")
+        logger.warning("   Conversation already in knowledge base")
         raise ValueError(f"Conversation '{conversation.get('title', 'Untitled')}' is already in your knowledge base")
 
     # Get all messages from the conversation
-    messages_result = (
-        supabase.table("messages")
-        .select("role, content, timestamp")
-        .eq("conversation_id", conversation_id)
-        .order("timestamp")
-        .execute()
-    )
+    messages = conversations_repo.get_conversation_messages(conversation_id)
 
-    if not messages_result.data:
+    if not messages:
         raise ValueError(f"No messages found in conversation {conversation_id}")
-
-    messages = messages_result.data
     logger.info(f"   Found {len(messages)} messages")
 
     # Combine messages into conversation text with formatting
@@ -751,11 +738,6 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
     embedding_cost_usd = (estimated_tokens / 1_000_000) * 0.02
     logger.info(f"   💰 Embedding cost: ~${embedding_cost_usd:.6f} ({estimated_tokens:.0f} tokens)")
 
-    # Get client_id from user
-    user_result = supabase.table("users").select("client_id").eq("id", user_id).single().execute()
-
-    client_id = user_result.data["client_id"]
-
     # Store chunks with embeddings in database with transaction safety
     logger.info("   Storing chunks in database...")
 
@@ -768,7 +750,6 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
 
             chunk_data = {
                 "conversation_id": conversation_id,
-                "client_id": client_id,
                 "source_type": "conversation",
                 "content": sanitized_content,
                 "chunk_index": chunk["chunk_index"],
@@ -780,17 +761,17 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
             }
             chunks_to_insert.append(chunk_data)
 
-        # Batch insert with PostgreSQL limit handling
+        # Batch insert chunks into PocketBase
         BATCH_SIZE = DATABASE.BATCH_INSERT_SIZE
         stored_count = 0
         all_inserted_chunks = []
 
         for batch_start in range(0, len(chunks_to_insert), BATCH_SIZE):
             batch = chunks_to_insert[batch_start : batch_start + BATCH_SIZE]
-            insert_result = supabase.table("document_chunks").insert(batch).execute()
-            stored_count += len(batch)
-            if insert_result.data:
-                all_inserted_chunks.extend(insert_result.data)
+            for chunk_data in batch:
+                inserted = documents_repo.create_document_chunk(chunk_data)
+                all_inserted_chunks.append(inserted)
+                stored_count += 1
 
         # Upsert vectors to Pinecone
         pinecone_vectors = []
@@ -801,8 +782,6 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
                     "values": embedding,
                     "metadata": {
                         "conversation_id": conversation_id,
-                        "client_id": str(client_id),
-                        "user_id": user_id,
                         "chunk_index": inserted_chunk.get("chunk_index", 0),
                         "source_type": "conversation",
                     },
@@ -815,13 +794,15 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
             upsert_vectors(vectors=pinecone_vectors, namespace="document_chunks")
 
         logger.info(
-            f"   ✓ Stored {stored_count} chunks in {(len(chunks_to_insert) + BATCH_SIZE - 1) // BATCH_SIZE} batch(es)"
+            f"   Stored {stored_count} chunks in {(len(chunks_to_insert) + BATCH_SIZE - 1) // BATCH_SIZE} batch(es)"
         )
 
         # Only mark conversation as in knowledge base if ALL chunks succeeded
-        supabase.table("conversations").update({"in_knowledge_base": True, "added_to_kb_at": "now()"}).eq(
-            "id", conversation_id
-        ).execute()
+        from datetime import datetime, timezone
+        conversations_repo.update_conversation(conversation_id, {
+            "in_knowledge_base": True,
+            "added_to_kb_at": datetime.now(timezone.utc).isoformat(),
+        })
 
         logger.info("   ✓ Marked conversation as in knowledge base")
 
@@ -838,16 +819,20 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
 
     except Exception as e:
         # Rollback: Clean up any partially inserted chunks
-        logger.error(f"   ❌ Error during KB processing: {str(e)}")
-        logger.info(f"   🔄 Rolling back {stored_count} chunks...")
+        logger.error(f"   Error during KB processing: {str(e)}")
+        logger.info(f"   Rolling back {stored_count} chunks...")
 
         try:
-            supabase.table("document_chunks").delete().eq("conversation_id", conversation_id).eq(
-                "source_type", "conversation"
-            ).execute()
-            logger.info("   ✓ Rollback complete")
+            esc_conv_id = pb.escape_filter(conversation_id)
+            chunks_to_delete = pb.get_all(
+                "document_chunks",
+                filter=f"conversation_id='{esc_conv_id}' && source_type='conversation'",
+            )
+            for chunk in chunks_to_delete:
+                pb.delete_record("document_chunks", chunk["id"])
+            logger.info("   Rollback complete")
         except Exception as rollback_error:
-            logger.error(f"   ⚠️  Rollback failed: {rollback_error}")
+            logger.error(f"   Rollback failed: {rollback_error}")
 
         # Re-raise the original error with context
         raise ValueError(f"Failed to add conversation to knowledge base: {str(e)}") from None
@@ -863,21 +848,21 @@ def remove_conversation_from_kb(conversation_id: str, user_id: str) -> Dict:
     Returns:
         Removal result summary
     """
-    logger.info(f"\n🗑️  Removing conversation from KB: {conversation_id}")
+    logger.info(f"\nRemoving conversation from KB: {conversation_id}")
 
-    # Verify ownership
-    conv_result = (
-        supabase.table("conversations").select("id").eq("id", conversation_id).eq("user_id", user_id).execute()
-    )
+    # Verify conversation exists
+    conversation = conversations_repo.get_conversation(conversation_id)
 
-    if not conv_result.data:
+    if not conversation:
         raise ValueError(f"Conversation {conversation_id} not found or access denied")
 
     # Get chunk IDs before deleting (for Pinecone cleanup)
-    chunks_to_delete = (
-        supabase.table("document_chunks").select("id").eq("conversation_id", conversation_id).execute()
+    esc_conv_id = pb.escape_filter(conversation_id)
+    chunks_to_delete = pb.get_all(
+        "document_chunks",
+        filter=f"conversation_id='{esc_conv_id}'",
     )
-    chunk_ids_to_delete = [str(c["id"]) for c in (chunks_to_delete.data or [])]
+    chunk_ids_to_delete = [str(c["id"]) for c in chunks_to_delete]
 
     # Delete from Pinecone
     if chunk_ids_to_delete:
@@ -886,17 +871,20 @@ def remove_conversation_from_kb(conversation_id: str, user_id: str) -> Dict:
         delete_vectors(ids=chunk_ids_to_delete, namespace="document_chunks")
 
     # Delete all chunks for this conversation
-    delete_result = supabase.table("document_chunks").delete().eq("conversation_id", conversation_id).execute()
+    chunks_deleted = 0
+    for chunk in chunks_to_delete:
+        pb.delete_record("document_chunks", chunk["id"])
+        chunks_deleted += 1
 
-    chunks_deleted = len(delete_result.data) if delete_result.data else 0
-    logger.info(f"   ✓ Deleted {chunks_deleted} chunks")
+    logger.info(f"   Deleted {chunks_deleted} chunks")
 
     # Mark conversation as not in knowledge base
-    supabase.table("conversations").update({"in_knowledge_base": False, "added_to_kb_at": None}).eq(
-        "id", conversation_id
-    ).execute()
+    conversations_repo.update_conversation(conversation_id, {
+        "in_knowledge_base": False,
+        "added_to_kb_at": None,
+    })
 
-    logger.info("   ✓ Marked conversation as removed from knowledge base")
+    logger.info("   Marked conversation as removed from knowledge base")
 
     return {
         "conversation_id": conversation_id,
@@ -1191,18 +1179,20 @@ def search_similar_chunks(
     if conversation_id:
         try:
             # Query all messages in the conversation
-            messages_result = supabase.table("messages").select("id").eq("conversation_id", conversation_id).execute()
+            conv_messages = conversations_repo.get_conversation_messages(conversation_id)
 
-            if messages_result.data:
-                message_ids = [msg["id"] for msg in messages_result.data]
+            if conv_messages:
+                message_ids = [msg["id"] for msg in conv_messages]
 
                 # Get all documents referenced in this conversation
-                docs_result = (
-                    supabase.table("message_documents").select("document_id").in_("message_id", message_ids).execute()
-                )
+                all_doc_ids = set()
+                for mid in message_ids:
+                    msg_docs = conversations_repo.get_message_documents(mid)
+                    for md in msg_docs:
+                        all_doc_ids.add(md["document_id"])
 
-                if docs_result.data:
-                    conversation_doc_ids = list({d["document_id"] for d in docs_result.data})
+                if all_doc_ids:
+                    conversation_doc_ids = list(all_doc_ids)
                     logger.info(f"   Found {len(conversation_doc_ids)} documents referenced in conversation")
         except Exception as e:
             logger.warning(f"   Failed to fetch conversation documents: {e}")
@@ -1307,7 +1297,7 @@ def search_similar_chunks(
     _use_pinecone = _get_pinecone_index() is not None
 
     def _pinecone_search_and_hydrate(pc_filter, top_k, threshold):
-        """Query Pinecone and hydrate results from Supabase."""
+        """Query Pinecone and hydrate results from PocketBase."""
         matches = _query_pinecone(
             embedding=query_embedding,
             namespace="document_chunks",
@@ -1319,26 +1309,23 @@ def search_similar_chunks(
         if not matches:
             return []
 
-        # Fetch chunk data from Supabase by IDs
+        # Fetch chunk data from PocketBase by IDs
         chunk_ids = [m["id"] for m in matches]
         scores_map = {m["id"]: m["score"] for m in matches}
 
-        # Batch fetch in groups of 100 (Supabase .in_() limit)
+        # Build OR filter for batch fetch
         hydrated = []
         for batch_start in range(0, len(chunk_ids), 100):
             batch_ids = chunk_ids[batch_start : batch_start + 100]
             try:
-                db_result = (
-                    supabase.table("document_chunks")
-                    .select("id, document_id, conversation_id, content, chunk_index, metadata, source_type, client_id, created_at")
-                    .in_("id", batch_ids)
-                    .execute()
-                )
-                for row in db_result.data or []:
+                or_parts = [f"id='{pb.escape_filter(cid)}'" for cid in batch_ids]
+                or_filter = " || ".join(or_parts)
+                rows = pb.get_all("document_chunks", filter=or_filter)
+                for row in rows:
                     row["similarity"] = scores_map.get(str(row["id"]), 0)
                     hydrated.append(row)
             except Exception as e:
-                logger.error(f"   Failed to hydrate Pinecone results from Supabase: {e}")
+                logger.error(f"   Failed to hydrate Pinecone results from PocketBase: {e}")
 
         # Sort by similarity descending
         hydrated.sort(key=lambda x: x.get("similarity", 0), reverse=True)
@@ -1365,20 +1352,19 @@ def search_similar_chunks(
                 if recency_date and chunks:
                     chunks = [c for c in chunks if (c.get("created_at") or "") >= recency_date]
             else:
-                # Fallback to pgvector RPC
-                rpc_params = {
-                    "query_embedding": query_embedding,
-                    "match_count": limit * 3,
-                    "match_threshold": min_similarity,
-                    "p_client_id": client_id,
-                    "p_user_id": user_id,
-                    "p_document_types": ["transcript", "notes"],
-                }
-                if recency_date:
-                    rpc_params["p_min_date"] = recency_date
-
-                result = supabase.rpc("match_document_chunks_by_type", rpc_params).execute()
-                chunks = result.data or []
+                # Fallback to vec_client search + PocketBase filter
+                import vec_client as _vec
+                vec_results = _vec.search("document_chunks", preprocessed_query, limit=limit * 3)
+                # Filter by source_type and similarity
+                chunks = []
+                for vr in vec_results:
+                    rec_id = vr.get("record_id") or vr.get("id", "")
+                    chunk_rec = pb.get_record("document_chunks", rec_id) if rec_id else None
+                    if chunk_rec and chunk_rec.get("source_type") in ("transcript", "notes"):
+                        sim = vr.get("score", vr.get("similarity", 0))
+                        if sim >= min_similarity:
+                            chunk_rec["similarity"] = sim
+                            chunks.append(chunk_rec)
 
             # Keep date filter active - don't silently drop it when few results found
             if recency_date and len(chunks) < 2:
@@ -1429,16 +1415,18 @@ def search_similar_chunks(
                     pc_filter = {"document_id": {"$in": document_ids}}
                     chunks = _pinecone_search_and_hydrate(pc_filter, limit * 3, min_similarity)
                 else:
-                    result = supabase.rpc(
-                        "match_document_chunks_by_ids",
-                        {
-                            "query_embedding": query_embedding,
-                            "match_count": limit * 3,
-                            "match_threshold": min_similarity,
-                            "p_document_ids": document_ids,
-                        },
-                    ).execute()
-                    chunks = result.data or []
+                    # Fallback to vec_client search + PocketBase filter by document IDs
+                    import vec_client as _vec
+                    vec_results = _vec.search("document_chunks", preprocessed_query, limit=limit * 3)
+                    chunks = []
+                    for vr in vec_results:
+                        rec_id = vr.get("record_id") or vr.get("id", "")
+                        chunk_rec = pb.get_record("document_chunks", rec_id) if rec_id else None
+                        if chunk_rec and chunk_rec.get("document_id") in document_ids:
+                            sim = vr.get("score", vr.get("similarity", 0))
+                            if sim >= min_similarity:
+                                chunk_rec["similarity"] = sim
+                                chunks.append(chunk_rec)
 
                 logger.info(f"   Found {len(chunks)} results from specified documents")
                 if chunks:
@@ -1457,13 +1445,10 @@ def search_similar_chunks(
                     # For agent-filtered search, first get document IDs tagged for these agents
                     # then search Pinecone with those document IDs
                     try:
-                        agent_docs_result = (
-                            supabase.table("document_agents")
-                            .select("document_id")
-                            .in_("agent_id", agent_ids)
-                            .execute()
-                        )
-                        agent_doc_ids = list({d["document_id"] for d in (agent_docs_result.data or [])})
+                        or_parts = [f"agent_id='{pb.escape_filter(aid)}'" for aid in agent_ids]
+                        or_filter = " || ".join(or_parts)
+                        agent_doc_records = pb.get_all("document_agents", filter=or_filter)
+                        agent_doc_ids = list({d["document_id"] for d in agent_doc_records})
                     except Exception:
                         agent_doc_ids = []
 
@@ -1491,23 +1476,41 @@ def search_similar_chunks(
                         for chunk in chunks:
                             chunk["used_fallback"] = True
                 else:
-                    result = supabase.rpc(
-                        "match_document_chunks_with_agent_filter",
-                        {
-                            "query_embedding": query_embedding,
-                            "match_count": limit * 3,
-                            "match_threshold": min_similarity,
-                            "p_client_id": client_id,
-                            "p_user_id": user_id,
-                            "p_agent_ids": agent_ids,
-                            "p_fallback_threshold": fallback_threshold,
-                        },
-                    ).execute()
-                    chunks = result.data
-                    if chunks:
-                        used_fallback = chunks[0].get("used_fallback", False)
-                        if used_fallback:
-                            logger.info("   Agent filter had insufficient results, used fallback to all documents")
+                    # Fallback to vec_client search + PocketBase agent filter
+                    import vec_client as _vec
+                    try:
+                        or_parts = [f"agent_id='{pb.escape_filter(aid)}'" for aid in agent_ids]
+                        or_filter = " || ".join(or_parts)
+                        agent_doc_records = pb.get_all("document_agents", filter=or_filter)
+                        agent_doc_ids_set = {d["document_id"] for d in agent_doc_records}
+                    except Exception:
+                        agent_doc_ids_set = set()
+
+                    vec_results = _vec.search("document_chunks", preprocessed_query, limit=limit * 3)
+                    chunks = []
+                    for vr in vec_results:
+                        rec_id = vr.get("record_id") or vr.get("id", "")
+                        chunk_rec = pb.get_record("document_chunks", rec_id) if rec_id else None
+                        if chunk_rec:
+                            sim = vr.get("score", vr.get("similarity", 0))
+                            if sim >= min_similarity:
+                                chunk_rec["similarity"] = sim
+                                if chunk_rec.get("document_id") in agent_doc_ids_set:
+                                    chunks.append(chunk_rec)
+
+                    if len(chunks) < fallback_threshold:
+                        used_fallback = True
+                        logger.info("   Agent filter had insufficient results, used fallback to all documents")
+                        chunks = []
+                        for vr in vec_results:
+                            rec_id = vr.get("record_id") or vr.get("id", "")
+                            chunk_rec = pb.get_record("document_chunks", rec_id) if rec_id else None
+                            if chunk_rec:
+                                sim = vr.get("score", vr.get("similarity", 0))
+                                if sim >= min_similarity:
+                                    chunk_rec["similarity"] = sim
+                                    chunk_rec["used_fallback"] = True
+                                    chunks.append(chunk_rec)
 
                 logger.info(f"   Found {len(chunks)} results (fallback={used_fallback})")
                 if chunks:
@@ -1529,17 +1532,18 @@ def search_similar_chunks(
                         pc_filter["user_id"] = {"$eq": user_id}
                     chunks = _pinecone_search_and_hydrate(pc_filter, limit * 3, min_similarity)
                 else:
-                    result = supabase.rpc(
-                        "match_document_chunks",
-                        {
-                            "query_embedding": query_embedding,
-                            "match_count": limit * 3,
-                            "match_threshold": min_similarity,
-                            "p_client_id": client_id,
-                            "p_user_id": user_id,
-                        },
-                    ).execute()
-                    chunks = result.data
+                    # Fallback to vec_client search
+                    import vec_client as _vec
+                    vec_results = _vec.search("document_chunks", preprocessed_query, limit=limit * 3)
+                    chunks = []
+                    for vr in vec_results:
+                        rec_id = vr.get("record_id") or vr.get("id", "")
+                        chunk_rec = pb.get_record("document_chunks", rec_id) if rec_id else None
+                        if chunk_rec:
+                            sim = vr.get("score", vr.get("similarity", 0))
+                            if sim >= min_similarity:
+                                chunk_rec["similarity"] = sim
+                                chunks.append(chunk_rec)
 
                 logger.info(f"   Found {len(chunks)} results")
                 if chunks:

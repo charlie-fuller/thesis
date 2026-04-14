@@ -16,8 +16,9 @@ from typing import Optional
 
 import anthropic
 
-from supabase import Client
-
+import pb_client as pb
+from repositories import meetings as meetings_repo
+from repositories import stakeholders as stakeholders_repo
 from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
@@ -29,11 +30,10 @@ class OracleAgent(BaseAgent):
     Specializes in extracting stakeholder insights from meeting transcripts.
     """
 
-    def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
+    def __init__(self, anthropic_client: anthropic.Anthropic):
         super().__init__(
             name="oracle",
             display_name="Oracle",
-            supabase=supabase,
             anthropic_client=anthropic_client,
         )
 
@@ -364,8 +364,6 @@ Respond with ONLY the JSON object, no additional text."""
 
             # Create meeting transcript record
             transcript_data = {
-                "client_id": context.client_id,
-                "user_id": context.user_id,
                 "title": analysis.get("meeting_summary", "Untitled Meeting")[:500],
                 "meeting_date": meeting_date,
                 "meeting_type": analysis.get("meeting_type", "other"),
@@ -382,8 +380,8 @@ Respond with ONLY the JSON object, no additional text."""
                 "metadata": {"recommendations": analysis.get("recommendations", [])},
             }
 
-            result = self.supabase.table("meeting_transcripts").insert(transcript_data).execute()
-            transcript_id = result.data[0]["id"] if result.data else None
+            record = meetings_repo.create_meeting_transcript(transcript_data)
+            transcript_id = record["id"] if record else None
 
             # Create or update stakeholders and insights
             if transcript_id:
@@ -413,21 +411,18 @@ Respond with ONLY the JSON object, no additional text."""
                 if not name:
                     continue
 
-                # Try to find existing stakeholder by name
-                existing = (
-                    self.supabase.table("stakeholders")
-                    .select("id")
-                    .eq("client_id", context.client_id)
-                    .ilike("name", f"%{name}%")
-                    .execute()
+                # Try to find existing stakeholder by name (fuzzy match)
+                esc_name = pb.escape_filter(name)
+                existing = pb.get_first(
+                    "stakeholders",
+                    filter=f"name~'{esc_name}'",
                 )
 
-                if existing.data:
-                    stakeholder_map[name] = existing.data[0]["id"]
+                if existing:
+                    stakeholder_map[name] = existing["id"]
                 else:
                     # Create new stakeholder
                     new_stakeholder = {
-                        "client_id": context.client_id,
                         "name": name,
                         "role": attendee.get("role"),
                         "organization": attendee.get("organization", "Contentful"),
@@ -435,9 +430,9 @@ Respond with ONLY the JSON object, no additional text."""
                         "last_interaction": datetime.now(timezone.utc).isoformat(),
                         "total_interactions": 1,
                     }
-                    result = self.supabase.table("stakeholders").insert(new_stakeholder).execute()
-                    if result.data:
-                        stakeholder_map[name] = result.data[0]["id"]
+                    record = stakeholders_repo.create_stakeholder(new_stakeholder)
+                    if record:
+                        stakeholder_map[name] = record["id"]
 
             # Now store insights linked to stakeholders
             for insight in insights:
@@ -453,7 +448,7 @@ Respond with ONLY the JSON object, no additional text."""
                         "extracted_quote": insight.get("quote"),
                         "confidence": insight.get("confidence", 0.8),
                     }
-                    self.supabase.table("stakeholder_insights").insert(insight_data).execute()
+                    stakeholders_repo.create_stakeholder_insight(insight_data)
 
         except Exception as e:
             logger.error(f"Failed to process stakeholder insights: {e}")

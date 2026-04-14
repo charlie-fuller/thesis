@@ -16,8 +16,7 @@ from typing import Any, AsyncGenerator, Optional
 
 import anthropic
 
-from supabase import Client
-
+from repositories import agents as agents_repo
 from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
@@ -357,14 +356,12 @@ class CoordinatorAgent(BaseAgent):
 
     def __init__(
         self,
-        supabase: Client,
         anthropic_client: anthropic.Anthropic,
         specialists: Optional[dict[str, BaseAgent]] = None,
     ):
         super().__init__(
             name="coordinator",
             display_name="Thesis",
-            supabase=supabase,
             anthropic_client=anthropic_client,
         )
         self._specialists = specialists or {}
@@ -939,11 +936,10 @@ Your response should read as a single, coherent answer - not as separate section
         """Log a handoff to a specialist agent."""
         try:
             # Get specialist agent ID
-            specialist_result = self.supabase.table("agents").select("id").eq("name", to_specialist).single().execute()
+            specialist_record = agents_repo.get_agent_by_name(to_specialist)
+            to_agent_id = specialist_record["id"] if specialist_record else None
 
-            to_agent_id = specialist_result.data["id"] if specialist_result.data else None
-
-            self.supabase.table("agent_handoffs").insert(
+            agents_repo.create_agent_handoff(
                 {
                     "conversation_id": context.conversation_id,
                     "from_agent_id": self._agent_id,
@@ -952,7 +948,7 @@ Your response should read as a single, coherent answer - not as separate section
                     "context": {"query_preview": context.user_message[:200]},
                     "status": "completed",
                 }
-            ).execute()
+            )
         except Exception as e:
             logger.error(f"Failed to log handoff: {e}")
 

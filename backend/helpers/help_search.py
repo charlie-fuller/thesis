@@ -5,12 +5,13 @@ Handles vector search and RAG over help documentation.
 
 from typing import Dict, List
 
-from database import get_supabase
+import pb_client as pb
+import vec_client
 from logger_config import get_logger
+from repositories import help_repo
 from services.embeddings import create_embedding
 
 logger = get_logger(__name__)
-supabase = get_supabase()
 
 
 def search_help_chunks(query: str, user_role: str, top_k: int = 3) -> tuple[List[Dict], str]:
@@ -27,7 +28,7 @@ def search_help_chunks(query: str, user_role: str, top_k: int = 3) -> tuple[List
     # Step 1: Generate query embedding
     query_embedding = create_embedding(query, input_type="query")
 
-    # Step 2: Search help chunks - try Pinecone first, fall back to pgvector
+    # Step 2: Search help chunks - try Pinecone first, fall back to vec_client
     from services.pinecone_service import get_index, query_vectors
 
     chunks_data = []
@@ -49,22 +50,22 @@ def search_help_chunks(query: str, user_role: str, top_k: int = 3) -> tuple[List
             chunk_ids = [m["id"] for m in matches]
             scores_map = {m["id"]: m["score"] for m in matches}
 
-            db_result = (
-                supabase.table("help_chunks")
-                .select("id, document_id, content, heading_context")
-                .in_("id", chunk_ids)
-                .execute()
-            )
-            doc_ids_set = list({r["document_id"] for r in (db_result.data or [])})
-            docs_result = (
-                supabase.table("help_documents")
-                .select("id, title, file_path")
-                .in_("id", doc_ids_set)
-                .execute()
-            ) if doc_ids_set else type("R", (), {"data": []})()
-            doc_map = {d["id"]: d for d in (docs_result.data or [])}
+            # Fetch chunk records from PocketBase
+            if chunk_ids:
+                or_parts = [f"id='{pb.escape_filter(cid)}'" for cid in chunk_ids]
+                or_filter = " || ".join(or_parts)
+                chunk_records = pb.get_all("help_chunks", filter=or_filter)
+            else:
+                chunk_records = []
 
-            for row in db_result.data or []:
+            doc_ids_set = list({r["document_id"] for r in chunk_records})
+            doc_map = {}
+            if doc_ids_set:
+                doc_or = " || ".join([f"id='{pb.escape_filter(did)}'" for did in doc_ids_set])
+                doc_records = pb.get_all("help_documents", filter=doc_or)
+                doc_map = {d["id"]: d for d in doc_records}
+
+            for row in chunk_records:
                 doc = doc_map.get(row["document_id"], {})
                 chunks_data.append({
                     "document_title": doc.get("title", "Unknown"),
@@ -76,12 +77,29 @@ def search_help_chunks(query: str, user_role: str, top_k: int = 3) -> tuple[List
             chunks_data.sort(key=lambda x: x.get("similarity", 0), reverse=True)
             chunks_data = chunks_data[:top_k]
     else:
-        # Fallback to pgvector RPC
-        help_chunks = supabase.rpc(
-            "match_help_chunks",
-            {"query_embedding": query_embedding, "match_count": top_k, "user_role": user_role},
-        ).execute()
-        chunks_data = help_chunks.data or []
+        # Fallback to vector sidecar search
+        vec_results = vec_client.search("help_chunks", query, limit=top_k)
+        # vec_client returns raw matches; enrich with chunk/doc metadata
+        for vr in vec_results:
+            chunk_id = vr.get("record_id") or vr.get("id", "")
+            chunk_rec = help_repo.get_help_chunk(chunk_id) if chunk_id else None
+            if chunk_rec:
+                doc = help_repo.get_help_document(chunk_rec["document_id"]) or {}
+                chunks_data.append({
+                    "document_title": doc.get("title", "Unknown"),
+                    "heading_context": chunk_rec.get("heading_context", ""),
+                    "file_path": doc.get("file_path", ""),
+                    "content": chunk_rec["content"],
+                    "similarity": vr.get("score", vr.get("similarity", 0)),
+                })
+            else:
+                chunks_data.append({
+                    "document_title": "Unknown",
+                    "heading_context": "",
+                    "file_path": "",
+                    "content": vr.get("text", vr.get("content", "")),
+                    "similarity": vr.get("score", vr.get("similarity", 0)),
+                })
 
     if not chunks_data:
         logger.warning(f"No help chunks found for query: {query[:50]}")
