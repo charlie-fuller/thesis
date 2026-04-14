@@ -130,6 +130,7 @@ async def search(req: SearchRequest):
     query_json = json.dumps(query_embedding)
 
     # Vector similarity search with collection filter
+    # vec0 requires 'k = ?' constraint instead of LIMIT for knn queries
     rows = db.execute(
         """SELECT
              v.id,
@@ -141,8 +142,8 @@ async def search(req: SearchRequest):
            JOIN vec_metadata m ON v.id = m.id
            WHERE m.collection = ?
              AND v.embedding MATCH ?
-           ORDER BY v.distance ASC
-           LIMIT ?""",
+             AND k = ?
+           ORDER BY v.distance ASC""",
         (req.collection, query_json, req.limit),
     ).fetchall()
 
