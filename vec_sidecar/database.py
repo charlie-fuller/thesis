@@ -50,7 +50,20 @@ def _init_schema(conn: sqlite3.Connection) -> None:
         ON vec_metadata(collection);
     """)
 
-    # Check if vec_embeddings exists
+    # Check if vec_embeddings exists -- recreate if missing or wrong dimensions
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='vec_embeddings'"
+    )
+    if cursor.fetchone() is not None:
+        # Check dimensions by inspecting the table SQL
+        sql_row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='vec_embeddings'"
+        ).fetchone()
+        if sql_row and "1024" not in (sql_row[0] or ""):
+            logger.warning("Dropping vec_embeddings with wrong dimensions, will recreate")
+            conn.execute("DROP TABLE vec_embeddings")
+            conn.execute("DELETE FROM vec_metadata")  # Clear metadata too
+
     cursor = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='vec_embeddings'"
     )
@@ -58,7 +71,7 @@ def _init_schema(conn: sqlite3.Connection) -> None:
         conn.execute("""
             CREATE VIRTUAL TABLE vec_embeddings USING vec0(
                 id TEXT PRIMARY KEY,
-                embedding float[1536]
+                embedding float[1024]
             )
         """)
 

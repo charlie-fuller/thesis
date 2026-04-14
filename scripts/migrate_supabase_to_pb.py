@@ -171,6 +171,12 @@ class PBClient:
         resp.raise_for_status()
         return [f["name"] for f in resp.json().get("fields", [])]
 
+    def get_collection_field_types(self, collection: str) -> dict[str, str]:
+        """Get field name -> type mapping for a collection."""
+        resp = self.client.get(f"/api/collections/{collection}")
+        resp.raise_for_status()
+        return {f["name"]: f["type"] for f in resp.json().get("fields", [])}
+
 
 # ---------------------------------------------------------------------------
 # Migration logic
@@ -189,9 +195,25 @@ def save_id_map(id_map: dict) -> None:
         json.dump(id_map, f, indent=2)
 
 
-def clean_row(row: dict, pb_fields: list[str]) -> dict:
+def remap_id(value: str, id_map: dict) -> str | None:
+    """Try to remap a Supabase UUID to a PocketBase ID using the id_map."""
+    if not value or not isinstance(value, str):
+        return value
+    # Search all tables in id_map for this UUID
+    for table_ids in id_map.values():
+        if value in table_ids:
+            return table_ids[value]
+    return value  # Return original if not found (may cause relation error)
+
+
+def clean_row(row: dict, pb_fields: list[str], field_types: dict | None = None,
+              id_map: dict | None = None) -> dict:
     """Clean a Supabase row for PocketBase insertion."""
     cleaned = {}
+    relation_fields = set()
+    if field_types:
+        relation_fields = {k for k, v in field_types.items() if v == "relation"}
+
     for key, value in row.items():
         # Skip columns we don't want
         if key in SKIP_COLUMNS or key == "id":
@@ -220,6 +242,13 @@ def clean_row(row: dict, pb_fields: list[str]) -> dict:
         if value is None:
             continue  # Skip nulls, PB handles defaults
 
+        # Remap relation field values using id_map
+        if id_map and key in relation_fields and value:
+            if isinstance(value, list):
+                value = [remap_id(v, id_map) for v in value]
+            else:
+                value = remap_id(value, id_map)
+
         cleaned[key] = value
 
     return cleaned
@@ -229,15 +258,33 @@ def migrate_table(table: str, pb: PBClient, id_map: dict, dry_run: bool = False)
     """Migrate a single table from Supabase to PocketBase."""
     logger.info("Migrating table: %s", table)
 
-    # Get PB collection fields
+    # Get PB collection fields and types
     try:
         pb_fields = pb.get_collection_fields(table)
+        field_types = pb.get_collection_field_types(table)
     except Exception as e:
         logger.error("Collection %s not found in PocketBase: %s", table, e)
         return 0
 
+    # Build column list excluding problematic columns (vectors, generated)
+    try:
+        col_rows = query_supabase(
+            f"SELECT column_name FROM information_schema.columns "
+            f"WHERE table_name = '{table}' AND table_schema = 'public' "
+            f"AND data_type NOT IN ('USER-DEFINED') "  # skip vector columns
+            f"ORDER BY ordinal_position"
+        )
+        columns = [r["column_name"] for r in col_rows if r["column_name"] not in SKIP_COLUMNS]
+        col_list = ", ".join(f'"{c}"' for c in columns)
+    except Exception:
+        col_list = "*"
+
     # Fetch all rows from Supabase
-    rows = query_supabase(f"SELECT * FROM {table} ORDER BY created_at ASC NULLS FIRST")
+    try:
+        rows = query_supabase(f"SELECT {col_list} FROM {table} ORDER BY created_at ASC NULLS FIRST")
+    except Exception:
+        # Fallback: table may not have created_at
+        rows = query_supabase(f"SELECT {col_list} FROM {table}")
     logger.info("  Found %d rows in Supabase", len(rows))
 
     if table not in id_map:
@@ -253,7 +300,7 @@ def migrate_table(table: str, pb: PBClient, id_map: dict, dry_run: bool = False)
         if old_id in id_map[table]:
             continue
 
-        cleaned = clean_row(row, pb_fields)
+        cleaned = clean_row(row, pb_fields, field_types=field_types, id_map=id_map)
 
         if dry_run:
             logger.info("  [DRY RUN] Would create: %s", json.dumps(cleaned)[:200])
@@ -283,11 +330,12 @@ def migrate_embeddings(table: str, id_map: dict, dry_run: bool = False) -> int:
     collection = EMBEDDING_TABLES[table]
     logger.info("Migrating embeddings: %s -> %s", table, collection)
 
-    # Fetch rows with embeddings
+    # Fetch rows that had embeddings (re-embed via Voyage AI in vec sidecar)
+    # Don't SELECT the embedding column -- Management API can't serialize vectors
     rows = query_supabase(
-        f"SELECT id, embedding, content FROM {table} WHERE embedding IS NOT NULL"
+        f"SELECT id, content FROM {table} WHERE content IS NOT NULL AND content != ''"
     )
-    logger.info("  Found %d rows with embeddings", len(rows))
+    logger.info("  Found %d rows with content to embed", len(rows))
 
     migrated = 0
     vec_client = httpx.Client(base_url=VEC_URL, timeout=60.0)
