@@ -78,9 +78,9 @@ async def send_interview_complete_notification(
         if not extraction_result.data:
             raise ValueError(f"Extraction not found: {extraction_id}")
 
-        import json
+        import pb_client as pb
 
-        metadata = json.loads(extraction_result.data.get("metadata", "{}"))
+        metadata = pb.parse_json_field(extraction_result.data.get("metadata"), default={})
         session_id = metadata.get("session_id")
 
         # Get user details from interview session

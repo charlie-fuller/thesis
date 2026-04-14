@@ -183,3 +183,25 @@ def escape_filter(value: str) -> str:
     This escapes single quotes within the value.
     """
     return value.replace("'", "\\'")
+
+
+def parse_json_field(value, default=None):
+    """Safely parse a value that may be a JSON string or already-parsed object.
+
+    PocketBase returns JSON columns as already-parsed dicts/lists from resp.json().
+    The old Supabase layer sometimes returned raw JSON strings. This helper handles
+    both cases so callers don't need isinstance guards at every call site.
+
+    Usage: data = pb.parse_json_field(record.get("metadata", {}))
+    """
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    if isinstance(value, str):
+        import json
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            return default
+    return default
