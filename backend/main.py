@@ -19,8 +19,9 @@ from slowapi.util import get_remote_address
 load_dotenv()
 
 from api.utils.error_handler import ThesisError, thesis_error_handler
-from database import get_supabase
 from errors import APIError, api_error_handler, generic_error_handler
+from pb_client import init_pb, close_pb
+from vec_client import init_vec, close_vec
 from logger_config import get_logger, setup_logging
 
 # Initialize logging
@@ -40,6 +41,10 @@ limiter = Limiter(key_func=get_remote_address)
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle."""
     import asyncio
+
+    # Initialize PocketBase and vector sidecar clients
+    init_pb()
+    init_vec()
 
     # Startup — defer schedulers 30s so health check responds immediately
     async def _deferred_schedulers():
@@ -111,7 +116,10 @@ async def lifespan(app: FastAPI):
 
     yield  # Application is running
 
-    # Shutdown
+    # Shutdown — close PocketBase and vector sidecar clients
+    close_pb()
+    close_vec()
+
     try:
         from services.research_scheduler import stop_research_scheduler
 
@@ -423,8 +431,10 @@ class RequestIDMiddleware:
 # Add request ID middleware (runs after HTTPS fix)
 app.add_middleware(RequestIDMiddleware)
 
-# Initialize Supabase connection
-supabase = get_supabase()
+# Add API key authentication middleware
+from auth import verify_api_key
+
+app.middleware("http")(verify_api_key)
 
 # ============================================================================
 # Import and Register Route Modules
@@ -509,94 +519,6 @@ logger.info(
 )
 
 # ============================================================================
-# Backward Compatibility Routes
-# ============================================================================
-
-import asyncio
-
-from fastapi import Depends, HTTPException
-
-from auth import get_current_user
-from validation import validate_uuid
-
-
-@app.get("/api/clients/{client_id}/conversations")
-async def list_client_conversations(
-    client_id: str, include_archived: bool = False, current_user: dict = Depends(get_current_user)
-):
-    """List all conversations for a client (backward compatibility)."""
-    try:
-        validate_uuid(client_id, "client_id")
-
-        query = supabase.table("conversations").select("*").eq("client_id", client_id)
-
-        if not include_archived:
-            query = query.eq("archived", False)
-
-        result = await asyncio.to_thread(lambda: query.order("updated_at", desc=True).execute())
-
-        return {"success": True, "conversations": result.data}
-
-    except Exception as e:
-        logger.error(f"❌ Error listing client conversations: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
-
-
-@app.get("/api/users/me/storage")
-async def get_user_storage(current_user: dict = Depends(get_current_user)):
-    """Get user storage info (backward compatibility - forwards to documents router)."""
-    try:
-        # Query user storage from database
-        result = await asyncio.to_thread(
-            lambda: supabase.table("users")
-            .select("storage_used, storage_quota")
-            .eq("id", current_user["id"])
-            .single()
-            .execute()
-        )
-
-        if not result.data:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        storage_quota = result.data.get("storage_quota") or 524288000  # 500MB default
-        storage_used = result.data.get("storage_used") or 0
-
-        return {
-            "success": True,
-            "storage_quota": storage_quota,
-            "storage_used": storage_used,
-            "storage_available": max(0, storage_quota - storage_used),
-            "usage_percentage": round((storage_used / storage_quota * 100), 2) if storage_quota > 0 else 0,
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Error fetching storage data: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
-
-
-@app.get("/api/users/me/documents")
-async def get_user_documents(current_user: dict = Depends(get_current_user)):
-    """Get user documents (backward compatibility - forwards to documents router)."""
-    try:
-        # Query user's documents from database
-        result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("*")
-            .eq("uploaded_by", current_user["id"])
-            .order("uploaded_at", desc=True)
-            .execute()
-        )
-
-        return {"success": True, "documents": result.data, "count": len(result.data)}
-
-    except Exception as e:
-        logger.error(f"❌ Error fetching user documents: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
-
-
-# ============================================================================
 # Core Health Endpoints
 # ============================================================================
 
@@ -616,12 +538,11 @@ async def root():
 async def health_check():
     """Health check endpoint for monitoring."""
     try:
-        # Test database connection
-        supabase.table("users").select("id").limit(1).execute()
-
-        return {"status": "healthy", "database": "connected", "version": "1.0.0"}
+        import pb_client as pb
+        pb.list_records("ai_projects", per_page=1, fields="id")
+        return {"status": "healthy", "database": "connected", "version": "2.0.0"}
     except Exception as e:
-        logger.error(f"❌ Health check failed: {str(e)}")
+        logger.error(f"Health check failed: {str(e)}")
         return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
 
 
