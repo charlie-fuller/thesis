@@ -11,8 +11,6 @@
   },
   "dependencies": {
     "@sentry/nextjs": "^10.24.0",
-    "@supabase/ssr": "^0.7.0",
-    "@supabase/supabase-js": "^2.78.0",
     "@tailwindcss/typography": "^0.5.19",
     "@types/react-syntax-highlighter": "^15.5.13",
     "devlop": "^1.1.0",

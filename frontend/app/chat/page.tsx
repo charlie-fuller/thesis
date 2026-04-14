@@ -10,7 +10,6 @@ import { Suspense, useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { supabase } from '@/lib/supabase'
 import { authenticatedFetch } from '@/lib/api'
 
 // ============================================================================
@@ -332,20 +331,9 @@ function ChatPageContent() {
 
   const handleOnboardingComplete = async (preferences?: { notificationsEnabled?: boolean; emailDigest?: boolean }) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-
-      if (!session?.access_token) {
-        throw new Error('No valid session')
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/onboarding/complete`, {
+      const response = await authenticatedFetch('/api/onboarding/complete', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        credentials: 'include',
-        body: JSON.stringify({ preferences })
+        body: JSON.stringify({ preferences }),
       })
 
       if (!response.ok) {
@@ -363,18 +351,8 @@ function ChatPageContent() {
 
   const handleOnboardingSkip = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-
-      if (!session?.access_token) {
-        throw new Error('No valid session')
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/onboarding/skip`, {
+      const response = await authenticatedFetch('/api/onboarding/skip', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        credentials: 'include'
       })
 
       if (!response.ok) {

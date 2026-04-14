@@ -1,12 +1,13 @@
 /**
  * API utilities for making authenticated requests
+ * Uses API key auth (Bearer token) instead of Supabase JWT
  */
 
-import { supabase } from './supabase';
 import { API_BASE_URL } from './config';
 import { logger } from './logger';
 
 const API_BASE = API_BASE_URL;
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
 
 interface RequestOptions extends RequestInit {
   headers?: Record<string, string>;
@@ -29,23 +30,12 @@ export class APIError extends Error {
 
 /**
  * Make an authenticated API request
- * Automatically adds the JWT token from Supabase auth
+ * Adds API key as Bearer token
  */
 export async function authenticatedFetch(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<Response> {
-  // Get current session
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  // Check if we have a valid session
-  if (!session?.access_token) {
-    logger.error('No valid session found. User may need to log in.');
-    throw new Error('Authentication required. Please log in and try again.');
-  }
-
   // Build headers
   const headers: Record<string, string> = {
     ...options.headers,
@@ -56,8 +46,10 @@ export async function authenticatedFetch(
     headers['Content-Type'] = 'application/json';
   }
 
-  // Add authorization header
-  headers['Authorization'] = `Bearer ${session.access_token}`;
+  // Add authorization header with API key
+  if (API_KEY) {
+    headers['Authorization'] = `Bearer ${API_KEY}`;
+  }
 
   // Make the request
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
@@ -82,6 +74,20 @@ export async function authenticatedFetch(
     }
     throw error;
   }
+}
+
+/**
+ * Low-level fetch wrapper with API key auth (alias for convenience)
+ */
+export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(options.headers);
+  if (API_KEY) {
+    headers.set('Authorization', `Bearer ${API_KEY}`);
+  }
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+  return fetch(`${API_BASE}${path}`, { ...options, headers });
 }
 
 /**

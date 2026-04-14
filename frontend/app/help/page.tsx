@@ -7,7 +7,6 @@ import PageLayout from '@/components/PageLayout';
 import HelpChatFullPage from '@/components/HelpChatFullPage';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { API_BASE_URL } from '@/lib/config';
-import { supabase } from '@/lib/supabase';
 
 type TabId = 'get-started' | 'ask' | 'features' | 'process-maps' | 'architecture';
 
@@ -85,10 +84,10 @@ function HelpPageContent() {
     if (helpDocs.length > 0) return;
     setDocsLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const apiKey = process.env.NEXT_PUBLIC_API_KEY || '';
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
       }
       const res = await fetch(`${API_BASE_URL}/api/help/docs`, { headers });
       if (res.ok) {

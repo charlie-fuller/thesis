@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { API_BASE_URL } from '@/lib/config';
-import { supabase } from '@/lib/supabase';
 
 const HELP_PANEL_STORAGE_KEY = 'thesis-help-panel-open';
 
@@ -77,12 +76,12 @@ export function HelpChatProvider({ children }: { children: ReactNode }) {
   const [conversations, setConversations] = useState<HelpConversation[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Helper to get auth headers
+  // Helper to get auth headers (API key auth)
   const getAuthHeaders = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const apiKey = process.env.NEXT_PUBLIC_API_KEY || '';
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (session?.access_token) {
-      headers['Authorization'] = `Bearer ${session.access_token}`;
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
     }
     return headers;
   }, []);

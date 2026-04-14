@@ -1,21 +1,15 @@
-import { createBrowserClient } from '@supabase/ssr';
-import { logger } from './logger';
+/**
+ * @deprecated Supabase has been removed. Use @/lib/api instead.
+ *
+ * This file exists only as a build-time safety net so that any overlooked
+ * imports of `supabase` fail loudly at runtime rather than silently at
+ * compile time.
+ */
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  const errorMsg = 'CRITICAL: Missing Supabase environment variables. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.';
-  logger.error(errorMsg);
-  // In development, throw error to make misconfiguration obvious
-  if (process.env.NODE_ENV === 'development') {
-    throw new Error(errorMsg);
-  }
-}
-
-// Use placeholder values during build-time prerendering when env vars are unavailable.
-// The client will never be used server-side -- all pages using it are 'use client'.
-export const supabase = createBrowserClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
-);
+export const supabase: never = new Proxy({} as never, {
+  get() {
+    throw new Error(
+      'supabase has been removed. Use authenticatedFetch / apiFetch from @/lib/api instead.'
+    );
+  },
+});

@@ -1,40 +1,15 @@
 /**
  * AuthContext Tests
  *
- * Tests for authentication context provider and hooks.
+ * Tests for the stubbed auth context (API-key auth mode).
  */
 
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
-
-// Mock Supabase
-jest.mock('@/lib/supabase', () => ({
-  supabase: {
-    auth: {
-      getSession: jest.fn().mockResolvedValue({
-        data: { session: null },
-        error: null
-      }),
-      onAuthStateChange: jest.fn(() => {
-        return {
-          data: {
-            subscription: {
-              unsubscribe: jest.fn()
-            }
-          }
-        }
-      }),
-      signInWithPassword: jest.fn(),
-      signOut: jest.fn(),
-      resetPasswordForEmail: jest.fn(),
-      updateUser: jest.fn()
-    }
-  }
-}))
 
 // Test component to access auth context
 function TestAuthConsumer() {
-  const { user, loading, isAuthenticated } = useAuth()
+  const { user, loading, isAuthenticated, isAdmin } = useAuth()
 
   if (loading) return <div>Loading...</div>
 
@@ -43,37 +18,49 @@ function TestAuthConsumer() {
       <div data-testid="auth-status">
         {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}
       </div>
-      {user && <div data-testid="user-email">{user.email}</div>}
+      <div data-testid="is-admin">
+        {isAdmin ? 'yes' : 'no'}
+      </div>
+      {user && <div data-testid="user-id">{user.id}</div>}
     </div>
   )
 }
 
-describe('AuthContext', () => {
-  describe('Initial State', () => {
-    it('shows loading state initially', () => {
+describe('AuthContext (API key mode)', () => {
+  describe('With API key set', () => {
+    it('shows authenticated when API key is present', () => {
+      // NEXT_PUBLIC_API_KEY is set in jest.setup.js
       render(
         <AuthProvider>
           <TestAuthConsumer />
         </AuthProvider>
       )
 
-      expect(screen.getByText('Loading...')).toBeInTheDocument()
+      expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated')
     })
 
-    it('shows not authenticated when no session', async () => {
+    it('provides admin access by default', () => {
       render(
         <AuthProvider>
           <TestAuthConsumer />
         </AuthProvider>
       )
 
-      await waitFor(() => {
-        expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated')
-      })
+      expect(screen.getByTestId('is-admin')).toHaveTextContent('yes')
+    })
+
+    it('provides stub user', () => {
+      render(
+        <AuthProvider>
+          <TestAuthConsumer />
+        </AuthProvider>
+      )
+
+      expect(screen.getByTestId('user-id')).toHaveTextContent('api-key-user')
     })
   })
 
-  describe('Authentication Flow', () => {
+  describe('Auth methods', () => {
     it('provides auth methods to consumers', () => {
       const TestMethodsConsumer = () => {
         const { signIn, signOut, resetPassword, updatePassword } = useAuth()
@@ -98,24 +85,6 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('has-signout')).toHaveTextContent('yes')
       expect(screen.getByTestId('has-reset')).toHaveTextContent('yes')
       expect(screen.getByTestId('has-update')).toHaveTextContent('yes')
-    })
-  })
-
-  describe('Error Handling', () => {
-    it('component renders without crashing', async () => {
-      // Simply verify the component can render and handle the loading state
-      render(
-        <AuthProvider>
-          <TestAuthConsumer />
-        </AuthProvider>
-      )
-
-      // Should render either loading or auth status
-      await waitFor(() => {
-        const authStatus = screen.queryByTestId('auth-status')
-        const loading = screen.queryByText('Loading...')
-        expect(authStatus || loading).toBeInTheDocument()
-      })
     })
   })
 })

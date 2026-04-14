@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { authenticatedFetch } from '@/lib/api'
 import { API_BASE_URL } from '@/lib/config'
-import { supabase } from '@/lib/supabase'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import PageHeader from '@/components/PageHeader'
 import MeetingMessage from '@/components/meeting-room/MeetingMessage'
@@ -287,18 +286,15 @@ export default function MeetingRoomPage() {
     setMessages(prev => [...prev, tempUserMessage])
 
     try {
-      // Get auth token
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
-        throw new Error('Not authenticated')
-      }
+      // Get API key for auth
+      const apiKey = process.env.NEXT_PUBLIC_API_KEY || ''
 
       // Start SSE stream
       const response = await fetch(`${API_BASE_URL}/api/meeting-rooms/${meetingId}/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
         },
         body: JSON.stringify({ message: userMessage })
       })
@@ -477,16 +473,13 @@ export default function MeetingRoomPage() {
     setStreamingContent({})
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
-        throw new Error('Not authenticated')
-      }
+      const apiKey = process.env.NEXT_PUBLIC_API_KEY || ''
 
       const response = await fetch(`${API_BASE_URL}/api/meeting-rooms/${meetingId}/autonomous/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
         },
         body: JSON.stringify({ topic, rounds, speaking_order: 'priority' })
       })
