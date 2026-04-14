@@ -12,11 +12,12 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncGenerator, Dict, List, Optional, Tuple
-from uuid import uuid4
-
 import anthropic
 
-from database import get_supabase
+import pb_client as pb
+import repositories.disco as disco_repo
+import repositories.documents as docs_repo
+import repositories.projects as projects_repo
 from logger_config import get_logger
 
 # Fun status messages to show while waiting for Claude (~90 messages)
@@ -123,7 +124,6 @@ FUN_STATUS_MESSAGES = [
 ]
 
 logger = get_logger(__name__)
-supabase = get_supabase()
 
 # Initialize Anthropic client
 anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -703,22 +703,16 @@ async def build_agent_context(initiative_id: str, agent_type: str, include_syste
     context["documents"] = await get_all_initiative_content(initiative_id)
 
     # Get previous outputs (latest of each type)
-    outputs_result = await asyncio.to_thread(
-        lambda: supabase.table("disco_outputs")
-        .select("id, agent_type, version, content_markdown, recommendation, confidence_level")
-        .eq("initiative_id", initiative_id)
-        .order("created_at", desc=True)
-        .execute()
-    )
+    all_outputs = disco_repo.list_outputs(initiative_id, sort="-created")
 
     # Track source outputs for traceability
     source_outputs = []
 
-    if outputs_result.data:
+    if all_outputs:
         # Group by agent_type, keep only latest
         seen_types = set()
         previous_outputs = []
-        for output in outputs_result.data:
+        for output in all_outputs:
             if output["agent_type"] not in seen_types:
                 seen_types.add(output["agent_type"])
                 previous_outputs.append(output)
@@ -746,28 +740,20 @@ async def build_agent_context(initiative_id: str, agent_type: str, include_syste
 
     # Fetch initiative throughline
     try:
-        initiative_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_initiatives")
-            .select(
-                "throughline, user_corrections, goal_alignment_score, goal_alignment_details, value_alignment, target_department"
-            )
-            .eq("id", initiative_id)
-            .single()
-            .execute()
-        )
-        if initiative_result.data:
-            if initiative_result.data.get("throughline"):
-                context["throughline"] = initiative_result.data["throughline"]
-            if initiative_result.data.get("user_corrections"):
-                context["user_corrections"] = initiative_result.data["user_corrections"]
-            if initiative_result.data.get("goal_alignment_score") is not None:
-                context["goal_alignment_score"] = initiative_result.data["goal_alignment_score"]
-            if initiative_result.data.get("goal_alignment_details"):
-                context["goal_alignment_details"] = initiative_result.data["goal_alignment_details"]
-            if initiative_result.data.get("value_alignment"):
-                context["value_alignment"] = initiative_result.data["value_alignment"]
-            if initiative_result.data.get("target_department"):
-                context["target_department"] = initiative_result.data["target_department"]
+        initiative_data = disco_repo.get_initiative(initiative_id)
+        if initiative_data:
+            if initiative_data.get("throughline"):
+                context["throughline"] = initiative_data["throughline"]
+            if initiative_data.get("user_corrections"):
+                context["user_corrections"] = initiative_data["user_corrections"]
+            if initiative_data.get("goal_alignment_score") is not None:
+                context["goal_alignment_score"] = initiative_data["goal_alignment_score"]
+            if initiative_data.get("goal_alignment_details"):
+                context["goal_alignment_details"] = initiative_data["goal_alignment_details"]
+            if initiative_data.get("value_alignment"):
+                context["value_alignment"] = initiative_data["value_alignment"]
+            if initiative_data.get("target_department"):
+                context["target_department"] = initiative_data["target_department"]
     except Exception as e:
         logger.warning(f"Failed to fetch throughline for initiative {initiative_id}: {e}")
 
@@ -816,16 +802,7 @@ async def build_project_agent_context(project_id: str, agent_type: str, include_
     context: Dict = {"documents": "", "previous_outputs": "", "system_kb": "", "methodology": "", "project_context": ""}
 
     # 1. Fetch project metadata
-    project_result = await asyncio.to_thread(
-        lambda: supabase.table("ai_projects")
-        .select(
-            "id, title, description, current_state, desired_state, department, status, roi_potential, implementation_effort, strategic_alignment, stakeholder_readiness, project_summary, initiative_ids, metadata, next_step, blockers"
-        )
-        .eq("id", project_id)
-        .single()
-        .execute()
-    )
-    project = project_result.data if project_result.data else {}
+    project = projects_repo.get_project(project_id) or {}
 
     # Build project context section
     project_parts = []
@@ -872,16 +849,14 @@ async def build_project_agent_context(project_id: str, agent_type: str, include_
 
     # 2. Fetch linked documents via project_documents junction table
     try:
-        docs_result = await asyncio.to_thread(
-            lambda: supabase.table("project_documents")
-            .select("document_id, documents(id, title, filename, content, source_platform)")
-            .eq("project_id", project_id)
-            .execute()
+        project_doc_links = pb.get_all(
+            "project_documents",
+            filter=f"project_id='{pb.escape_filter(project_id)}'",
         )
-        if docs_result.data:
+        if project_doc_links:
             doc_parts = []
-            for link in docs_result.data:
-                doc = link.get("documents")
+            for link in project_doc_links:
+                doc = docs_repo.get_document(link["document_id"])
                 if doc and doc.get("content"):
                     doc_name = doc.get("title") or doc.get("filename") or "Untitled"
                     doc_parts.append(f"\n--- Document: {doc_name} ---\n{doc['content']}")
@@ -892,17 +867,15 @@ async def build_project_agent_context(project_id: str, agent_type: str, include_
     # 3. Get previous project-level outputs (latest of each type, for chaining)
     source_outputs = []
     try:
-        outputs_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_outputs")
-            .select("id, agent_type, version, content_markdown, recommendation, confidence_level")
-            .eq("project_id", project_id)
-            .order("created_at", desc=True)
-            .execute()
+        all_project_outputs = pb.get_all(
+            "disco_outputs",
+            filter=f"project_id='{pb.escape_filter(project_id)}'",
+            sort="-created",
         )
-        if outputs_result.data:
+        if all_project_outputs:
             seen_types: set = set()
             previous_outputs = []
-            for output in outputs_result.data:
+            for output in all_project_outputs:
                 if output["agent_type"] not in seen_types:
                     seen_types.add(output["agent_type"])
                     previous_outputs.append(output)
@@ -932,18 +905,14 @@ async def build_project_agent_context(project_id: str, agent_type: str, include_
     initiative_ids = project.get("initiative_ids") or []
     if initiative_ids:
         try:
-            init_result = await asyncio.to_thread(
-                lambda: supabase.table("disco_initiatives")
-                .select("id, name, description, status, throughline")
-                .in_("id", initiative_ids)
-                .execute()
-            )
-            if init_result.data:
-                init_parts = []
-                for init in init_result.data:
+            init_parts = []
+            for iid in initiative_ids:
+                init = disco_repo.get_initiative(iid)
+                if init:
                     init_parts.append(f"- **{init['name']}** (status: {init['status']})")
                     if init.get("description"):
                         init_parts.append(f"  {init['description']}")
+            if init_parts:
                 context["linked_initiatives"] = "\n".join(init_parts)
         except Exception as e:
             logger.warning(f"Failed to fetch linked initiatives for project {project_id}: {e}")
@@ -1069,17 +1038,13 @@ async def _fetch_kb_folder_documents(folder_path: str, user_id: str) -> str:
     """
     try:
         # Query documents where obsidian_file_path starts with the folder path
-        result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, filename, title, obsidian_file_path")
-            .eq("source_platform", "obsidian")
-            .eq("uploaded_by", user_id)
-            .ilike("obsidian_file_path", f"{folder_path}%")
-            .order("obsidian_file_path")
-            .execute()
+        escaped_path = pb.escape_filter(folder_path)
+        documents = pb.get_all(
+            "documents",
+            filter=f"source_platform='obsidian' && uploaded_by='{pb.escape_filter(user_id)}' && obsidian_file_path~'{escaped_path}'",
+            sort="obsidian_file_path",
         )
 
-        documents = result.data or []
         if not documents:
             logger.warning(f"No documents found in KB folder: {folder_path}")
             return ""
@@ -1090,15 +1055,9 @@ async def _fetch_kb_folder_documents(folder_path: str, user_id: str) -> str:
         content_parts = []
         for doc in documents:
             # Get document content from chunks
-            chunks_result = await asyncio.to_thread(
-                lambda d=doc: supabase.table("document_chunks")
-                .select("content, chunk_index")
-                .eq("document_id", d["id"])
-                .order("chunk_index")
-                .execute()
-            )
+            chunks = docs_repo.list_document_chunks(doc["id"], sort="chunk_index")
 
-            content = "\n".join([c["content"] for c in (chunks_result.data or [])])
+            content = "\n".join([c["content"] for c in (chunks or [])])
             if content:
                 title = doc.get("title") or doc.get("filename") or doc.get("obsidian_file_path")
                 content_parts.append(f"\n\n=== {title} ===\n")
@@ -1133,33 +1092,34 @@ async def _fetch_kb_tagged_documents(tags: List[str], user_id: str) -> str:
         first_tag = tags[0]
 
         # Get documents with the first tag
-        result = await asyncio.to_thread(
-            lambda: supabase.table("document_tags")
-            .select("document_id, documents!inner(id, filename, title, obsidian_file_path, uploaded_by)")
-            .eq("tag", first_tag)
-            .eq("documents.uploaded_by", user_id)
-            .execute()
+        first_tag_results = pb.get_all(
+            "document_tags",
+            filter=f"tag='{pb.escape_filter(first_tag)}'",
         )
 
-        if not result.data:
+        if not first_tag_results:
             logger.warning(f"No documents found with tag: {first_tag}")
             return ""
 
-        # Get candidate document IDs
-        candidate_ids = [row["document_id"] for row in result.data]
+        # Get candidate document IDs, filtering by user ownership
+        candidate_ids = []
+        for row in first_tag_results:
+            doc = docs_repo.get_document(row["document_id"])
+            if doc and doc.get("uploaded_by") == user_id:
+                candidate_ids.append(row["document_id"])
+
+        if not candidate_ids:
+            logger.warning(f"No documents found with tag: {first_tag} for user: {user_id}")
+            return ""
 
         # For AND logic: filter documents that have ALL tags
         if len(tags) > 1:
             for additional_tag in tags[1:]:
-                tag_result = await asyncio.to_thread(
-                    lambda t=additional_tag, cids=candidate_ids: supabase.table("document_tags")
-                    .select("document_id")
-                    .eq("tag", t)
-                    .in_("document_id", cids)
-                    .execute()
+                tag_results = pb.get_all(
+                    "document_tags",
+                    filter=f"tag='{pb.escape_filter(additional_tag)}'",
                 )
-                # Intersect with candidates
-                tag_doc_ids = {row["document_id"] for row in (tag_result.data or [])}
+                tag_doc_ids = {row["document_id"] for row in (tag_results or [])}
                 candidate_ids = [did for did in candidate_ids if did in tag_doc_ids]
 
                 if not candidate_ids:
@@ -1171,30 +1131,14 @@ async def _fetch_kb_tagged_documents(tags: List[str], user_id: str) -> str:
         # Fetch document metadata and content
         content_parts = []
         for doc_id in candidate_ids:
-            # Get document metadata
-            doc_result = await asyncio.to_thread(
-                lambda d=doc_id: supabase.table("documents")
-                .select("id, filename, title, obsidian_file_path")
-                .eq("id", d)
-                .single()
-                .execute()
-            )
-
-            if not doc_result.data:
+            doc = docs_repo.get_document(doc_id)
+            if not doc:
                 continue
 
-            doc = doc_result.data
-
             # Get document content from chunks
-            chunks_result = await asyncio.to_thread(
-                lambda d=doc_id: supabase.table("document_chunks")
-                .select("content, chunk_index")
-                .eq("document_id", d)
-                .order("chunk_index")
-                .execute()
-            )
+            chunks = docs_repo.list_document_chunks(doc_id, sort="chunk_index")
 
-            content = "\n".join([c["content"] for c in (chunks_result.data or [])])
+            content = "\n".join([c["content"] for c in (chunks or [])])
             if content:
                 title = doc.get("title") or doc.get("filename") or doc.get("obsidian_file_path") or "Untitled"
                 content_parts.append(f"\n\n=== {title} ===\n")
@@ -1258,13 +1202,9 @@ async def run_agent(
         logger.error(f"[PURDY] Invalid agent_type: '{agent_type}'")
         raise ValueError(f"Invalid agent type: {agent_type}")
 
-    run_id = str(uuid4())
-    logger.info(f"[PURDY] Generated run_id: {run_id}")
-
     try:
         # Create run record with output format metadata
         run_record = {
-            "id": run_id,
             "agent_type": agent_type,
             "run_by": user_id,
             "status": "running",
@@ -1274,7 +1214,9 @@ async def run_agent(
             run_record["project_id"] = project_id
         else:
             run_record["initiative_id"] = initiative_id
-        await asyncio.to_thread(lambda: supabase.table("disco_runs").insert(run_record).execute())
+        created_run = pb.create_record("disco_runs", run_record)
+        run_id = created_run["id"]
+        logger.info(f"[PURDY] Generated run_id: {run_id}")
 
         yield {"type": "status", "data": "Loading agent prompt..."}
 
@@ -1314,11 +1256,7 @@ async def run_agent(
         # Track document IDs used
         if document_ids:
             for doc_id in document_ids:
-                await asyncio.to_thread(
-                    lambda d=doc_id: supabase.table("disco_run_documents")
-                    .insert({"run_id": run_id, "document_id": d})
-                    .execute()
-                )
+                disco_repo.link_run_document({"run_id": run_id, "document_id": doc_id})
 
         # Get model and log context size
         model = get_model_for_agent(agent_type)
@@ -1363,28 +1301,20 @@ async def run_agent(
 
         # Get next version number (scoped by project or initiative)
         if is_project_scoped:
-            version_result = await asyncio.to_thread(
-                lambda: supabase.table("disco_outputs")
-                .select("version")
-                .eq("project_id", project_id)
-                .eq("agent_type", agent_type)
-                .order("version", desc=True)
-                .limit(1)
-                .execute()
+            existing_outputs = pb.get_all(
+                "disco_outputs",
+                filter=f"project_id='{pb.escape_filter(project_id)}' && agent_type='{pb.escape_filter(agent_type)}'",
+                sort="-version",
             )
         else:
-            version_result = await asyncio.to_thread(
-                lambda: supabase.table("disco_outputs")
-                .select("version")
-                .eq("initiative_id", initiative_id)
-                .eq("agent_type", agent_type)
-                .order("version", desc=True)
-                .limit(1)
-                .execute()
+            existing_outputs = pb.get_all(
+                "disco_outputs",
+                filter=f"initiative_id='{pb.escape_filter(initiative_id)}' && agent_type='{pb.escape_filter(agent_type)}'",
+                sort="-version",
             )
         next_version = 1
-        if version_result.data:
-            next_version = version_result.data[0]["version"] + 1
+        if existing_outputs:
+            next_version = existing_outputs[0]["version"] + 1
 
         # Parse throughline resolution for requirements_generator
         throughline_resolution = None
@@ -1399,9 +1329,7 @@ async def run_agent(
                 logger.info(f"[PURDY] Parsed triage suggestions with keys: {list(triage_suggestions.keys())}")
 
         # Store output
-        output_id = str(uuid4())
         output_data = {
-            "id": output_id,
             "run_id": run_id,
             "agent_type": agent_type,
             "version": next_version,
@@ -1424,57 +1352,38 @@ async def run_agent(
             output_data["initiative_id"] = initiative_id
 
         # Log the data being stored
-        logger.info(f"[PURDY] Storing output - id: {output_id}, agent_type: {agent_type}, version: {next_version}")
+        logger.info(f"[PURDY] Storing output - agent_type: {agent_type}, version: {next_version}")
         logger.info(f"[PURDY] Output data keys: {list(output_data.keys())}")
         logger.info(f"[PURDY] content_markdown length: {len(full_response)}")
         logger.info(
             f"[PURDY] Parsed title: {parsed_output.get('title')}, recommendation: {parsed_output.get('recommendation')}"
         )
 
-        # Use explicit copy to avoid any closure issues
-        data_to_insert = dict(output_data)
-        logger.info(
-            f"[PURDY] Data to insert: agent_type={data_to_insert.get('agent_type')}, version={data_to_insert.get('version')}"
-        )
-
         try:
-            insert_result = await asyncio.to_thread(
-                lambda: supabase.table("disco_outputs").insert(data_to_insert).execute()
-            )
+            insert_result = disco_repo.create_output(output_data)
 
-            if not insert_result.data:
-                logger.error(f"[PURDY] Insert returned no data! Result: {insert_result}")
+            if not insert_result:
+                logger.error("[PURDY] Insert returned no data!")
                 raise Exception("Failed to insert output - no data returned")
 
-            logger.info(f"[PURDY] Insert SUCCESS: {insert_result.data[0].get('id') if insert_result.data else 'no id'}")
+            output_id = insert_result["id"]
+            logger.info(f"[PURDY] Insert SUCCESS: {output_id}")
         except Exception as insert_err:
             logger.error(f"[PURDY] Insert FAILED: {insert_err}")
             raise
 
         # Update run status
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_runs")
-            .update(
-                {
-                    "status": "completed",
-                    "completed_at": datetime.now(timezone.utc).isoformat(),
-                    "token_usage": token_usage,
-                }
-            )
-            .eq("id", run_id)
-            .execute()
-        )
+        pb.update_record("disco_runs", run_id, {
+            "status": "completed",
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "token_usage": token_usage,
+        })
 
         # Update initiative status based on agent type (skip for project-scoped runs)
         if not is_project_scoped:
             new_status = get_status_for_agent(agent_type)
             if new_status:
-                await asyncio.to_thread(
-                    lambda: supabase.table("disco_initiatives")
-                    .update({"status": new_status})
-                    .eq("id", initiative_id)
-                    .execute()
-                )
+                disco_repo.update_initiative(initiative_id, {"status": new_status})
 
         yield {
             "type": "complete",
@@ -1492,18 +1401,11 @@ async def run_agent(
         error_msg = str(e)
 
         # Update run status to failed
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_runs")
-            .update(
-                {
-                    "status": "failed",
-                    "completed_at": datetime.now(timezone.utc).isoformat(),
-                    "error_message": error_msg,
-                }
-            )
-            .eq("id", run_id)
-            .execute()
-        )
+        pb.update_record("disco_runs", run_id, {
+            "status": "failed",
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "error_message": error_msg,
+        })
 
         yield {"type": "error", "data": error_msg}
 
@@ -2153,30 +2055,23 @@ async def run_agent_multi_pass(
     if agent_type not in MULTI_PASS_CONFIG["supported_agents"]:
         raise ValueError(f"Multi-pass not supported for agent type: {agent_type}")
 
-    run_id = str(uuid4())
     passes_config = MULTI_PASS_CONFIG["passes"]
     meta_config = MULTI_PASS_CONFIG["meta_synthesis"]
 
     try:
         # Create run record with multi-pass metadata
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_runs")
-            .insert(
-                {
-                    "id": run_id,
-                    "initiative_id": initiative_id,
-                    "agent_type": agent_type,
-                    "run_by": user_id,
-                    "status": "running",
-                    "metadata": {
-                        "output_format": "unified",
-                        "synthesis_mode": "multi_pass",
-                        "passes": len(passes_config),
-                    },
-                }
-            )
-            .execute()
-        )
+        created_run = pb.create_record("disco_runs", {
+            "initiative_id": initiative_id,
+            "agent_type": agent_type,
+            "run_by": user_id,
+            "status": "running",
+            "metadata": {
+                "output_format": "unified",
+                "synthesis_mode": "multi_pass",
+                "passes": len(passes_config),
+            },
+        })
+        run_id = created_run["id"]
 
         yield {"type": "status", "data": "Loading agent prompt..."}
 
@@ -2195,11 +2090,7 @@ async def run_agent_multi_pass(
         # Track document IDs used
         if document_ids:
             for doc_id in document_ids:
-                await asyncio.to_thread(
-                    lambda d=doc_id: supabase.table("disco_run_documents")
-                    .insert({"run_id": run_id, "document_id": d})
-                    .execute()
-                )
+                disco_repo.link_run_document({"run_id": run_id, "document_id": doc_id})
 
         # Store intermediate outputs
         intermediate_outputs = []
@@ -2336,21 +2227,14 @@ Create a unified synthesis that combines the best of all three passes. Follow th
             mp_throughline_resolution = parse_throughline_resolution(main_content)
 
         # Get next version number
-        version_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_outputs")
-            .select("version")
-            .eq("initiative_id", initiative_id)
-            .eq("agent_type", agent_type)
-            .order("version", desc=True)
-            .limit(1)
-            .execute()
+        mp_existing_outputs = pb.get_all(
+            "disco_outputs",
+            filter=f"initiative_id='{pb.escape_filter(initiative_id)}' && agent_type='{pb.escape_filter(agent_type)}'",
+            sort="-version",
         )
         next_version = 1
-        if version_result.data:
-            next_version = version_result.data[0]["version"] + 1
-
-        # Store output with multi-pass metadata
-        output_id = str(uuid4())
+        if mp_existing_outputs:
+            next_version = mp_existing_outputs[0]["version"] + 1
 
         # Prepare intermediate outputs for storage (truncate content for DB)
         intermediate_for_storage = []
@@ -2367,7 +2251,6 @@ Create a unified synthesis that combines the best of all three passes. Follow th
             )
 
         output_data = {
-            "id": output_id,
             "run_id": run_id,
             "initiative_id": initiative_id,
             "agent_type": agent_type,
@@ -2387,42 +2270,28 @@ Create a unified synthesis that combines the best of all three passes. Follow th
             "throughline_resolution": mp_throughline_resolution,
         }
 
-        logger.info(f"[PURDY-MP] Storing output - id: {output_id}, version: {next_version}")
+        logger.info(f"[PURDY-MP] Storing output - version: {next_version}")
 
-        data_to_insert = dict(output_data)
-        insert_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_outputs").insert(data_to_insert).execute()
-        )
+        insert_result = disco_repo.create_output(output_data)
 
-        if not insert_result.data:
+        if not insert_result:
             logger.error("[PURDY-MP] Insert returned no data!")
             raise Exception("Failed to insert output - no data returned")
 
+        output_id = insert_result["id"]
         logger.info("[PURDY-MP] Insert SUCCESS")
 
         # Update run status
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_runs")
-            .update(
-                {
-                    "status": "completed",
-                    "completed_at": datetime.now(timezone.utc).isoformat(),
-                    "token_usage": total_tokens,
-                }
-            )
-            .eq("id", run_id)
-            .execute()
-        )
+        pb.update_record("disco_runs", run_id, {
+            "status": "completed",
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "token_usage": total_tokens,
+        })
 
         # Update initiative status
         new_status = get_status_for_agent(agent_type)
         if new_status:
-            await asyncio.to_thread(
-                lambda: supabase.table("disco_initiatives")
-                .update({"status": new_status})
-                .eq("id", initiative_id)
-                .execute()
-            )
+            disco_repo.update_initiative(initiative_id, {"status": new_status})
 
         yield {
             "type": "complete",
@@ -2441,18 +2310,11 @@ Create a unified synthesis that combines the best of all three passes. Follow th
         logger.error(f"[PURDY-MP] Multi-pass run failed: {e}")
         error_msg = str(e)
 
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_runs")
-            .update(
-                {
-                    "status": "failed",
-                    "completed_at": datetime.now(timezone.utc).isoformat(),
-                    "error_message": error_msg,
-                }
-            )
-            .eq("id", run_id)
-            .execute()
-        )
+        pb.update_record("disco_runs", run_id, {
+            "status": "failed",
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "error_message": error_msg,
+        })
 
         yield {"type": "error", "data": error_msg}
 
@@ -2460,10 +2322,13 @@ Create a unified synthesis that combines the best of all three passes. Follow th
 async def get_run(run_id: str) -> Optional[Dict]:
     """Get a run record by ID."""
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_runs").select("*, disco_outputs(*)").eq("id", run_id).single().execute()
-        )
-        return result.data
+        run = pb.get_record("disco_runs", run_id)
+        if run:
+            # Fetch associated outputs separately (replaces join)
+            outputs = disco_repo.list_outputs(run.get("initiative_id") or "", sort="-created")
+            run_outputs = [o for o in outputs if o.get("run_id") == run_id]
+            run["disco_outputs"] = run_outputs
+        return run
     except Exception as e:
         logger.error(f"Error fetching run {run_id}: {e}")
         return None
@@ -2472,15 +2337,12 @@ async def get_run(run_id: str) -> Optional[Dict]:
 async def list_runs(initiative_id: str, limit: int = 20) -> List[Dict]:
     """List runs for an initiative."""
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_runs")
-            .select("*")
-            .eq("initiative_id", initiative_id)
-            .order("started_at", desc=True)
-            .limit(limit)
-            .execute()
+        all_runs = pb.get_all(
+            "disco_runs",
+            filter=f"initiative_id='{pb.escape_filter(initiative_id)}'",
+            sort="-created",
         )
-        return result.data or []
+        return (all_runs or [])[:limit]
     except Exception as e:
         logger.error(f"Error listing runs: {e}")
         return []

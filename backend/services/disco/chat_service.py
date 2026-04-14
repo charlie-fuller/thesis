@@ -3,18 +3,17 @@
 Provides RAG-based Q&A functionality for initiatives.
 """
 
-import asyncio
 import os
 from typing import Dict, List, Optional
 from uuid import uuid4
 
 import anthropic
 
-from database import get_supabase
+import pb_client as pb
+import repositories.disco as disco_repo
 from logger_config import get_logger
 
 logger = get_logger(__name__)
-supabase = get_supabase()
 
 # Initialize Anthropic client
 anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -51,17 +50,13 @@ async def create_conversation(initiative_id: str, user_id: str) -> Dict:
     Returns:
         Created conversation record
     """
-    conversation_id = str(uuid4())
-
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_conversations")
-            .insert({"id": conversation_id, "initiative_id": initiative_id, "user_id": user_id})
-            .execute()
-        )
+        result = disco_repo.create_conversation({
+            "initiative_id": initiative_id,
+        })
 
-        logger.info(f"Created conversation {conversation_id} for initiative {initiative_id}")
-        return result.data[0] if result.data else {"id": conversation_id}
+        logger.info(f"Created conversation {result['id']} for initiative {initiative_id}")
+        return result
 
     except Exception as e:
         logger.error(f"Error creating conversation: {e}")
@@ -80,24 +75,13 @@ async def get_conversation(initiative_id: str, user_id: str) -> Optional[Dict]:
     """
     try:
         # Try to find existing conversation
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_conversations")
-            .select("*, disco_messages(*)")
-            .eq("initiative_id", initiative_id)
-            .eq("user_id", user_id)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
+        conversations = disco_repo.list_conversations(initiative_id, sort="-created")
 
-        if result.data:
-            conversation = result.data[0]
-            # Sort messages by created_at
-            if conversation.get("disco_messages"):
-                conversation["messages"] = sorted(conversation["disco_messages"], key=lambda m: m["created_at"])
-                del conversation["disco_messages"]
-            else:
-                conversation["messages"] = []
+        if conversations:
+            conversation = conversations[0]
+            # Fetch messages separately (no joins in PocketBase repo)
+            messages = disco_repo.list_messages(conversation["id"], sort="created")
+            conversation["messages"] = messages
             return conversation
 
         # Create new conversation if none exists
@@ -129,18 +113,12 @@ async def ask_question(initiative_id: str, question: str, user_id: str, conversa
             conversation_id = conversation["id"]
 
         # Store user message
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_messages")
-            .insert(
-                {
-                    "conversation_id": conversation_id,
-                    "role": "user",
-                    "content": question,
-                    "sources": [],
-                }
-            )
-            .execute()
-        )
+        disco_repo.create_message({
+            "conversation_id": conversation_id,
+            "role": "user",
+            "content": question,
+            "sources": [],
+        })
 
         # Search for relevant context
         from .document_service import (
@@ -199,22 +177,16 @@ async def ask_question(initiative_id: str, question: str, user_id: str, conversa
         context = "\n".join(context_parts)
 
         # Get conversation history (last 10 messages)
-        history_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_messages")
-            .select("role, content")
-            .eq("conversation_id", conversation_id)
-            .order("created_at", desc=True)
-            .limit(10)
-            .execute()
-        )
+        history = disco_repo.list_messages(conversation_id, sort="-created")
+        history = history[:10]
 
         # Build messages for Claude
         messages = []
 
         # Add history (reversed to chronological)
-        if history_result.data:
-            history = list(reversed(history_result.data))
-            for msg in history[:-1]:  # Exclude the question we just added
+        if history:
+            history_chrono = list(reversed(history))
+            for msg in history_chrono[:-1]:  # Exclude the question we just added
                 messages.append({"role": msg["role"], "content": msg["content"]})
 
         # Add current question with context
@@ -282,18 +254,12 @@ Please answer based on the context provided. Cite sources when referencing speci
                 )
 
         # Store assistant message
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_messages")
-            .insert(
-                {
-                    "conversation_id": conversation_id,
-                    "role": "assistant",
-                    "content": answer,
-                    "sources": sources,
-                }
-            )
-            .execute()
-        )
+        disco_repo.create_message({
+            "conversation_id": conversation_id,
+            "role": "assistant",
+            "content": answer,
+            "sources": sources,
+        })
 
         logger.info(f"Generated response for chat ({len(answer)} chars)")
 
@@ -315,16 +281,8 @@ async def get_conversation_history(conversation_id: str, limit: int = 50) -> Lis
         List of messages in chronological order
     """
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_messages")
-            .select("*")
-            .eq("conversation_id", conversation_id)
-            .order("created_at")
-            .limit(limit)
-            .execute()
-        )
-
-        return result.data or []
+        messages = disco_repo.list_messages(conversation_id, sort="created")
+        return messages[:limit]
 
     except Exception as e:
         logger.error(f"Error getting conversation history: {e}")
@@ -341,9 +299,10 @@ async def clear_conversation(conversation_id: str) -> bool:
         True if cleared successfully
     """
     try:
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_messages").delete().eq("conversation_id", conversation_id).execute()
-        )
+        # Fetch all messages and delete them one by one
+        messages = disco_repo.list_messages(conversation_id)
+        for msg in messages:
+            pb.delete_record("disco_messages", msg["id"])
 
         logger.info(f"Cleared conversation {conversation_id}")
         return True

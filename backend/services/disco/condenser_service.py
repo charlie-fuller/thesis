@@ -16,11 +16,11 @@ from uuid import uuid4
 
 import anthropic
 
-from database import get_supabase
+import pb_client as pb
+import repositories.disco as disco_repo
 from logger_config import get_logger
 
 logger = get_logger(__name__)
-supabase = get_supabase()
 
 # Initialize Anthropic client
 anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -181,7 +181,6 @@ Extract the 5 decision-forcing elements (Leverage Point, Feedback Loop, Decision
 
         # Store the executive summary as a new output with _executive suffix
         output_data = {
-            "id": str(uuid4()),
             "run_id": None,  # Not from a run
             "initiative_id": initiative_id,
             "agent_type": f"{original_agent_type}_executive",
@@ -204,9 +203,9 @@ Extract the 5 decision-forcing elements (Leverage Point, Feedback Loop, Decision
             "source_outputs": [{"agent_type": original_agent_type, "version": original_version, "id": output_id}],
         }
 
-        insert_result = supabase.table("disco_outputs").insert(output_data).execute()
+        stored = disco_repo.create_output(output_data)
 
-        if not insert_result.data:
+        if not stored:
             logger.error("[EXEC-SUMMARY] Failed to store executive summary")
             yield {"type": "error", "data": "Failed to store executive summary"}
             return
@@ -214,7 +213,7 @@ Extract the 5 decision-forcing elements (Leverage Point, Feedback Loop, Decision
         yield {
             "type": "complete",
             "data": {
-                "output_id": output_data["id"],
+                "output_id": stored["id"],
                 "version": next_version,
                 "original_length": original_length,
                 "summary_length": summary_length,
@@ -238,8 +237,7 @@ async def condense_output(output_id: str, user_id: str) -> AsyncGenerator[Dict, 
 async def _fetch_output(output_id: str) -> Optional[Dict]:
     """Fetch an output by ID."""
     try:
-        result = supabase.table("disco_outputs").select("*").eq("id", output_id).single().execute()
-        return result.data
+        return disco_repo.get_output(output_id)
     except Exception as e:
         logger.error(f"Error fetching output {output_id}: {e}")
         return None
@@ -248,17 +246,9 @@ async def _fetch_output(output_id: str) -> Optional[Dict]:
 async def _get_next_version(initiative_id: str, agent_type: str) -> int:
     """Get the next version number for an agent type."""
     try:
-        result = (
-            supabase.table("disco_outputs")
-            .select("version")
-            .eq("initiative_id", initiative_id)
-            .eq("agent_type", agent_type)
-            .order("version", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if result.data:
-            return result.data[0]["version"] + 1
+        outputs = disco_repo.list_outputs(initiative_id, agent_type=agent_type, sort="-version")
+        if outputs:
+            return outputs[0]["version"] + 1
         return 1
     except Exception:
         return 1

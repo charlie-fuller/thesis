@@ -18,13 +18,11 @@ from uuid import uuid4
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from database import get_supabase
+import pb_client as pb
+import repositories.documents as docs_repo
 from logger_config import get_logger
 
 logger = get_logger(__name__)
-
-# Get centralized Supabase client
-supabase = get_supabase()
 
 # Global scheduler instance
 research_scheduler: Optional[BackgroundScheduler] = None
@@ -90,23 +88,18 @@ def create_research_task(topic: ResearchTopic, client_id: Optional[str] = None) 
     Returns:
         str: The task ID
     """
-    task_id = str(uuid4())
-
     try:
-        supabase.table("research_tasks").insert(
-            {
-                "id": task_id,
-                "client_id": client_id,
-                "topic": topic.topic,
-                "query": topic.query,
-                "focus_area": topic.focus_area,
-                "research_type": topic.research_type,
-                "priority": topic.priority,
-                "context": topic.context,
-                "status": "pending",
-            }
-        ).execute()
+        result = pb.create_record("research_tasks", {
+            "topic": topic.topic,
+            "query": topic.query,
+            "focus_area": topic.focus_area,
+            "research_type": topic.research_type,
+            "priority": topic.priority,
+            "context": topic.context,
+            "status": "pending",
+        })
 
+        task_id = result["id"]
         logger.info(f"Created research task {task_id}: {topic.topic}")
         return task_id
 
@@ -144,7 +137,7 @@ def update_research_task_status(
         if error_message:
             update_data["error_message"] = error_message
 
-        supabase.table("research_tasks").update(update_data).eq("id", task_id).execute()
+        pb.update_record("research_tasks", task_id, update_data)
 
     except Exception as e:
         logger.error(f"Failed to update research task {task_id}: {e}")
@@ -165,32 +158,23 @@ def get_todays_schedule(client_id: Optional[str] = None) -> list[dict]:
         # Convert Python weekday (0=Monday) to SQL weekday (0=Sunday)
         sql_dow = (today_dow + 1) % 7
 
-        # Get global schedule
-        global_result = (
-            supabase.table("research_schedule")
-            .select("*")
-            .is_("client_id", "null")
-            .eq("day_of_week", sql_dow)
-            .eq("is_active", True)
-            .order("priority", desc=True)
-            .execute()
+        # Get global schedule (no client_id, matching day and active)
+        global_schedules = pb.get_all(
+            "research_schedule",
+            filter=f"client_id='' && day_of_week={sql_dow} && is_active=true",
+            sort="-priority",
         )
 
-        schedules = global_result.data or []
+        schedules = global_schedules or []
 
         # Get client-specific schedule if provided
         if client_id:
-            client_result = (
-                supabase.table("research_schedule")
-                .select("*")
-                .eq("client_id", client_id)
-                .eq("day_of_week", sql_dow)
-                .eq("is_active", True)
-                .order("priority", desc=True)
-                .execute()
+            client_schedules = pb.get_all(
+                "research_schedule",
+                filter=f"client_id='{pb.escape_filter(client_id)}' && day_of_week={sql_dow} && is_active=true",
+                sort="-priority",
             )
-
-            schedules.extend(client_result.data or [])
+            schedules.extend(client_schedules or [])
 
         return schedules
 
@@ -203,14 +187,13 @@ def get_all_active_clients() -> list[str]:
     """Get all clients that have active users/conversations."""
     try:
         # Get clients with recent activity (conversations in last 30 days)
-        result = (
-            supabase.table("conversations")
-            .select("client_id")
-            .gte("updated_at", (datetime.now(timezone.utc).replace(day=1)).isoformat())
-            .execute()
+        month_start = datetime.now(timezone.utc).replace(day=1).isoformat()
+        conversations = pb.get_all(
+            "conversations",
+            filter=f"updated>='{month_start}'",
         )
 
-        client_ids = list({row["client_id"] for row in result.data if row.get("client_id")})
+        client_ids = list({row["client_id"] for row in (conversations or []) if row.get("client_id")})
         return client_ids
 
     except Exception as e:
@@ -242,8 +225,10 @@ async def execute_research_task(task_id: str, topic: ResearchTopic) -> ResearchR
         update_research_task_status(task_id, "running")
 
         # Initialize Atlas
+        # NOTE: AtlasAgent may still expect a supabase client internally;
+        # pass None until it gets its own migration pass.
         anthropic_client = anthropic.Anthropic()
-        atlas = AtlasAgent(supabase, anthropic_client)
+        atlas = AtlasAgent(None, anthropic_client)
 
         # Build context for Atlas
         context = AgentContext(
@@ -303,47 +288,39 @@ async def store_research_document(topic: ResearchTopic, content: str, task_id: s
         filename = f"atlas_research_{topic.focus_area}_{date_str}.md"
 
         # Create document record
-        doc_result = (
-            supabase.table("documents")
-            .insert(
-                {
-                    "filename": filename,
-                    "file_type": "text/markdown",
-                    "file_size": len(content.encode("utf-8")),
-                    "metadata": {
-                        "generated_by": "atlas",
-                        "research_task_id": task_id,
-                        "topic": topic.topic,
-                        "focus_area": topic.focus_area,
-                        "research_type": topic.research_type,
-                        "generated_at": datetime.now(timezone.utc).isoformat(),
-                    },
-                }
-            )
-            .execute()
-        )
+        doc_result = docs_repo.create_document({
+            "filename": filename,
+            "file_type": "text/markdown",
+            "file_size": len(content.encode("utf-8")),
+            "metadata": {
+                "generated_by": "atlas",
+                "research_task_id": task_id,
+                "topic": topic.topic,
+                "focus_area": topic.focus_area,
+                "research_type": topic.research_type,
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            },
+        })
 
-        if not doc_result.data:
+        if not doc_result:
             logger.error("Failed to create document record")
             return None
 
-        document_id = doc_result.data[0]["id"]
+        document_id = doc_result["id"]
 
         # Get Atlas agent ID
-        atlas_result = supabase.table("agents").select("id").eq("name", "atlas").single().execute()
+        atlas_record = pb.get_first("agents", filter="name='atlas'")
 
-        if atlas_result.data:
-            atlas_agent_id = atlas_result.data["id"]
+        if atlas_record:
+            atlas_agent_id = atlas_record["id"]
 
             # Link to Atlas knowledge base
-            supabase.table("agent_knowledge_base").insert(
-                {
-                    "agent_id": atlas_agent_id,
-                    "document_id": document_id,
-                    "priority": topic.priority,
-                    "notes": f"Auto-generated research: {topic.topic}",
-                }
-            ).execute()
+            pb.create_record("agent_knowledge_base", {
+                "agent_id": atlas_agent_id,
+                "document_id": document_id,
+                "priority": topic.priority,
+                "notes": f"Auto-generated research: {topic.topic}",
+            })
 
             # Link to other relevant agents based on topic
             await distribute_to_relevant_agents(document_id, topic, atlas_agent_id)
@@ -364,41 +341,36 @@ async def distribute_to_relevant_agents(document_id: str, topic: ResearchTopic, 
 
         # Query agent topic mappings
         for keyword in keywords:
-            mapping_result = (
-                supabase.table("agent_topic_mapping")
-                .select("agent_name, relevance_score")
-                .eq("topic_keyword", keyword)
-                .gte("relevance_score", 0.7)
-                .execute()
+            mappings = pb.get_all(
+                "agent_topic_mapping",
+                filter=f"topic_keyword='{pb.escape_filter(keyword)}'",
             )
 
-            for mapping in mapping_result.data or []:
+            for mapping in (mappings or []):
+                if (mapping.get("relevance_score") or 0) < 0.7:
+                    continue
+
                 agent_name = mapping["agent_name"]
 
                 # Get agent ID
-                agent_result = supabase.table("agents").select("id").eq("name", agent_name).single().execute()
+                agent_record = pb.get_first("agents", filter=f"name='{pb.escape_filter(agent_name)}'")
 
-                if agent_result.data and agent_result.data["id"] != exclude_agent_id:
-                    agent_id = agent_result.data["id"]
+                if agent_record and agent_record["id"] != exclude_agent_id:
+                    agent_id = agent_record["id"]
 
                     # Check if link already exists
-                    existing = (
-                        supabase.table("agent_knowledge_base")
-                        .select("id")
-                        .eq("agent_id", agent_id)
-                        .eq("document_id", document_id)
-                        .execute()
+                    existing = pb.get_first(
+                        "agent_knowledge_base",
+                        filter=f"agent_id='{pb.escape_filter(agent_id)}' && document_id='{pb.escape_filter(document_id)}'",
                     )
 
-                    if not existing.data:
-                        supabase.table("agent_knowledge_base").insert(
-                            {
-                                "agent_id": agent_id,
-                                "document_id": document_id,
-                                "priority": int(topic.priority * mapping["relevance_score"]),
-                                "notes": f"Cross-linked from Atlas research: {topic.topic}",
-                            }
-                        ).execute()
+                    if not existing:
+                        pb.create_record("agent_knowledge_base", {
+                            "agent_id": agent_id,
+                            "document_id": document_id,
+                            "priority": int(topic.priority * mapping["relevance_score"]),
+                            "notes": f"Cross-linked from Atlas research: {topic.topic}",
+                        })
 
                         logger.info(f"Linked research to agent {agent_name}")
 
@@ -529,17 +501,14 @@ async def trigger_research_now(
         # If focus_area provided, try to get template from schedule
         query = custom_query
         if focus_area and not custom_query:
-            schedule_result = (
-                supabase.table("research_schedule")
-                .select("query_template, description")
-                .eq("focus_area", focus_area)
-                .limit(1)
-                .execute()
+            schedule_record = pb.get_first(
+                "research_schedule",
+                filter=f"focus_area='{pb.escape_filter(focus_area)}'",
             )
 
-            if schedule_result.data:
-                query = schedule_result.data[0].get("query_template")
-                description = schedule_result.data[0].get("description", focus_area)
+            if schedule_record:
+                query = schedule_record.get("query_template")
+                description = schedule_record.get("description", focus_area)
             else:
                 query = f"Research current best practices and developments in {focus_area}"
                 description = focus_area

@@ -5,13 +5,14 @@ using rich context from agent outputs for more accurate scoring.
 Reuses the same 4-pillar framework and parser from the project analyzer.
 """
 
-import asyncio
 import logging
 import os
 
 import anthropic
 
-from database import get_supabase
+import pb_client as pb
+import repositories.disco as disco_repo
+import repositories.projects as projects_repo
 from services.goal_alignment_analyzer import IS_GOALS, MODEL, _parse_analysis_response
 
 logger = logging.getLogger(__name__)
@@ -154,44 +155,24 @@ async def analyze_initiative_alignment(
     Raises:
         ValueError: If initiative not found
     """
-    supabase = get_supabase()
-
     # Fetch initiative
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_initiatives").select("*").eq("id", initiative_id).single().execute()
-    )
-    if not result.data:
+    initiative = disco_repo.get_initiative(initiative_id)
+    if not initiative:
         raise ValueError(f"Initiative {initiative_id} not found")
 
-    initiative = result.data
-
     # Fetch latest agent outputs (one per agent type, newest first)
-    outputs_result = await asyncio.to_thread(
-        lambda: supabase.table("disco_outputs")
-        .select("agent_type, version, recommendation, confidence_level, executive_summary, content_markdown")
-        .eq("initiative_id", initiative_id)
-        .order("created_at", desc=True)
-        .limit(20)
-        .execute()
-    )
+    all_outputs = disco_repo.list_outputs(initiative_id, sort="-created")
     # Deduplicate: keep latest per agent_type
     seen_agents = set()
     agent_outputs = []
-    for output in outputs_result.data or []:
+    for output in all_outputs[:20]:
         if output["agent_type"] not in seen_agents:
             seen_agents.add(output["agent_type"])
             agent_outputs.append(output)
 
     # Fetch bundles if any
-    bundles_result = await asyncio.to_thread(
-        lambda: supabase.table("disco_bundles")
-        .select("name, description, impact_score, feasibility_score, urgency_score")
-        .eq("initiative_id", initiative_id)
-        .order("created_at", desc=True)
-        .limit(10)
-        .execute()
-    )
-    bundles = bundles_result.data or []
+    bundles = disco_repo.list_bundles(initiative_id, sort="-created")
+    bundles = bundles[:10]
 
     # Build prompt and call Claude
     prompt = _build_initiative_prompt(initiative, agent_outputs, bundles)
@@ -209,17 +190,10 @@ async def analyze_initiative_alignment(
         score, details = _parse_analysis_response(response_text)
 
         # Store results on initiative
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_initiatives")
-            .update(
-                {
-                    "goal_alignment_score": score,
-                    "goal_alignment_details": details,
-                }
-            )
-            .eq("id", initiative_id)
-            .execute()
-        )
+        disco_repo.update_initiative(initiative_id, {
+            "goal_alignment_score": score,
+            "goal_alignment_details": details,
+        })
 
         logger.info(f"Analyzed goal alignment for initiative {initiative_id}: score={score}/100")
         return score, details
@@ -235,18 +209,11 @@ async def get_project_alignment_rollup(initiative_id: str) -> dict:
     Returns:
         Dict with project scores, averages, and distribution
     """
-    supabase = get_supabase()
-
     # Query projects linked to this initiative that have alignment scores
-    result = await asyncio.to_thread(
-        lambda: supabase.table("ai_projects")
-        .select("id, project_code, title, status, goal_alignment_score, goal_alignment_details")
-        .contains("initiative_ids", [initiative_id])
-        .order("goal_alignment_score", desc=True)
-        .execute()
-    )
-
-    projects = result.data or []
+    # PocketBase doesn't support contains() on arrays directly,
+    # so we fetch all projects and filter in Python
+    all_projects = projects_repo.list_projects(sort="-goal_alignment_score")
+    projects = [p for p in all_projects if initiative_id in (p.get("initiative_ids") or [])]
 
     # Build rollup
     scored_projects = [p for p in projects if p.get("goal_alignment_score") is not None]
@@ -264,9 +231,9 @@ async def get_project_alignment_rollup(initiative_id: str) -> dict:
     for p in projects:
         summary = {
             "id": p["id"],
-            "project_code": p["project_code"],
-            "title": p["title"],
-            "status": p["status"],
+            "project_code": p.get("project_code"),
+            "title": p.get("title"),
+            "status": p.get("status"),
             "goal_alignment_score": p.get("goal_alignment_score"),
         }
         # Include alignment level label

@@ -3,15 +3,14 @@
 Handles CRUD operations for PuRDy initiatives.
 """
 
-import asyncio
 from typing import Dict, Optional
 from uuid import uuid4
 
-from database import get_supabase, with_db_retry
+import pb_client as pb
+import repositories.disco as disco_repo
 from logger_config import get_logger
 
 logger = get_logger(__name__)
-supabase = get_supabase()
 
 
 def _auto_id_throughline(throughline: Optional[Dict]) -> Optional[Dict]:
@@ -29,7 +28,6 @@ def _auto_id_throughline(throughline: Optional[Dict]) -> Optional[Dict]:
     return throughline
 
 
-@with_db_retry(max_retries=2)
 async def create_initiative(
     name: str,
     user_id: str,
@@ -64,17 +62,11 @@ async def create_initiative(
 
     logger.info(f"Creating initiative: {name} for user {user_id}")
 
-    initiative_id = str(uuid4())
-
     # Auto-generate IDs for throughline items
     throughline = _auto_id_throughline(throughline)
 
     try:
-        # Use get_supabase() dynamically to support connection retry
-        db = get_supabase()
-
         insert_data = {
-            "id": initiative_id,
             "name": name,
             "description": description,
             "status": "draft",
@@ -92,19 +84,15 @@ async def create_initiative(
             insert_data["stakeholder_ids"] = stakeholder_ids
 
         # Create the initiative
-        result = await asyncio.to_thread(lambda: db.table("disco_initiatives").insert(insert_data).execute())
-
-        if not result.data:
-            raise ValueError("Failed to create initiative")
-
-        initiative = result.data[0]
+        initiative = disco_repo.create_initiative(insert_data)
+        initiative_id = initiative["id"]
 
         # Add creator as owner in members table
-        await asyncio.to_thread(
-            lambda: db.table("disco_initiative_members")
-            .insert({"initiative_id": initiative_id, "user_id": user_id, "role": "owner"})
-            .execute()
-        )
+        disco_repo.add_member({
+            "initiative_id": initiative_id,
+            "user_id": user_id,
+            "role": "owner",
+        })
 
         logger.info(f"Created initiative: {initiative_id}")
         return initiative
@@ -125,7 +113,6 @@ def _is_valid_uuid(value: str) -> bool:
         return False
 
 
-@with_db_retry(max_retries=2)
 async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
     """Get a single initiative by ID or name.
 
@@ -139,33 +126,19 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
     logger.info(f"Fetching initiative: {initiative_id}")
 
     try:
-        # Use get_supabase() dynamically to support connection retry
-        db = get_supabase()
-
         # Determine if we're looking up by UUID or by name
         if _is_valid_uuid(initiative_id):
-            # Fetch initiative by UUID
-            result = await asyncio.to_thread(
-                lambda: db.table("disco_initiatives")
-                .select("*, users!disco_initiatives_created_by_fkey(id, name, email)")
-                .eq("id", initiative_id)
-                .single()
-                .execute()
-            )
+            initiative = disco_repo.get_initiative(initiative_id)
         else:
-            # Fetch initiative by name (slug)
-            result = await asyncio.to_thread(
-                lambda: db.table("disco_initiatives")
-                .select("*, users!disco_initiatives_created_by_fkey(id, name, email)")
-                .eq("name", initiative_id)
-                .single()
-                .execute()
+            # Fetch initiative by name
+            initiative = pb.get_first(
+                "disco_initiatives",
+                filter=f"name='{pb.escape_filter(initiative_id)}'",
             )
 
-        if not result.data:
+        if not initiative:
             return None
 
-        initiative = result.data
         # Use the actual UUID for subsequent queries
         actual_initiative_id = initiative["id"]
 
@@ -176,38 +149,20 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
             return None
 
         # Get user's role in this initiative
-        member_result = await asyncio.to_thread(
-            lambda: db.table("disco_initiative_members")
-            .select("role")
-            .eq("initiative_id", actual_initiative_id)
-            .eq("user_id", user_id)
-            .single()
-            .execute()
-        )
-
-        initiative["user_role"] = member_result.data.get("role") if member_result.data else "viewer"
+        members = disco_repo.get_initiative_members(actual_initiative_id)
+        user_member = next((m for m in members if m.get("user_id") == user_id), None)
+        initiative["user_role"] = user_member.get("role") if user_member else "viewer"
 
         # Get document count
-        doc_count = await asyncio.to_thread(
-            lambda: db.table("disco_documents")
-            .select("id", count="exact")
-            .eq("initiative_id", actual_initiative_id)
-            .execute()
-        )
-        initiative["document_count"] = doc_count.count or 0
+        doc_count = pb.count("disco_documents", filter=f"initiative_id='{pb.escape_filter(actual_initiative_id)}'")
+        initiative["document_count"] = doc_count
 
         # Get latest output for each agent type
-        outputs_result = await asyncio.to_thread(
-            lambda: db.table("disco_outputs")
-            .select("agent_type, version, created_at, recommendation, confidence_level")
-            .eq("initiative_id", actual_initiative_id)
-            .order("created_at", desc=True)
-            .execute()
-        )
+        all_outputs = disco_repo.list_outputs(actual_initiative_id, sort="-created")
 
         # Group by agent_type, keep only latest
         latest_outputs = {}
-        for output in outputs_result.data or []:
+        for output in all_outputs:
             agent_type = output["agent_type"]
             if agent_type not in latest_outputs:
                 latest_outputs[agent_type] = output
@@ -221,7 +176,6 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
         raise
 
 
-@with_db_retry(max_retries=2)
 async def list_initiatives(user_id: str, status_filter: Optional[str] = None, limit: int = 50, offset: int = 0) -> Dict:
     """List all initiatives accessible to a user.
 
@@ -237,62 +191,59 @@ async def list_initiatives(user_id: str, status_filter: Optional[str] = None, li
     logger.info(f"Listing initiatives for user {user_id}")
 
     try:
-        # Use get_supabase() dynamically to support connection retry
-        db = get_supabase()
-
         # Get initiative IDs where user is a member
-        member_result = await asyncio.to_thread(
-            lambda: db.table("disco_initiative_members").select("initiative_id, role").eq("user_id", user_id).execute()
+        member_records = pb.get_all(
+            "disco_initiative_members",
+            filter=f"user_id='{pb.escape_filter(user_id)}'",
         )
 
-        if not member_result.data:
+        if not member_records:
             return {"initiatives": [], "total": 0}
 
-        initiative_ids = [m["initiative_id"] for m in member_result.data]
-        roles_map = {m["initiative_id"]: m["role"] for m in member_result.data}
+        initiative_ids = [m["initiative_id"] for m in member_records]
+        roles_map = {m["initiative_id"]: m["role"] for m in member_records}
 
-        # Build query
-        query = (
-            db.table("disco_initiatives")
-            .select("*, users!disco_initiatives_created_by_fkey(id, name, email)", count="exact")
-            .in_("id", initiative_ids)
+        # Build filter for initiatives
+        id_filter = " || ".join(f"id='{pb.escape_filter(iid)}'" for iid in initiative_ids)
+        parts = [f"({id_filter})"]
+        if status_filter:
+            parts.append(f"status='{pb.escape_filter(status_filter)}'")
+        filter_str = " && ".join(parts)
+
+        # Fetch initiatives with pagination
+        result = pb.list_records(
+            "disco_initiatives",
+            filter=filter_str,
+            sort="-updated",
+            page=(offset // limit) + 1 if limit else 1,
+            per_page=limit,
         )
 
-        if status_filter:
-            query = query.eq("status", status_filter)
-
-        query = query.order("updated_at", desc=True).range(offset, offset + limit - 1)
-
-        result = await asyncio.to_thread(lambda: query.execute())
-
-        initiatives = result.data or []
+        initiatives = result.get("items", [])
+        total = result.get("totalItems", len(initiatives))
 
         # Add user role to each initiative
         for initiative in initiatives:
             initiative["user_role"] = roles_map.get(initiative["id"], "viewer")
 
         # Get document counts for all initiatives
-        doc_counts = await asyncio.to_thread(
-            lambda: db.table("disco_documents").select("initiative_id").in_("initiative_id", initiative_ids).execute()
-        )
-
-        # Count documents per initiative
         doc_count_map = {}
-        for doc in doc_counts.data or []:
-            init_id = doc["initiative_id"]
-            doc_count_map[init_id] = doc_count_map.get(init_id, 0) + 1
+        for iid in initiative_ids:
+            doc_count_map[iid] = pb.count(
+                "disco_documents",
+                filter=f"initiative_id='{pb.escape_filter(iid)}'",
+            )
 
         for initiative in initiatives:
             initiative["document_count"] = doc_count_map.get(initiative["id"], 0)
 
-        return {"initiatives": initiatives, "total": result.count or len(initiatives)}
+        return {"initiatives": initiatives, "total": total}
 
     except Exception as e:
         logger.error(f"Error listing initiatives: {e}")
         raise
 
 
-@with_db_retry(max_retries=2)
 async def update_initiative(initiative_id: str, user_id: str, updates: Dict) -> Dict:
     """Update an initiative.
 
@@ -335,24 +286,16 @@ async def update_initiative(initiative_id: str, user_id: str, updates: Dict) -> 
         raise ValueError("No valid fields to update")
 
     try:
-        # Use get_supabase() dynamically to support connection retry
-        db = get_supabase()
-        result = await asyncio.to_thread(
-            lambda: db.table("disco_initiatives").update(filtered_updates).eq("id", initiative_id).execute()
-        )
-
-        if not result.data:
-            raise ValueError(f"Initiative {initiative_id} not found")
+        result = disco_repo.update_initiative(initiative_id, filtered_updates)
 
         logger.info(f"Updated initiative: {initiative_id}")
-        return result.data[0]
+        return result
 
     except Exception as e:
         logger.error(f"Error updating initiative {initiative_id}: {e}")
         raise
 
 
-@with_db_retry(max_retries=2)
 async def delete_initiative(initiative_id: str, user_id: str) -> bool:
     """Delete an initiative and all associated data.
 
@@ -365,25 +308,16 @@ async def delete_initiative(initiative_id: str, user_id: str) -> bool:
     """
     logger.info(f"Deleting initiative {initiative_id}")
 
-    # Use get_supabase() dynamically to support connection retry
-    db = get_supabase()
-
     # Check permission (must be owner)
-    member_result = await asyncio.to_thread(
-        lambda: db.table("disco_initiative_members")
-        .select("role")
-        .eq("initiative_id", initiative_id)
-        .eq("user_id", user_id)
-        .single()
-        .execute()
-    )
+    members = disco_repo.get_initiative_members(initiative_id)
+    user_member = next((m for m in members if m.get("user_id") == user_id), None)
 
-    if not member_result.data or member_result.data.get("role") != "owner":
+    if not user_member or user_member.get("role") != "owner":
         raise PermissionError(f"Only the owner can delete initiative {initiative_id}")
 
     try:
-        # Delete initiative (cascades to all related tables)
-        await asyncio.to_thread(lambda: db.table("disco_initiatives").delete().eq("id", initiative_id).execute())
+        # Delete initiative (PocketBase cascade rules handle related tables)
+        pb.delete_record("disco_initiatives", initiative_id)
 
         logger.info(f"Deleted initiative: {initiative_id}")
         return True
@@ -396,15 +330,11 @@ async def delete_initiative(initiative_id: str, user_id: str) -> bool:
 async def check_user_access(initiative_id: str, user_id: str) -> bool:
     """Check if user has any access to initiative."""
     try:
-        db = get_supabase()
-        result = await asyncio.to_thread(
-            lambda: db.table("disco_initiative_members")
-            .select("id")
-            .eq("initiative_id", initiative_id)
-            .eq("user_id", user_id)
-            .execute()
+        record = pb.get_first(
+            "disco_initiative_members",
+            filter=f"initiative_id='{pb.escape_filter(initiative_id)}' && user_id='{pb.escape_filter(user_id)}'",
         )
-        return bool(result.data)
+        return record is not None
     except Exception:
         return False
 
@@ -412,17 +342,12 @@ async def check_user_access(initiative_id: str, user_id: str) -> bool:
 async def check_edit_permission(initiative_id: str, user_id: str) -> bool:
     """Check if user can edit initiative (owner or editor)."""
     try:
-        db = get_supabase()
-        result = await asyncio.to_thread(
-            lambda: db.table("disco_initiative_members")
-            .select("role")
-            .eq("initiative_id", initiative_id)
-            .eq("user_id", user_id)
-            .single()
-            .execute()
+        record = pb.get_first(
+            "disco_initiative_members",
+            filter=f"initiative_id='{pb.escape_filter(initiative_id)}' && user_id='{pb.escape_filter(user_id)}'",
         )
-        if not result.data:
+        if not record:
             return False
-        return result.data.get("role") in ("owner", "editor")
+        return record.get("role") in ("owner", "editor")
     except Exception:
         return False

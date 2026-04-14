@@ -3,19 +3,17 @@
 Manages the global system knowledge base (methodology files).
 """
 
-import asyncio
 import os
 from pathlib import Path
 from typing import Dict, List, Optional
-from uuid import uuid4
 
+import pb_client as pb
+import repositories.disco as disco_repo
 from config.constants import DATABASE, EMBEDDING, TEXT_CHUNKING
-from database import get_supabase
 from document_processor import chunk_text, generate_embeddings
 from logger_config import get_logger
 
 logger = get_logger(__name__)
-supabase = get_supabase()
 
 # Configuration (DISCO_REPO_PATH preferred, DISCO_REPO_PATH for legacy)
 DISCO_REPO_PATH = os.environ.get("DISCO_REPO_PATH") or os.environ.get("DISCO_REPO_PATH", "")
@@ -97,56 +95,46 @@ async def sync_kb_from_filesystem() -> Dict:
             content = filepath.read_text()
 
             # Check if file exists in DB
-            existing = await asyncio.to_thread(
-                lambda fn=filename: supabase.table("disco_system_kb").select("id, content").eq("filename", fn).execute()
+            existing = pb.get_first(
+                "disco_system_kb",
+                filter=f"filename='{pb.escape_filter(filename)}'",
             )
 
-            if existing.data:
+            if existing:
                 # Update if content changed
-                kb_record = existing.data[0]
-                if kb_record["content"] == content:
+                if existing.get("content") == content:
                     stats["skipped"] += 1
                     continue
 
+                kb_id = existing["id"]
+
                 # Update content
-                await asyncio.to_thread(
-                    lambda fn=filename, c=content, cat=category: supabase.table("disco_system_kb")
-                    .update({"content": c, "category": cat, "updated_at": "now()"})
-                    .eq("filename", fn)
-                    .execute()
-                )
+                pb.update_record("disco_system_kb", kb_id, {
+                    "content": content,
+                    "category": category,
+                })
 
                 # Delete old chunks
-                await asyncio.to_thread(
-                    lambda kb_id=kb_record["id"]: supabase.table("disco_system_kb_chunks")
-                    .delete()
-                    .eq("kb_id", kb_id)
-                    .execute()
+                old_chunks = pb.get_all(
+                    "disco_system_kb_chunks",
+                    filter=f"kb_id='{pb.escape_filter(kb_id)}'",
                 )
+                for chunk in old_chunks:
+                    pb.delete_record("disco_system_kb_chunks", chunk["id"])
 
-                kb_id = kb_record["id"]
                 stats["updated"] += 1
 
             else:
                 # Create new KB entry
-                kb_id = str(uuid4())
                 description = extract_description(content)
 
-                await asyncio.to_thread(
-                    lambda kid=kb_id, fn=filename, c=content, cat=category, desc=description: supabase.table(
-                        "disco_system_kb"
-                    )
-                    .insert(
-                        {
-                            "id": kid,
-                            "filename": fn,
-                            "content": c,
-                            "category": cat,
-                            "description": desc,
-                        }
-                    )
-                    .execute()
-                )
+                result = disco_repo.create_system_kb({
+                    "filename": filename,
+                    "content": content,
+                    "category": category,
+                    "description": description,
+                })
+                kb_id = result["id"]
 
                 stats["created"] += 1
 
@@ -159,31 +147,19 @@ async def sync_kb_from_filesystem() -> Dict:
 
             if chunks:
                 chunk_texts = [c["content"] for c in chunks]
-                embeddings = await asyncio.to_thread(
-                    lambda ct=chunk_texts: generate_embeddings(ct, input_type=EMBEDDING.INPUT_TYPE_DOCUMENT)
-                )
+                embeddings = generate_embeddings(chunk_texts, input_type=EMBEDDING.INPUT_TYPE_DOCUMENT)
 
-                chunks_to_insert = []
-                for _i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
-                    chunks_to_insert.append(
-                        {
-                            "kb_id": kb_id,
-                            "chunk_index": chunk["chunk_index"],
-                            "content": chunk["content"].replace("\x00", ""),
-                            "metadata": {"filename": filename},
-                        }
-                    )
-
-                # Batch insert
                 all_inserted = []
-                batch_size = DATABASE.BATCH_INSERT_SIZE
-                for batch_start in range(0, len(chunks_to_insert), batch_size):
-                    batch = chunks_to_insert[batch_start : batch_start + batch_size]
-                    insert_result = await asyncio.to_thread(
-                        lambda b=batch: supabase.table("disco_system_kb_chunks").insert(b).execute()
-                    )
-                    if insert_result.data:
-                        all_inserted.extend(insert_result.data)
+                for _i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
+                    chunk_data = {
+                        "kb_id": kb_id,
+                        "chunk_index": chunk["chunk_index"],
+                        "content": chunk["content"].replace("\x00", ""),
+                        "metadata": {"filename": filename},
+                    }
+                    inserted = disco_repo.create_system_kb_chunk(chunk_data)
+                    if inserted:
+                        all_inserted.append(inserted)
 
                 # Upsert vectors to Pinecone
                 pinecone_vectors = []
@@ -204,9 +180,7 @@ async def sync_kb_from_filesystem() -> Dict:
                 if pinecone_vectors:
                     from services.pinecone_service import upsert_vectors
 
-                    await asyncio.to_thread(
-                        lambda: upsert_vectors(vectors=pinecone_vectors, namespace="disco_system_kb_chunks")
-                    )
+                    upsert_vectors(vectors=pinecone_vectors, namespace="disco_system_kb_chunks")
 
             stats["files_processed"].append(filename)
             logger.info(f"Processed KB file: {filename} ({len(chunks)} chunks)")
@@ -237,9 +211,7 @@ async def search_system_kb(
 
     try:
         # Generate query embedding
-        query_embedding = await asyncio.to_thread(
-            lambda: generate_embeddings([query], input_type=EMBEDDING.INPUT_TYPE_QUERY)[0]
-        )
+        query_embedding = generate_embeddings([query], input_type=EMBEDDING.INPUT_TYPE_QUERY)[0]
 
         # Try Pinecone first
         from services.pinecone_service import get_index, query_vectors
@@ -249,13 +221,11 @@ async def search_system_kb(
             if category:
                 pc_filter["category"] = {"$eq": category}
 
-            matches = await asyncio.to_thread(
-                lambda: query_vectors(
-                    embedding=query_embedding,
-                    namespace="disco_system_kb_chunks",
-                    top_k=limit,
-                    filter=pc_filter if pc_filter else None,
-                )
+            matches = query_vectors(
+                embedding=query_embedding,
+                namespace="disco_system_kb_chunks",
+                top_k=limit,
+                filter=pc_filter if pc_filter else None,
             )
             matches = [m for m in matches if m["score"] >= min_similarity]
 
@@ -263,36 +233,22 @@ async def search_system_kb(
                 chunk_ids = [m["id"] for m in matches]
                 scores_map = {m["id"]: m["score"] for m in matches}
 
-                db_result = await asyncio.to_thread(
-                    lambda: supabase.table("disco_system_kb_chunks")
-                    .select("id, kb_id, content, chunk_index, metadata")
-                    .in_("id", chunk_ids)
-                    .execute()
-                )
+                # Fetch chunks by IDs
                 chunks = []
-                for row in db_result.data or []:
-                    row["similarity"] = scores_map.get(str(row["id"]), 0)
-                    chunks.append(row)
+                for cid in chunk_ids:
+                    try:
+                        chunk = pb.get_record("disco_system_kb_chunks", cid)
+                        if chunk:
+                            chunk["similarity"] = scores_map.get(str(chunk["id"]), 0)
+                            chunks.append(chunk)
+                    except Exception:
+                        pass
                 chunks.sort(key=lambda x: x.get("similarity", 0), reverse=True)
             else:
                 chunks = []
         else:
-            # Fallback to pgvector RPC
-            result = await asyncio.to_thread(
-                lambda: supabase.rpc(
-                    "match_disco_system_kb_chunks",
-                    {
-                        "query_embedding": query_embedding,
-                        "match_count": limit,
-                        "match_threshold": min_similarity,
-                    },
-                ).execute()
-            )
-            chunks = result.data or []
-
-            # Filter by category if specified (pgvector fallback only)
-            if category and chunks:
-                chunks = [c for c in chunks if c.get("category") == category]
+            # No Pinecone fallback available without pgvector RPC
+            chunks = []
 
         logger.info(f"Found {len(chunks)} matching KB chunks")
         return chunks
@@ -309,14 +265,7 @@ async def get_kb_files() -> List[Dict]:
         List of KB file records
     """
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_system_kb")
-            .select("id, filename, category, description, created_at, updated_at")
-            .order("filename")
-            .execute()
-        )
-
-        return result.data or []
+        return disco_repo.list_system_kb(sort="filename")
 
     except Exception as e:
         logger.error(f"Error listing KB files: {e}")
@@ -333,11 +282,7 @@ async def get_kb_file(kb_id: str) -> Optional[Dict]:
         KB file record with content
     """
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_system_kb").select("*").eq("id", kb_id).single().execute()
-        )
-
-        return result.data
+        return disco_repo.get_system_kb(kb_id)
 
     except Exception as e:
         logger.error(f"Error fetching KB file {kb_id}: {e}")
@@ -354,15 +299,11 @@ async def get_kb_by_category(category: str) -> List[Dict]:
         List of KB file records
     """
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_system_kb")
-            .select("id, filename, description")
-            .eq("category", category)
-            .order("filename")
-            .execute()
+        return pb.get_all(
+            "disco_system_kb",
+            filter=f"category='{pb.escape_filter(category)}'",
+            sort="filename",
         )
-
-        return result.data or []
 
     except Exception as e:
         logger.error(f"Error listing KB files by category: {e}")
@@ -398,28 +339,21 @@ async def get_kb_stats() -> Dict:
     """
     try:
         # Count files
-        files_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_system_kb").select("id", count="exact").execute()
-        )
+        total_files = pb.count("disco_system_kb")
 
         # Count chunks
-        chunks_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_system_kb_chunks").select("id", count="exact").execute()
-        )
+        total_chunks = pb.count("disco_system_kb_chunks")
 
         # Count by category
-        categories_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_system_kb").select("category").execute()
-        )
-
+        all_kb = disco_repo.list_system_kb()
         category_counts = {}
-        for item in categories_result.data or []:
+        for item in all_kb:
             cat = item.get("category", "general")
             category_counts[cat] = category_counts.get(cat, 0) + 1
 
         return {
-            "total_files": files_result.count or 0,
-            "total_chunks": chunks_result.count or 0,
+            "total_files": total_files,
+            "total_chunks": total_chunks,
             "by_category": category_counts,
         }
 

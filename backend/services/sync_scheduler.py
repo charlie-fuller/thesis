@@ -15,14 +15,11 @@ from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from database import get_supabase
+import pb_client as pb
 try:
     from services.google_drive_sync import sync_folder
 except ImportError:
     sync_folder = None
-
-# Get centralized Supabase client
-supabase = get_supabase()
 
 # Global scheduler instance
 scheduler: Optional[BackgroundScheduler] = None
@@ -61,18 +58,12 @@ def process_automatic_syncs():
 
         # Query for users with due syncs
         now = datetime.now(timezone.utc)
-        result = (
-            supabase.table("google_drive_tokens")
-            .select(
-                "id, user_id, sync_frequency, next_sync_scheduled, default_folder_id, default_folder_name, access_token_encrypted, refresh_token_encrypted, token_expires_at"
-            )
-            .eq("is_active", True)
-            .neq("sync_frequency", "manual")
-            .lte("next_sync_scheduled", now.isoformat())
-            .execute()
+        all_tokens = pb.get_all(
+            "google_drive_tokens",
+            filter=f"is_active=true && sync_frequency!='manual' && next_sync_scheduled<='{now.isoformat()}'",
         )
 
-        users_to_sync = result.data
+        users_to_sync = all_tokens
 
         if not users_to_sync:
             logger.info("   No syncs due at this time")
@@ -100,12 +91,15 @@ def process_automatic_syncs():
                 next_sync = calculate_next_sync_time(frequency)
 
                 # Update database with results
-                supabase.table("google_drive_tokens").update(
-                    {
+                token_record = pb.get_first(
+                    "google_drive_tokens",
+                    filter=f"user_id='{pb.escape_filter(user_id)}'",
+                )
+                if token_record:
+                    pb.update_record("google_drive_tokens", token_record["id"], {
                         "last_auto_sync": now.isoformat(),
                         "next_sync_scheduled": next_sync.isoformat(),
-                    }
-                ).eq("user_id", user_id).execute()
+                    })
 
                 logger.info(
                     f"      Sync completed: +{sync_result['documents_added']} added, "
@@ -121,12 +115,17 @@ def process_automatic_syncs():
                 # but keep a reasonable retry interval
                 next_retry = now + timedelta(hours=1)
                 try:
-                    supabase.table("google_drive_tokens").update({"next_sync_scheduled": next_retry.isoformat()}).eq(
-                        "user_id", user_token.get("user_id")
-                    ).execute()
-                    logger.info(f"      🔄 Scheduled retry in 1 hour: {next_retry.strftime('%Y-%m-%d %H:%M UTC')}")
+                    retry_token = pb.get_first(
+                        "google_drive_tokens",
+                        filter=f"user_id='{pb.escape_filter(user_token.get('user_id', ''))}'",
+                    )
+                    if retry_token:
+                        pb.update_record("google_drive_tokens", retry_token["id"], {
+                            "next_sync_scheduled": next_retry.isoformat(),
+                        })
+                    logger.info(f"      Scheduled retry in 1 hour: {next_retry.strftime('%Y-%m-%d %H:%M UTC')}")
                 except Exception as update_error:
-                    logger.error(f"      ⚠️  Could not update retry time: {str(update_error)}")
+                    logger.error(f"      Could not update retry time: {str(update_error)}")
 
         logger.info(f"\n{'=' * 60}")
         logger.info(f"✅ Automatic Sync Job Completed: {datetime.now(timezone.utc).isoformat()}")

@@ -62,7 +62,7 @@ async def _generate_and_send_digest() -> dict:
     """Generate and send the weekly manifesto compliance digest."""
     from collections import defaultdict
 
-    from database import get_supabase
+    import pb_client as pb
     from services.manifesto_compliance import (
         AGENT_EXPECTED_PRINCIPLES,
         DRIFT_ALERT_THRESHOLD,
@@ -70,34 +70,24 @@ async def _generate_and_send_digest() -> dict:
         _get_compliance_level,
     )
 
-    supabase = get_supabase()
-
     end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=7)
 
-    # Query chat messages
-    chat_result = await asyncio.to_thread(
-        lambda: supabase.table("messages")
-        .select("metadata")
-        .eq("role", "assistant")
-        .gte("created_at", start_date.isoformat())
-        .lte("created_at", end_date.isoformat())
-        .execute()
+    # Query chat messages (role=assistant, within date range)
+    chat_messages = pb.get_all(
+        "messages",
+        filter=f"role='assistant' && created>='{start_date.isoformat()}' && created<='{end_date.isoformat()}'",
     )
 
-    # Query meeting messages
-    meeting_result = await asyncio.to_thread(
-        lambda: supabase.table("meeting_room_messages")
-        .select("metadata")
-        .gte("created_at", start_date.isoformat())
-        .lte("created_at", end_date.isoformat())
-        .not_.is_("agent_id", "null")
-        .execute()
+    # Query meeting messages (with agent_id, within date range)
+    meeting_messages = pb.get_all(
+        "meeting_room_messages",
+        filter=f"created>='{start_date.isoformat()}' && created<='{end_date.isoformat()}' && agent_id!=''",
     )
 
     # Extract compliance records
     records = []
-    for msg in (chat_result.data or []) + (meeting_result.data or []):
+    for msg in (chat_messages or []) + (meeting_messages or []):
         metadata = msg.get("metadata") or {}
         compliance = metadata.get("manifesto_compliance")
         if compliance:

@@ -3,15 +3,13 @@
 Handles initiative sharing and permissions management.
 """
 
-import asyncio
 from typing import Dict, List, Optional
-from uuid import uuid4
 
-from database import get_supabase
+import pb_client as pb
+import repositories.disco as disco_repo
 from logger_config import get_logger
 
 logger = get_logger(__name__)
-supabase = get_supabase()
 
 # Valid roles
 VALID_ROLES = {"owner", "editor", "viewer"}
@@ -41,48 +39,40 @@ async def add_member(initiative_id: str, user_email: str, role: str, inviter_id:
 
     try:
         # Find user by email
-        user_result = await asyncio.to_thread(
-            lambda: supabase.table("users").select("id, email, name").eq("email", user_email).single().execute()
+        user = pb.get_first(
+            "users",
+            filter=f"email='{pb.escape_filter(user_email)}'",
         )
 
-        if not user_result.data:
+        if not user:
             raise ValueError(f"User not found: {user_email}")
 
-        user = user_result.data
         user_id = user["id"]
 
         # Check if already a member
-        existing = await asyncio.to_thread(
-            lambda: supabase.table("disco_initiative_members")
-            .select("id, role")
-            .eq("initiative_id", initiative_id)
-            .eq("user_id", user_id)
-            .execute()
+        existing = pb.get_first(
+            "disco_initiative_members",
+            filter=f"initiative_id='{pb.escape_filter(initiative_id)}' && user_id='{pb.escape_filter(user_id)}'",
         )
 
-        if existing.data:
+        if existing:
             # Update existing membership
-            result = await asyncio.to_thread(
-                lambda: supabase.table("disco_initiative_members")
-                .update({"role": role})
-                .eq("initiative_id", initiative_id)
-                .eq("user_id", user_id)
-                .execute()
+            updated = pb.update_record(
+                "disco_initiative_members",
+                existing["id"],
+                {"role": role},
             )
-            member = result.data[0]
-            member["user"] = user
+            updated["user"] = user
             logger.info(f"Updated member role for {user_email}")
-            return member
+            return updated
 
         # Add new member
-        member_id = str(uuid4())
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_initiative_members")
-            .insert({"id": member_id, "initiative_id": initiative_id, "user_id": user_id, "role": role})
-            .execute()
-        )
+        member = disco_repo.add_member({
+            "initiative_id": initiative_id,
+            "user_id": user_id,
+            "role": role,
+        })
 
-        member = result.data[0]
         member["user"] = user
         logger.info(f"Added member {user_email} to initiative")
         return member
@@ -119,13 +109,13 @@ async def remove_member(initiative_id: str, user_id: str, remover_id: str) -> bo
         raise ValueError(f"User {user_id} is not a member of this initiative")
 
     try:
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_initiative_members")
-            .delete()
-            .eq("initiative_id", initiative_id)
-            .eq("user_id", user_id)
-            .execute()
+        # Find the member record to delete
+        member = pb.get_first(
+            "disco_initiative_members",
+            filter=f"initiative_id='{pb.escape_filter(initiative_id)}' && user_id='{pb.escape_filter(user_id)}'",
         )
+        if member:
+            pb.delete_record("disco_initiative_members", member["id"])
 
         logger.info(f"Removed member {user_id} from initiative")
         return True
@@ -147,21 +137,22 @@ async def list_members(initiative_id: str) -> List[Dict]:
     logger.info(f"Listing members for initiative {initiative_id}")
 
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_initiative_members")
-            .select("*, users!disco_initiative_members_user_id_fkey(id, email, name)")
-            .eq("initiative_id", initiative_id)
-            .order("invited_at")
-            .execute()
-        )
+        members = disco_repo.get_initiative_members(initiative_id)
 
-        members = result.data or []
-
-        # Flatten user data
+        # Fetch user info for each member
         for member in members:
-            if member.get("users"):
-                member["user"] = member["users"]
-                del member["users"]
+            user_id = member.get("user_id")
+            if user_id:
+                try:
+                    user = pb.get_record("users", user_id)
+                    if user:
+                        member["user"] = {
+                            "id": user.get("id"),
+                            "email": user.get("email"),
+                            "name": user.get("name"),
+                        }
+                except Exception:
+                    pass
 
         return members
 
@@ -202,16 +193,22 @@ async def update_member_role(initiative_id: str, user_id: str, new_role: str, up
         raise ValueError("Cannot change owner's role")
 
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_initiative_members")
-            .update({"role": new_role})
-            .eq("initiative_id", initiative_id)
-            .eq("user_id", user_id)
-            .execute()
+        member = pb.get_first(
+            "disco_initiative_members",
+            filter=f"initiative_id='{pb.escape_filter(initiative_id)}' && user_id='{pb.escape_filter(user_id)}'",
+        )
+
+        if not member:
+            return {}
+
+        result = pb.update_record(
+            "disco_initiative_members",
+            member["id"],
+            {"role": new_role},
         )
 
         logger.info(f"Updated role for {user_id} to {new_role}")
-        return result.data[0] if result.data else {}
+        return result
 
     except Exception as e:
         logger.error(f"Error updating member role: {e}")
@@ -229,16 +226,12 @@ async def get_member_role(initiative_id: str, user_id: str) -> Optional[str]:
         Role string or None if not a member
     """
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_initiative_members")
-            .select("role")
-            .eq("initiative_id", initiative_id)
-            .eq("user_id", user_id)
-            .single()
-            .execute()
+        record = pb.get_first(
+            "disco_initiative_members",
+            filter=f"initiative_id='{pb.escape_filter(initiative_id)}' && user_id='{pb.escape_filter(user_id)}'",
         )
 
-        return result.data.get("role") if result.data else None
+        return record.get("role") if record else None
 
     except Exception:
         return None
@@ -292,30 +285,23 @@ async def transfer_ownership(initiative_id: str, new_owner_id: str, current_owne
 
     try:
         # Update new owner
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_initiative_members")
-            .update({"role": "owner"})
-            .eq("initiative_id", initiative_id)
-            .eq("user_id", new_owner_id)
-            .execute()
+        new_owner_member = pb.get_first(
+            "disco_initiative_members",
+            filter=f"initiative_id='{pb.escape_filter(initiative_id)}' && user_id='{pb.escape_filter(new_owner_id)}'",
         )
+        if new_owner_member:
+            pb.update_record("disco_initiative_members", new_owner_member["id"], {"role": "owner"})
 
         # Demote current owner to editor
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_initiative_members")
-            .update({"role": "editor"})
-            .eq("initiative_id", initiative_id)
-            .eq("user_id", current_owner_id)
-            .execute()
+        current_owner_member = pb.get_first(
+            "disco_initiative_members",
+            filter=f"initiative_id='{pb.escape_filter(initiative_id)}' && user_id='{pb.escape_filter(current_owner_id)}'",
         )
+        if current_owner_member:
+            pb.update_record("disco_initiative_members", current_owner_member["id"], {"role": "editor"})
 
         # Update initiative created_by
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_initiatives")
-            .update({"created_by": new_owner_id})
-            .eq("id", initiative_id)
-            .execute()
-        )
+        disco_repo.update_initiative(initiative_id, {"created_by": new_owner_id})
 
         logger.info(f"Transferred ownership to {new_owner_id}")
         return True

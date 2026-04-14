@@ -9,16 +9,14 @@ The Synthesis stage transforms consolidated insights into actionable
 initiative bundles with human checkpoints for review and approval.
 """
 
-import asyncio
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
-from uuid import uuid4
 
-from database import get_supabase
+import pb_client as pb
+import repositories.disco as disco_repo
 from logger_config import get_logger
 
 logger = get_logger(__name__)
-supabase = get_supabase()
 
 
 # ============================================================================
@@ -46,10 +44,7 @@ async def create_bundle(
     solution_type: Optional[str] = None,
 ) -> Dict:
     """Create a new initiative bundle."""
-    bundle_id = str(uuid4())
-
     bundle_data = {
-        "id": bundle_id,
         "initiative_id": initiative_id,
         "name": name,
         "description": description,
@@ -70,34 +65,28 @@ async def create_bundle(
         "solution_type": solution_type,
     }
 
-    result = await asyncio.to_thread(lambda: supabase.table("disco_bundles").insert(bundle_data).execute())
+    result = disco_repo.create_bundle(bundle_data)
 
-    if not result.data:
+    if not result:
         raise Exception("Failed to create bundle")
 
-    logger.info(f"Created bundle {bundle_id} for initiative {initiative_id}: {name}")
-    return result.data[0]
+    logger.info(f"Created bundle {result['id']} for initiative {initiative_id}: {name}")
+    return result
 
 
 async def get_bundle(bundle_id: str) -> Optional[Dict]:
     """Get a bundle by ID."""
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_bundles").select("*").eq("id", bundle_id).single().execute()
-    )
-    return result.data
+    return disco_repo.get_bundle(bundle_id)
 
 
 async def list_bundles(initiative_id: str, status: Optional[str] = None) -> List[Dict]:
     """List bundles for an initiative."""
-    query = supabase.table("disco_bundles").select("*").eq("initiative_id", initiative_id)
-
+    filter_parts = [f"initiative_id='{pb.escape_filter(initiative_id)}'"]
     if status:
-        query = query.eq("status", status)
+        filter_parts.append(f"status='{pb.escape_filter(status)}'")
+    filter_str = " && ".join(filter_parts)
 
-    query = query.order("created_at", desc=False)
-
-    result = await asyncio.to_thread(lambda: query.execute())
-    return result.data or []
+    return pb.get_all("disco_bundles", filter=filter_str, sort="created")
 
 
 async def update_bundle(bundle_id: str, updates: Dict, user_id: str, feedback: Optional[str] = None) -> Dict:
@@ -115,11 +104,9 @@ async def update_bundle(bundle_id: str, updates: Dict, user_id: str, feedback: O
     # Remove any fields that shouldn't be updated directly
     safe_updates = {k: v for k, v in updates.items() if k not in ["id", "initiative_id", "created_at"]}
 
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_bundles").update(safe_updates).eq("id", bundle_id).execute()
-    )
+    result = disco_repo.update_bundle(bundle_id, safe_updates)
 
-    if not result.data:
+    if not result:
         raise ValueError(f"Bundle not found: {bundle_id}")
 
     # Record feedback if provided
@@ -133,25 +120,18 @@ async def update_bundle(bundle_id: str, updates: Dict, user_id: str, feedback: O
         )
 
     logger.info(f"Updated bundle {bundle_id}")
-    return result.data[0]
+    return result
 
 
 async def approve_bundle(bundle_id: str, user_id: str, feedback: Optional[str] = None) -> Dict:
     """Approve a bundle for PRD generation."""
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_bundles")
-        .update(
-            {
-                "status": "approved",
-                "approved_at": datetime.now(timezone.utc).isoformat(),
-                "approved_by": user_id,
-            }
-        )
-        .eq("id", bundle_id)
-        .execute()
-    )
+    result = disco_repo.update_bundle(bundle_id, {
+        "status": "approved",
+        "approved_at": datetime.now(timezone.utc).isoformat(),
+        "approved_by": user_id,
+    })
 
-    if not result.data:
+    if not result:
         raise ValueError(f"Bundle not found: {bundle_id}")
 
     # Record approval feedback
@@ -163,23 +143,21 @@ async def approve_bundle(bundle_id: str, user_id: str, feedback: Optional[str] =
     )
 
     logger.info(f"Approved bundle {bundle_id}")
-    return result.data[0]
+    return result
 
 
 async def reject_bundle(bundle_id: str, user_id: str, feedback: str) -> Dict:
     """Reject a bundle (won't proceed to PRD)."""
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_bundles").update({"status": "rejected"}).eq("id", bundle_id).execute()
-    )
+    result = disco_repo.update_bundle(bundle_id, {"status": "rejected"})
 
-    if not result.data:
+    if not result:
         raise ValueError(f"Bundle not found: {bundle_id}")
 
     # Record rejection feedback
     await record_bundle_feedback(bundle_id=bundle_id, user_id=user_id, action="reject", feedback=feedback)
 
     logger.info(f"Rejected bundle {bundle_id}")
-    return result.data[0]
+    return result
 
 
 async def merge_bundles(
@@ -238,9 +216,7 @@ async def merge_bundles(
 
     # Mark original bundles as merged
     for bid in bundle_ids:
-        await asyncio.to_thread(
-            lambda b=bid: supabase.table("disco_bundles").update({"status": "merged"}).eq("id", b).execute()
-        )
+        disco_repo.update_bundle(bid, {"status": "merged"})
         await record_bundle_feedback(
             bundle_id=bid,
             user_id=user_id,
@@ -296,9 +272,7 @@ async def split_bundle(
         new_bundles.append(new_bundle)
 
     # Mark original as merged (effectively replaced)
-    await asyncio.to_thread(
-        lambda: supabase.table("disco_bundles").update({"status": "merged"}).eq("id", bundle_id).execute()
-    )
+    disco_repo.update_bundle(bundle_id, {"status": "merged"})
 
     await record_bundle_feedback(
         bundle_id=bundle_id,
@@ -325,7 +299,6 @@ async def record_bundle_feedback(
 ) -> Dict:
     """Record feedback or action on a bundle."""
     feedback_data = {
-        "id": str(uuid4()),
         "bundle_id": bundle_id,
         "user_id": user_id,
         "action": action,
@@ -333,24 +306,30 @@ async def record_bundle_feedback(
         "changes": changes,
     }
 
-    result = await asyncio.to_thread(lambda: supabase.table("disco_bundle_feedback").insert(feedback_data).execute())
+    result = disco_repo.create_bundle_feedback(feedback_data)
 
-    if not result.data:
+    if not result:
         raise Exception("Failed to record feedback")
 
-    return result.data[0]
+    return result
 
 
 async def get_bundle_feedback(bundle_id: str) -> List[Dict]:
     """Get all feedback for a bundle."""
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_bundle_feedback")
-        .select("*, users(email)")
-        .eq("bundle_id", bundle_id)
-        .order("created_at", desc=False)
-        .execute()
-    )
-    return result.data or []
+    feedback = disco_repo.list_bundle_feedback(bundle_id, sort="created")
+
+    # Fetch user emails for each feedback entry
+    for entry in feedback:
+        user_id = entry.get("user_id")
+        if user_id:
+            try:
+                user = pb.get_record("users", user_id)
+                if user:
+                    entry["users"] = {"email": user.get("email")}
+            except Exception:
+                pass
+
+    return feedback
 
 
 # ============================================================================

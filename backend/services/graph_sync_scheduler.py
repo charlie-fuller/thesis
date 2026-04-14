@@ -10,7 +10,7 @@ from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
 
 logger = get_logger(__name__)
@@ -30,10 +30,11 @@ async def _execute_full_sync(client_id: str) -> dict:
     """
     from services.graph import GraphSyncService, get_neo4j_connection
 
-    supabase = get_supabase()
+    # NOTE: GraphSyncService still expects a supabase client internally.
+    # Pass None; it will need its own migration pass.
     neo4j_connection = await get_neo4j_connection()
 
-    sync_service = GraphSyncService(supabase, neo4j_connection)
+    sync_service = GraphSyncService(None, neo4j_connection)
     return await sync_service.full_sync(client_id)
 
 
@@ -49,12 +50,8 @@ def process_graph_sync():
         logger.info(f"Knowledge Graph Sync Job Started: {datetime.now(timezone.utc).isoformat()}")
         logger.info(f"{'=' * 60}")
 
-        supabase = get_supabase()
-
         # Get all clients (clients table doesn't have is_active column)
-        result = supabase.table("clients").select("id, name").execute()
-
-        clients = result.data or []
+        clients = pb.get_all("clients") or []
 
         if not clients:
             logger.info("   No active clients found for graph sync")

@@ -1,13 +1,15 @@
 """Initiative Context Builder.
 
 Builds XML context for the Discovery Agent by fetching initiative metadata,
-throughline, agent outputs, linked documents, and value alignment from Supabase.
+throughline, agent outputs, linked documents, and value alignment from PocketBase.
 Follows the same pattern as services/project_context.py build_project_context().
 """
 
 import json
 
-from database import get_supabase
+import pb_client as pb
+import repositories.disco as disco_repo
+import repositories.documents as docs_repo
 from logger_config import get_logger
 
 logger = get_logger(__name__)
@@ -27,19 +29,13 @@ async def build_initiative_context(initiative_id: str, user_id: str) -> str:
     Returns:
         Formatted XML context string
     """
-    supabase = get_supabase()
     parts = ["<initiative_context>"]
 
     # 1. Initiative metadata + throughline
     try:
-        init_result = (
-            supabase.table("disco_initiatives")
-            .select("name, description, status, target_department, throughline, value_alignment, brief")
-            .eq("id", initiative_id)
-            .single()
-            .execute()
-        )
-        init_data = init_result.data if init_result.data else {}
+        init_data = disco_repo.get_initiative(initiative_id)
+        if not init_data:
+            init_data = {}
     except Exception as e:
         logger.warning(f"Failed to fetch initiative {initiative_id}: {e}")
         init_data = {}
@@ -121,15 +117,7 @@ async def build_initiative_context(initiative_id: str, user_id: str) -> str:
 
     # 4. Latest agent output summaries (recommendation + confidence only to save tokens)
     try:
-        outputs_result = (
-            supabase.table("disco_outputs")
-            .select("agent_name, recommendation, confidence, status, created_at")
-            .eq("initiative_id", initiative_id)
-            .order("created_at", desc=True)
-            .limit(20)
-            .execute()
-        )
-        outputs = outputs_result.data if outputs_result.data else []
+        outputs = disco_repo.list_outputs(initiative_id, sort="-created")
     except Exception as e:
         logger.warning(f"Failed to fetch agent outputs for {initiative_id}: {e}")
         outputs = []
@@ -139,16 +127,16 @@ async def build_initiative_context(initiative_id: str, user_id: str) -> str:
         seen_agents = set()
         unique_outputs = []
         for out in outputs:
-            agent = out.get("agent_name", "")
+            agent = out.get("agent_name", "") or out.get("agent_type", "")
             if agent not in seen_agents:
                 seen_agents.add(agent)
                 unique_outputs.append(out)
 
         parts.append("<agent_outputs>")
-        for out in unique_outputs:
-            agent = out.get("agent_name", "unknown")
+        for out in unique_outputs[:20]:
+            agent = out.get("agent_name", "") or out.get("agent_type", "unknown")
             rec = out.get("recommendation", "")
-            conf = out.get("confidence", "")
+            conf = out.get("confidence", "") or out.get("confidence_level", "")
             status = out.get("status", "")
             # Truncate recommendation to ~200 chars to stay within token budget
             if rec and len(rec) > 200:
@@ -161,28 +149,29 @@ async def build_initiative_context(initiative_id: str, user_id: str) -> str:
         parts.append("<agent_outputs>No agent analyses have been run yet.</agent_outputs>")
 
     # 5. Linked document names
+    # Use disco_initiative_documents junction table via PocketBase
     try:
-        docs_result = (
-            supabase.table("disco_initiative_documents")
-            .select("document_id, documents(id, title, filename, folder)")
-            .eq("initiative_id", initiative_id)
-            .limit(30)
-            .execute()
+        linked_docs_records = pb.get_all(
+            "disco_initiative_documents",
+            filter=f"initiative_id='{pb.escape_filter(initiative_id)}'",
+            sort="-created",
         )
-        linked_docs = docs_result.data if docs_result.data else []
+        linked_docs_records = linked_docs_records[:30]
     except Exception as e:
         logger.warning(f"Failed to fetch linked documents for {initiative_id}: {e}")
-        linked_docs = []
+        linked_docs_records = []
 
-    if linked_docs:
+    if linked_docs_records:
         parts.append("<linked_documents>")
-        for doc_link in linked_docs:
-            doc = doc_link.get("documents", {})
-            if doc:
-                title = doc.get("title") or doc.get("filename", "Unknown")
-                folder = doc.get("folder", "")
-                folder_str = f' folder="{folder}"' if folder else ""
-                parts.append(f"  <document{folder_str}>{title}</document>")
+        for doc_link in linked_docs_records:
+            doc_id = doc_link.get("document_id")
+            if doc_id:
+                doc = docs_repo.get_document(doc_id)
+                if doc:
+                    title = doc.get("title") or doc.get("filename", "Unknown")
+                    folder = doc.get("folder", "")
+                    folder_str = f' folder="{folder}"' if folder else ""
+                    parts.append(f"  <document{folder_str}>{title}</document>")
         parts.append("</linked_documents>")
     else:
         parts.append("<linked_documents>No documents linked yet.</linked_documents>")
@@ -192,6 +181,6 @@ async def build_initiative_context(initiative_id: str, user_id: str) -> str:
     context = "\n".join(parts)
     logger.info(
         f"Built initiative context for {initiative_id}: "
-        f"{len(context)} chars, {len(outputs)} outputs, {len(linked_docs)} docs"
+        f"{len(context)} chars, {len(outputs)} outputs, {len(linked_docs_records)} docs"
     )
     return context

@@ -3,10 +3,11 @@
 Handles operations related to projects linked to DISCo initiatives.
 """
 
-import asyncio
 from typing import Dict, Optional
 
-from database import get_supabase, with_db_retry
+import pb_client as pb
+import repositories.disco as disco_repo
+import repositories.projects as projects_repo
 from logger_config import get_logger
 
 logger = get_logger(__name__)
@@ -36,18 +37,17 @@ async def _resolve_initiative_id(initiative_id: str) -> Optional[str]:
         return initiative_id
 
     # Look up by name
-    db = get_supabase()
-    result = await asyncio.to_thread(
-        lambda: db.table("disco_initiatives").select("id").eq("name", initiative_id).single().execute()
+    result = pb.get_first(
+        "disco_initiatives",
+        filter=f"name='{pb.escape_filter(initiative_id)}'",
     )
 
-    if not result.data:
+    if not result:
         return None
 
-    return result.data["id"]
+    return result["id"]
 
 
-@with_db_retry(max_retries=2)
 async def get_initiative_projects(initiative_id: str, status: Optional[str] = None) -> Dict:
     """Get all projects linked to an initiative.
 
@@ -66,24 +66,20 @@ async def get_initiative_projects(initiative_id: str, status: Optional[str] = No
         return {"projects": [], "count": 0}
 
     try:
-        db = get_supabase()
+        # PocketBase doesn't support contains() on arrays directly,
+        # so we fetch all projects and filter in Python
+        all_projects = projects_repo.list_projects(sort="-created")
 
-        # Query projects where initiative_ids contains this initiative
-        query = (
-            db.table("ai_projects")
-            .select(
-                "id, project_code, title, description, status, tier, total_score, source_type, source_id, created_at"
-            )
-            .contains("initiative_ids", [resolved_id])
-        )
+        projects = [
+            p for p in all_projects
+            if resolved_id in (p.get("initiative_ids") or [])
+        ]
 
         if status:
-            query = query.eq("status", status)
+            projects = [p for p in projects if p.get("status") == status]
 
-        query = query.order("created_at", desc=True)
-
-        result = await asyncio.to_thread(lambda: query.execute())
-        projects = result.data or []
+        # Sort by created descending
+        projects.sort(key=lambda p: p.get("created", ""), reverse=True)
 
         logger.info(f"Found {len(projects)} projects for initiative {resolved_id}")
         return {"projects": projects, "count": len(projects)}
@@ -93,7 +89,6 @@ async def get_initiative_projects(initiative_id: str, status: Optional[str] = No
         raise
 
 
-@with_db_retry(max_retries=2)
 async def create_project_from_prd(
     prd_id: str,
     initiative_id: str,
@@ -111,24 +106,16 @@ async def create_project_from_prd(
     Returns:
         Created project record
     """
-    from uuid import uuid4
-
     logger.info(f"Creating project from PRD {prd_id}")
 
     try:
-        db = get_supabase()
-
         # Get PRD title for reference
-        prd_result = await asyncio.to_thread(
-            lambda: db.table("disco_prds").select("title").eq("id", prd_id).single().execute()
-        )
-        prd_title = prd_result.data.get("title") if prd_result.data else "Unknown PRD"
+        prd = disco_repo.get_prd(prd_id)
+        prd_title = prd.get("title") if prd else "Unknown PRD"
 
         # Prepare project record
-        project_id = str(uuid4())
         project_record = {
-            "id": project_id,
-            "project_code": project_data.get("project_code", f"PRD{project_id[:4].upper()}"),
+            "project_code": project_data.get("project_code", f"PRD{prd_id[:4].upper()}" if prd_id else "PRD"),
             "title": project_data.get("title", prd_title),
             "description": project_data.get("description"),
             "department": project_data.get("department"),
@@ -146,13 +133,13 @@ async def create_project_from_prd(
             "created_by": user_id,
         }
 
-        result = await asyncio.to_thread(lambda: db.table("ai_projects").insert(project_record).execute())
+        result = projects_repo.create_project(project_record)
 
-        if not result.data:
+        if not result:
             raise Exception("Failed to create project")
 
-        logger.info(f"Created project {project_id} from PRD {prd_id}")
-        return result.data[0]
+        logger.info(f"Created project {result['id']} from PRD {prd_id}")
+        return result
 
     except Exception as e:
         logger.error(f"Error creating project from PRD: {e}")
@@ -164,7 +151,6 @@ _SCORE_MAP = {"HIGH": 5, "MEDIUM": 3, "LOW": 1}
 _INVERSE_SCORE_MAP = {"HIGH": 1, "MEDIUM": 3, "LOW": 5}
 
 
-@with_db_retry(max_retries=2)
 async def create_project_from_bundle(
     bundle: Dict,
     initiative_id: str,
@@ -182,22 +168,15 @@ async def create_project_from_bundle(
         bundle: The approved bundle record
         initiative_id: Parent initiative ID
         user_id: Creating user's ID
-        client_id: User's client ID
+        client_id: User's client ID (unused in PocketBase)
 
     Returns:
         Created project record
     """
-    from uuid import uuid4
-
     bundle_id = bundle["id"]
     logger.info(f"Creating project from bundle {bundle_id}")
 
     try:
-        db = get_supabase()
-
-        project_id = str(uuid4())
-        project_code = project_id[:4].upper()
-
         # Map scores
         roi_potential = _SCORE_MAP.get(bundle.get("impact_score"), 3)
         implementation_effort = _INVERSE_SCORE_MAP.get(bundle.get("feasibility_score"), 3)
@@ -205,9 +184,7 @@ async def create_project_from_bundle(
 
         bundle_name = bundle.get("name", "Untitled Bundle")
         project_record = {
-            "id": project_id,
-            "client_id": client_id,
-            "project_code": project_code,
+            "project_code": bundle_id[:4].upper() if bundle_id else "BNDL",
             "title": bundle_name,
             "description": bundle.get("description"),
             "roi_potential": roi_potential,
@@ -222,13 +199,13 @@ async def create_project_from_bundle(
             "created_by": user_id,
         }
 
-        result = await asyncio.to_thread(lambda: db.table("ai_projects").insert(project_record).execute())
+        result = projects_repo.create_project(project_record)
 
-        if not result.data:
+        if not result:
             raise Exception("Failed to create project")
 
-        logger.info(f"Created project {project_id} from bundle {bundle_id}")
-        return result.data[0]
+        logger.info(f"Created project {result['id']} from bundle {bundle_id}")
+        return result
 
     except Exception as e:
         logger.error(f"Error creating project from bundle: {e}")

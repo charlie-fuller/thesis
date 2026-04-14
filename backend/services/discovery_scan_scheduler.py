@@ -11,7 +11,7 @@ from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from database import get_supabase
+import pb_client as pb
 from logger_config import get_logger
 
 logger = get_logger(__name__)
@@ -35,14 +35,9 @@ def process_discovery_scan():
     try:
         logger.info(f"Discovery Scan Job Started: {datetime.now(timezone.utc).isoformat()}")
 
-        supabase = get_supabase()
-
-        # Get active users (users who have logged in recently)
-        result = (
-            supabase.table("profiles").select("id, client_id, display_name").not_.is_("client_id", "null").execute()
-        )
-
-        users = result.data or []
+        # Get active users (users who have a client_id)
+        all_profiles = pb.get_all("profiles")
+        users = [p for p in (all_profiles or []) if p.get("client_id")]
 
         if not users:
             logger.info("   No active users found for discovery scan")

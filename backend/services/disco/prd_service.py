@@ -11,17 +11,15 @@ The Convergence stage transforms approved initiative bundles into
 actionable documents ready for implementation or decision-making.
 """
 
-import asyncio
 import re
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Dict, List, Optional
-from uuid import uuid4
 
-from database import get_supabase
+import pb_client as pb
+import repositories.disco as disco_repo
 from logger_config import get_logger
 
 logger = get_logger(__name__)
-supabase = get_supabase()
 
 
 # ============================================================================
@@ -70,10 +68,7 @@ async def create_prd(
     source_output_id: Optional[str] = None,
 ) -> Dict:
     """Create a new PRD from a bundle."""
-    prd_id = str(uuid4())
-
     prd_data = {
-        "id": prd_id,
         "bundle_id": bundle_id,
         "initiative_id": initiative_id,
         "title": title,
@@ -84,40 +79,63 @@ async def create_prd(
         "source_output_id": source_output_id,
     }
 
-    result = await asyncio.to_thread(lambda: supabase.table("disco_prds").insert(prd_data).execute())
+    result = disco_repo.create_prd(prd_data)
 
-    if not result.data:
+    if not result:
         raise Exception("Failed to create PRD")
 
-    logger.info(f"Created PRD {prd_id} for bundle {bundle_id}: {title}")
-    return result.data[0]
+    logger.info(f"Created PRD {result['id']} for bundle {bundle_id}: {title}")
+    return result
 
 
 async def get_prd(prd_id: str) -> Optional[Dict]:
     """Get a PRD by ID."""
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_prds")
-        .select("*, disco_bundles(name, status)")
-        .eq("id", prd_id)
-        .single()
-        .execute()
-    )
-    return result.data
+    prd = disco_repo.get_prd(prd_id)
+    if not prd:
+        return None
+
+    # Fetch bundle info separately (no joins in PocketBase)
+    bundle_id = prd.get("bundle_id")
+    if bundle_id:
+        try:
+            bundle = disco_repo.get_bundle(bundle_id)
+            if bundle:
+                prd["disco_bundles"] = {
+                    "name": bundle.get("name"),
+                    "status": bundle.get("status"),
+                }
+        except Exception:
+            pass
+
+    return prd
 
 
 async def list_prds(initiative_id: str, bundle_id: Optional[str] = None, status: Optional[str] = None) -> List[Dict]:
     """List PRDs for an initiative."""
-    query = supabase.table("disco_prds").select("*, disco_bundles(name, status)").eq("initiative_id", initiative_id)
-
+    filter_parts = [f"initiative_id='{pb.escape_filter(initiative_id)}'"]
     if bundle_id:
-        query = query.eq("bundle_id", bundle_id)
+        filter_parts.append(f"bundle_id='{pb.escape_filter(bundle_id)}'")
     if status:
-        query = query.eq("status", status)
+        filter_parts.append(f"status='{pb.escape_filter(status)}'")
+    filter_str = " && ".join(filter_parts)
 
-    query = query.order("created_at", desc=True)
+    prds = pb.get_all("disco_prds", filter=filter_str, sort="-created")
 
-    result = await asyncio.to_thread(lambda: query.execute())
-    return result.data or []
+    # Fetch bundle info for each PRD
+    for prd in prds:
+        bid = prd.get("bundle_id")
+        if bid:
+            try:
+                bundle = disco_repo.get_bundle(bid)
+                if bundle:
+                    prd["disco_bundles"] = {
+                        "name": bundle.get("name"),
+                        "status": bundle.get("status"),
+                    }
+            except Exception:
+                pass
+
+    return prds
 
 
 async def update_prd(prd_id: str, updates: Dict) -> Dict:
@@ -125,37 +143,28 @@ async def update_prd(prd_id: str, updates: Dict) -> Dict:
     # Remove protected fields
     safe_updates = {k: v for k, v in updates.items() if k not in ["id", "bundle_id", "initiative_id", "created_at"]}
 
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_prds").update(safe_updates).eq("id", prd_id).execute()
-    )
+    result = disco_repo.update_prd(prd_id, safe_updates)
 
-    if not result.data:
+    if not result:
         raise ValueError(f"PRD not found: {prd_id}")
 
     logger.info(f"Updated PRD {prd_id}")
-    return result.data[0]
+    return result
 
 
 async def approve_prd(prd_id: str, user_id: str) -> Dict:
     """Approve a PRD."""
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_prds")
-        .update(
-            {
-                "status": "approved",
-                "approved_at": datetime.now(timezone.utc).isoformat(),
-                "approved_by": user_id,
-            }
-        )
-        .eq("id", prd_id)
-        .execute()
-    )
+    result = disco_repo.update_prd(prd_id, {
+        "status": "approved",
+        "approved_at": datetime.now(timezone.utc).isoformat(),
+        "approved_by": user_id,
+    })
 
-    if not result.data:
+    if not result:
         raise ValueError(f"PRD not found: {prd_id}")
 
     logger.info(f"Approved PRD {prd_id}")
-    return result.data[0]
+    return result
 
 
 async def increment_prd_version(prd_id: str, new_content: str) -> Dict:
@@ -166,26 +175,19 @@ async def increment_prd_version(prd_id: str, new_content: str) -> Dict:
         raise ValueError(f"PRD not found: {prd_id}")
 
     # Increment version and update content
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_prds")
-        .update(
-            {
-                "content_markdown": new_content,
-                "version": current["version"] + 1,
-                "status": "draft",  # Reset to draft for new version
-                "approved_at": None,
-                "approved_by": None,
-            }
-        )
-        .eq("id", prd_id)
-        .execute()
-    )
+    result = disco_repo.update_prd(prd_id, {
+        "content_markdown": new_content,
+        "version": current["version"] + 1,
+        "status": "draft",  # Reset to draft for new version
+        "approved_at": None,
+        "approved_by": None,
+    })
 
-    if not result.data:
+    if not result:
         raise Exception("Failed to update PRD version")
 
     logger.info(f"Incremented PRD {prd_id} to version {current['version'] + 1}")
-    return result.data[0]
+    return result
 
 
 # ============================================================================
@@ -589,27 +591,22 @@ Please generate a complete PRD following the structure defined in your instructi
     # Create PRD record
     try:
         # Create output record first
-        output_id = str(uuid4())
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_outputs")
-            .insert(
-                {
-                    "id": output_id,
-                    "run_id": str(uuid4()),  # Standalone PRD generation
-                    "initiative_id": initiative_id,
-                    "agent_type": "prd_generator",
-                    "version": 1,
-                    "content_markdown": full_content,
-                    "content_structured": structured,
-                    "title": title,
-                    "recommendation": None,
-                    "tier_routing": None,
-                    "confidence_level": None,
-                    "executive_summary": structured.get("executive_summary"),
-                }
-            )
-            .execute()
-        )
+        output_data = {
+            "run_id": None,  # Standalone PRD generation
+            "initiative_id": initiative_id,
+            "agent_type": "prd_generator",
+            "version": 1,
+            "content_markdown": full_content,
+            "content_structured": structured,
+            "title": title,
+            "recommendation": None,
+            "tier_routing": None,
+            "confidence_level": None,
+            "executive_summary": structured.get("executive_summary"),
+        }
+
+        stored_output = disco_repo.create_output(output_data)
+        output_id = stored_output["id"]
 
         # Create PRD record
         prd = await create_prd(
@@ -838,10 +835,7 @@ async def generate_executive_summary(initiative_id: str, user_id: str) -> AsyncG
     yield {"type": "status", "data": "Loading initiative data..."}
 
     # Get initiative
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_initiatives").select("*").eq("id", initiative_id).single().execute()
-    )
-    initiative = result.data
+    initiative = disco_repo.get_initiative(initiative_id)
     if not initiative:
         yield {"type": "error", "data": "Initiative not found"}
         return
