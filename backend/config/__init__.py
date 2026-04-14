@@ -139,14 +139,9 @@ ALLOWED_DOCUMENT_TYPES = [
     "text/plain",
 ]
 
-# Database Configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip() or None
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "").strip() or None
-SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "").strip() or None
-
-# AI Services
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip() or None
-VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "").strip() or None
+# AI Services (legacy env vars kept for backwards compat, prefer THESIS_ prefix)
+ANTHROPIC_API_KEY = settings.anthropic_api_key or os.getenv("ANTHROPIC_API_KEY", "").strip() or None
+VOYAGE_API_KEY = settings.voyage_api_key or os.getenv("VOYAGE_API_KEY", "").strip() or None
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "").strip() or None
 
 # Feature Flags
@@ -170,9 +165,9 @@ def validate_config():
         ValueError: If required configuration is missing
     """
     required_vars = {
-        "SUPABASE_URL": SUPABASE_URL,
-        "SUPABASE_KEY": SUPABASE_KEY,
-        "ANTHROPIC_API_KEY": ANTHROPIC_API_KEY,
+        "THESIS_POCKETBASE_URL": settings.pocketbase_url,
+        "THESIS_API_KEY": settings.api_key,
+        "THESIS_ANTHROPIC_API_KEY": ANTHROPIC_API_KEY,
     }
 
     missing = [key for key, value in required_vars.items() if not value]
