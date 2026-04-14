@@ -9,16 +9,18 @@ import os
 from datetime import datetime, timezone
 
 from anthropic import Anthropic
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+import pb_client as pb
 from api.models.requests import ChatRequest
-from auth import get_current_user
-from database import get_supabase
 from document_processor import search_similar_chunks
 from logger_config import get_logger
+from repositories import conversations as convos_repo
+from repositories import agents as agents_repo
+from repositories import documents as docs_repo
 from services.chat_agent_service import AGENT_DISPLAY_NAMES, get_chat_agent_service
 from services.compliance_drift_tracker import (
     get_compliance_reminder,
@@ -47,7 +49,6 @@ from system_instructions_loader import (
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 limiter = Limiter(key_func=get_remote_address)
-supabase = get_supabase()
 
 # Initialize Anthropic client
 anthropic_client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -125,7 +126,7 @@ def _message_has_substantial_content(message: str) -> bool:
         # Numbered lists
         any(f"{i}." in content or f"{i})" in content or f"{i}:" in content for i in range(1, 20)),
         # Bullet points
-        "\n-" in content or "\n•" in content or "\n*" in content,
+        "\n-" in content or "\n\u2022" in content or "\n*" in content,
         # Multiple line breaks suggest structured content
         content.count("\n") >= 2,
         # Colons often indicate structured content
@@ -149,9 +150,43 @@ def _message_has_substantial_content(message: str) -> bool:
     return False
 
 
+def _get_conversation_field(conversation_id: str, field: str):
+    """Helper to get a single field from a conversation record."""
+    conv = convos_repo.get_conversation(conversation_id)
+    if conv:
+        return conv.get(field)
+    return None
+
+
+def _get_recent_messages(conversation_id: str, limit: int = 50, fields: str = "", role: str = "") -> list[dict]:
+    """Helper to get recent messages for a conversation, sorted desc by created."""
+    parts = [f"conversation_id='{pb.escape_filter(conversation_id)}'"]
+    if role:
+        parts.append(f"role='{pb.escape_filter(role)}'")
+    filter_str = " && ".join(parts)
+
+    result = pb.list_records(
+        "messages",
+        filter=filter_str,
+        sort="-created",
+        per_page=limit,
+        fields=fields,
+    )
+    return result.get("items", [])
+
+
+def _insert_messages(messages: list[dict]) -> list[dict]:
+    """Insert multiple messages one at a time (PocketBase has no batch insert)."""
+    results = []
+    for msg in messages:
+        record = pb.create_record("messages", msg)
+        results.append(record)
+    return results
+
+
 @router.post("")
 @limiter.limit("20/minute")
-async def chat(request: Request, chat_request: ChatRequest, current_user: dict = Depends(get_current_user)):
+async def chat(request: Request, chat_request: ChatRequest):
     """Chat endpoint with RAG (Retrieval Augmented Generation).
 
     Processes user messages and generates AI responses using Claude,
@@ -178,7 +213,6 @@ async def chat(request: Request, chat_request: ChatRequest, current_user: dict =
     logger.info(
         "Chat request received",
         extra={
-            "user_id": current_user["id"],
             "conversation_id": chat_request.conversation_id,
             "message_length": len(chat_request.message),
         },
@@ -212,42 +246,30 @@ async def chat(request: Request, chat_request: ChatRequest, current_user: dict =
 
         # Build context from documents using RAG (conditionally)
         context_chunks = []
-        client_id = current_user.get("client_id")
 
         # Pre-fetch project-linked document IDs for RAG scoping
         project_document_ids = None
         project_id_for_context = chat_request.project_id
         if chat_request.conversation_id:
             try:
-                conv_result = await asyncio.to_thread(
-                    lambda: supabase.table("conversations")
-                    .select("project_id")
-                    .eq("id", chat_request.conversation_id)
-                    .single()
-                    .execute()
-                )
-                pid = conv_result.data.get("project_id") if conv_result.data else None
+                pid = _get_conversation_field(chat_request.conversation_id, "project_id")
 
                 # Backfill: if frontend knows the project but conversation doesn't
                 if not pid and project_id_for_context:
                     pid = project_id_for_context
-                    await asyncio.to_thread(
-                        lambda: supabase.table("conversations")
-                        .update({"project_id": project_id_for_context})
-                        .eq("id", chat_request.conversation_id)
-                        .execute()
+                    convos_repo.update_conversation(
+                        chat_request.conversation_id,
+                        {"project_id": project_id_for_context},
                     )
 
                 if pid:
                     project_id_for_context = pid
-                    pd_result = await asyncio.to_thread(
-                        lambda: supabase.table("project_documents")
-                        .select("document_id")
-                        .eq("project_id", pid)
-                        .execute()
+                    pd_records = pb.get_all(
+                        "project_documents",
+                        filter=f"project_id='{pb.escape_filter(pid)}'",
                     )
-                    if pd_result.data:
-                        project_document_ids = [row["document_id"] for row in pd_result.data]
+                    if pd_records:
+                        project_document_ids = [row["document_id"] for row in pd_records]
                         logger.info(
                             f"Scoping RAG to {len(project_document_ids)} project-linked documents for project {pid}"
                         )
@@ -269,7 +291,7 @@ async def chat(request: Request, chat_request: ChatRequest, current_user: dict =
 
             search_results = search_similar_chunks(
                 chat_request.message,
-                client_id,
+                None,
                 limit=5,
                 min_similarity=0.0,  # Use adaptive threshold based on query type
                 document_ids=rag_document_ids,
@@ -291,22 +313,16 @@ async def chat(request: Request, chat_request: ChatRequest, current_user: dict =
 
             # Check if conversation exists and has a bound version
             if chat_request.conversation_id:
-                conv_result = await asyncio.to_thread(
-                    lambda: supabase.table("conversations")
-                    .select("system_instruction_version_id")
-                    .eq("id", chat_request.conversation_id)
-                    .single()
-                    .execute()
-                )
+                conv = convos_repo.get_conversation(chat_request.conversation_id)
 
-                if conv_result.data:
-                    bound_version_id = conv_result.data.get("system_instruction_version_id")
+                if conv:
+                    bound_version_id = conv.get("system_instruction_version_id")
 
                     if bound_version_id:
                         # Use the bound version for consistency
                         try:
                             system_prompt = get_system_instructions_for_version(
-                                version_id=bound_version_id, user_data=current_user
+                                version_id=bound_version_id, user_data={}
                             )
                             logger.info(f"Using bound version {bound_version_id} for conversation")
                         except ValueError as ve:
@@ -316,7 +332,7 @@ async def chat(request: Request, chat_request: ChatRequest, current_user: dict =
                         active_version = get_active_system_instruction_version()
                         if active_version:
                             system_prompt = get_system_instructions_for_version(
-                                version_id=active_version["id"], user_data=current_user
+                                version_id=active_version["id"], user_data={}
                             )
                             version_id_to_bind = active_version["id"]
                             logger.info(f"Binding conversation to version {active_version['version_number']}")
@@ -326,22 +342,20 @@ async def chat(request: Request, chat_request: ChatRequest, current_user: dict =
                 active_version = get_active_system_instruction_version()
                 if active_version:
                     system_prompt = get_system_instructions_for_version(
-                        version_id=active_version["id"], user_data=current_user
+                        version_id=active_version["id"], user_data={}
                     )
                     if chat_request.conversation_id:
                         version_id_to_bind = active_version["id"]
                 else:
                     # Fallback to legacy per-user instructions
-                    system_prompt = get_system_instructions_for_user(user_id=current_user["id"], user_data=current_user)
+                    system_prompt = get_system_instructions_for_user(user_id="default", user_data={})
 
-            # Bind the version to the conversation if needed (async, non-blocking)
+            # Bind the version to the conversation if needed
             if version_id_to_bind and chat_request.conversation_id:
                 try:
-                    await asyncio.to_thread(
-                        lambda: supabase.table("conversations")
-                        .update({"system_instruction_version_id": version_id_to_bind})
-                        .eq("id", chat_request.conversation_id)
-                        .execute()
+                    convos_repo.update_conversation(
+                        chat_request.conversation_id,
+                        {"system_instruction_version_id": version_id_to_bind},
                     )
                     logger.info(f"Bound conversation {chat_request.conversation_id} to version {version_id_to_bind}")
                 except Exception as bind_error:
@@ -349,9 +363,8 @@ async def chat(request: Request, chat_request: ChatRequest, current_user: dict =
 
         except Exception as e:
             logger.warning(f"Could not load system instructions: {e}")
-            user_name = current_user.get("name", "User")
             system_prompt = (
-                f"You are Thesis, a helpful AI assistant for {user_name}. "
+                "You are Thesis, a helpful AI assistant. "
                 "Provide clear, accurate, and professional assistance."
             )
 
@@ -438,20 +451,11 @@ Instructions:
         conversation_messages = []
         if chat_request.conversation_id:
             # Fetch recent messages from this conversation (limit 50 for performance)
-            history_result = (
-                supabase.table("messages")
-                .select("role,content")
-                .eq("conversation_id", chat_request.conversation_id)
-                .order("created_at", desc=True)
-                .limit(50)
-                .execute()
-            )
+            history = _get_recent_messages(chat_request.conversation_id, limit=50, fields="role,content")
             # Reverse to chronological order after limiting
-            if history_result.data:
-                history_result.data.reverse()
-
-            if history_result.data:
-                for msg in history_result.data:
+            if history:
+                history.reverse()
+                for msg in history:
                     # Claude expects 'user' or 'assistant' roles
                     if msg["role"] in ["user", "assistant"] and msg["content"]:
                         conversation_messages.append({"role": msg["role"], "content": msg["content"]})
@@ -507,16 +511,7 @@ Instructions:
             conversation_service = get_conversation_service()
 
             # Get recent messages for context
-            recent_messages_result = (
-                supabase.table("messages")
-                .select("*")
-                .eq("conversation_id", chat_request.conversation_id)
-                .order("created_at", desc=True)
-                .limit(5)
-                .execute()
-            )
-
-            recent_messages = recent_messages_result.data if recent_messages_result.data else []
+            recent_messages = _get_recent_messages(chat_request.conversation_id, limit=5)
 
             # Check if we should suggest an image
             suggestion = conversation_service.should_suggest_image(
@@ -552,7 +547,7 @@ Instructions:
                     compliance.get("gaps", []),
                 )
 
-            # Batch insert both messages in a single DB call for better performance
+            # Insert both messages
             messages_to_insert = [
                 {
                     "conversation_id": chat_request.conversation_id,
@@ -566,13 +561,13 @@ Instructions:
                     "metadata": assistant_metadata if assistant_metadata else None,
                 },
             ]
-            result = supabase.table("messages").insert(messages_to_insert).execute()
+            inserted = _insert_messages(messages_to_insert)
 
             logger.info("Messages saved to conversation")
 
             # Trigger semantic evaluation if warranted (fire-and-forget)
             if should_semantic_evaluate(compliance, agent_name):
-                assistant_msg_id = result.data[1]["id"] if len(result.data) > 1 else None
+                assistant_msg_id = inserted[1]["id"] if len(inserted) > 1 else None
                 trigger_semantic_evaluation(
                     response_text,
                     agent_name,
@@ -584,14 +579,11 @@ Instructions:
             # Link uploaded documents to the user's message
             if chat_request.document_ids and len(chat_request.document_ids) > 0:
                 # Get the user message ID (first inserted message)
-                user_message_id = result.data[0]["id"]
+                user_message_id = inserted[0]["id"]
 
                 # Create message-document links
-                message_docs_to_insert = [
-                    {"message_id": user_message_id, "document_id": doc_id} for doc_id in chat_request.document_ids
-                ]
-
-                supabase.table("message_documents").insert(message_docs_to_insert).execute()
+                for doc_id in chat_request.document_ids:
+                    convos_repo.link_message_document(user_message_id, doc_id)
                 logger.info(f"Linked {len(chat_request.document_ids)} documents to message")
 
             # Process for useable output detection (Bradbury Impact Loop)
@@ -617,13 +609,13 @@ Instructions:
         }
 
     except Exception:
-        logger.exception("Error processing chat request", exc_info=True, extra={"user_id": current_user["id"]})
+        logger.exception("Error processing chat request", exc_info=True)
         raise
 
 
 @router.post("/stream")
 @limiter.limit("20/minute")
-async def chat_stream(request: Request, chat_request: ChatRequest, current_user: dict = Depends(get_current_user)):
+async def chat_stream(request: Request, chat_request: ChatRequest):
     """Streaming chat endpoint with RAG (Retrieval Augmented Generation).
 
     Streams AI responses in real-time using Server-Sent Events (SSE).
@@ -651,7 +643,6 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
     logger.info(
         "Streaming chat request received",
         extra={
-            "user_id": current_user["id"],
             "conversation_id": chat_request.conversation_id,
             "message_length": len(chat_request.message),
         },
@@ -664,18 +655,13 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
 
             # Check if the previous message was awaiting image confirmation
             if chat_request.conversation_id:
-                last_assistant_msg = (
-                    supabase.table("messages")
-                    .select("metadata")
-                    .eq("conversation_id", chat_request.conversation_id)
-                    .eq("role", "assistant")
-                    .order("created_at", desc=True)
-                    .limit(1)
-                    .execute()
+                last_assistant_msgs = _get_recent_messages(
+                    chat_request.conversation_id, limit=1, role="assistant",
                 )
 
-                if last_assistant_msg.data and last_assistant_msg.data[0].get("metadata"):
-                    metadata = last_assistant_msg.data[0]["metadata"]
+                if last_assistant_msgs and last_assistant_msgs[0].get("metadata"):
+                    last_msg = last_assistant_msgs[0]
+                    metadata = pb.parse_json_field(last_msg["metadata"], {})
                     if metadata.get("awaiting_image_confirmation"):
                         # Check if user is confirming
                         user_msg_lower = chat_request.message.lower().strip()
@@ -772,16 +758,12 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                             logger.info("User declined image generation")
 
                             # Clear awaiting_image_confirmation by updating metadata
-                            supabase.table("messages").update(
-                                {
-                                    "metadata": {
-                                        "awaiting_image_confirmation": False,
-                                        "declined": True,
-                                    }
-                                }
-                            ).eq("conversation_id", chat_request.conversation_id).eq("role", "assistant").order(
-                                "created_at", desc=True
-                            ).limit(1).execute()
+                            pb.update_record("messages", last_msg["id"], {
+                                "metadata": {
+                                    "awaiting_image_confirmation": False,
+                                    "declined": True,
+                                },
+                            })
 
                             response = "No problem! Let me know if you'd like to create a visual later, or if there's something else I can help with."
                             for char in response:
@@ -789,7 +771,7 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                                 await asyncio.sleep(0.005)
 
                             # Save messages
-                            messages_to_insert = [
+                            _insert_messages([
                                 {
                                     "conversation_id": chat_request.conversation_id,
                                     "role": "user",
@@ -800,8 +782,7 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                                     "role": "assistant",
                                     "content": response,
                                 },
-                            ]
-                            supabase.table("messages").insert(messages_to_insert).execute()
+                            ])
 
                             yield f"data: {json.dumps({'type': 'done', 'tokens': {'input': 0, 'output': 0, 'total': 0}})}\n\n"
                             return
@@ -812,16 +793,12 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                             logger.info("User sent greeting while awaiting image confirmation - clearing state")
 
                             # Clear awaiting_image_confirmation
-                            supabase.table("messages").update(
-                                {
-                                    "metadata": {
-                                        "awaiting_image_confirmation": False,
-                                        "interrupted": True,
-                                    }
-                                }
-                            ).eq("conversation_id", chat_request.conversation_id).eq("role", "assistant").order(
-                                "created_at", desc=True
-                            ).limit(1).execute()
+                            pb.update_record("messages", last_msg["id"], {
+                                "metadata": {
+                                    "awaiting_image_confirmation": False,
+                                    "interrupted": True,
+                                },
+                            })
 
                             response = "Hello! I was waiting for your preference on the image options. Would you still like me to create that visual, or is there something else I can help you with?"
                             for char in response:
@@ -829,7 +806,7 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                                 await asyncio.sleep(0.005)
 
                             # Save messages
-                            messages_to_insert = [
+                            _insert_messages([
                                 {
                                     "conversation_id": chat_request.conversation_id,
                                     "role": "user",
@@ -840,8 +817,7 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                                     "role": "assistant",
                                     "content": response,
                                 },
-                            ]
-                            supabase.table("messages").insert(messages_to_insert).execute()
+                            ])
 
                             yield f"data: {json.dumps({'type': 'done', 'tokens': {'input': 0, 'output': 0, 'total': 0}})}\n\n"
                             return
@@ -850,13 +826,10 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                             logger.info("User confirmed image generation - proceeding with image creation")
 
                             # Import services
-                            from database import DatabaseService
                             from services.image_generation import get_image_generation_service
                             from services.storage_service import get_storage_service
 
                             try:
-                                user_id = current_user.get("id")
-
                                 # Get prompt from the new image_suggestion format OR legacy format
                                 image_suggestion = metadata.get("image_suggestion", {})
                                 if image_suggestion.get("suggested_prompt"):
@@ -892,7 +865,7 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
 
                                 upload_result = storage_service.upload_image(
                                     image_data=result["image_data"],
-                                    user_id=user_id,
+                                    user_id="default",
                                     conversation_id=chat_request.conversation_id,
                                     file_extension=file_ext,
                                 )
@@ -901,7 +874,6 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                                     raise Exception("Failed to upload image")
 
                                 # Store in database
-                                db = DatabaseService.get_client()
                                 image_record = {
                                     "conversation_id": chat_request.conversation_id,
                                     "message_id": None,
@@ -915,27 +887,22 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                                     "metadata": {"from_confirmation": True},
                                 }
 
-                                insert_result = db.table("conversation_images").insert(image_record).execute()
-                                stored_image = insert_result.data[0]
+                                stored_image = pb.create_record("conversation_images", image_record)
 
                                 # Clear the awaiting_image_confirmation state from the previous message
-                                supabase.table("messages").update(
-                                    {
-                                        "metadata": {
-                                            "awaiting_image_confirmation": False,
-                                            "image_generated": True,
-                                        }
-                                    }
-                                ).eq("conversation_id", chat_request.conversation_id).eq("role", "assistant").order(
-                                    "created_at", desc=True
-                                ).limit(1).execute()
+                                pb.update_record("messages", last_msg["id"], {
+                                    "metadata": {
+                                        "awaiting_image_confirmation": False,
+                                        "image_generated": True,
+                                    },
+                                })
 
                                 # No text response - just show the image
                                 yield f"data: {json.dumps({'type': 'image_generated', 'image_id': stored_image['id'], 'storage_url': stored_image['storage_url'], 'prompt': prompt[:200] if prompt else '', 'aspect_ratio': '16:9', 'model': result['model'], 'mime_type': upload_result['content_type'], 'file_size': upload_result['file_size']})}\n\n"
                                 yield f"data: {json.dumps({'type': 'done', 'tokens': {'input': 0, 'output': 0, 'total': 0}})}\n\n"
 
                                 # Save messages (minimal - just to track the exchange)
-                                messages_to_insert = [
+                                _insert_messages([
                                     {
                                         "conversation_id": chat_request.conversation_id,
                                         "role": "user",
@@ -950,8 +917,7 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                                             "image_id": stored_image["id"],
                                         },
                                     },
-                                ]
-                                supabase.table("messages").insert(messages_to_insert).execute()
+                                ])
 
                                 return  # Exit - image generated from confirmation
 
@@ -962,16 +928,12 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                                 )
 
                                 # Clear the pending state even on error
-                                supabase.table("messages").update(
-                                    {
-                                        "metadata": {
-                                            "awaiting_image_confirmation": False,
-                                            "error": str(confirm_error),
-                                        }
-                                    }
-                                ).eq("conversation_id", chat_request.conversation_id).eq("role", "assistant").order(
-                                    "created_at", desc=True
-                                ).limit(1).execute()
+                                pb.update_record("messages", last_msg["id"], {
+                                    "metadata": {
+                                        "awaiting_image_confirmation": False,
+                                        "error": str(confirm_error),
+                                    },
+                                })
 
                                 error_msg = "I'm sorry, I encountered an error generating the image. Please try again."
                                 yield f"data: {json.dumps({'type': 'token', 'content': error_msg})}\n\n"
@@ -983,11 +945,9 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                         logger.info(
                             "User sent new message while awaiting image confirmation - clearing pending state and processing new request"
                         )
-                        supabase.table("messages").update(
-                            {"metadata": {"awaiting_image_confirmation": False, "superseded": True}}
-                        ).eq("conversation_id", chat_request.conversation_id).eq("role", "assistant").order(
-                            "created_at", desc=True
-                        ).limit(1).execute()
+                        pb.update_record("messages", last_msg["id"], {
+                            "metadata": {"awaiting_image_confirmation": False, "superseded": True},
+                        })
                         # Fall through to process the new message normally
 
             # Check if this is an explicit image generation request
@@ -1002,12 +962,10 @@ async def chat_stream(request: Request, chat_request: ChatRequest, current_user:
                 # Import services directly
                 import google.generativeai as genai
 
-                from database import DatabaseService
                 from services.image_generation import get_image_generation_service
                 from services.storage_service import get_storage_service
 
                 try:
-                    user_id = current_user.get("id")
                     image_request["prompt"]
                     full_message = chat_request.message  # The complete user message
                     image_request.get("aspect_ratio") or "16:9"
@@ -1064,41 +1022,29 @@ Output ONLY the concise image prompt, nothing else."""
 
                         # Instead of generating immediately, send suggestion event for user to choose options
                         # Save the user message first
-                        (
-                            supabase.table("messages")
-                            .insert(
-                                {
-                                    "conversation_id": chat_request.conversation_id,
-                                    "role": "user",
-                                    "content": chat_request.message,
-                                }
-                            )
-                            .execute()
-                        )
+                        pb.create_record("messages", {
+                            "conversation_id": chat_request.conversation_id,
+                            "role": "user",
+                            "content": chat_request.message,
+                        })
 
                         # Create assistant message with pending image suggestion
-                        assistant_msg_result = (
-                            supabase.table("messages")
-                            .insert(
-                                {
-                                    "conversation_id": chat_request.conversation_id,
-                                    "role": "assistant",
-                                    "content": "",
-                                    "metadata": {
-                                        "awaiting_image_confirmation": True,
-                                        "image_suggestion": {
-                                            "suggested_prompt": prompt,
-                                            "reason": f"Ready to create your {visual_type}",
-                                            "image_type": visual_type,
-                                            "visual_type": visual_type,
-                                        },
-                                    },
-                                }
-                            )
-                            .execute()
-                        )
+                        assistant_msg = pb.create_record("messages", {
+                            "conversation_id": chat_request.conversation_id,
+                            "role": "assistant",
+                            "content": "",
+                            "metadata": {
+                                "awaiting_image_confirmation": True,
+                                "image_suggestion": {
+                                    "suggested_prompt": prompt,
+                                    "reason": f"Ready to create your {visual_type}",
+                                    "image_type": visual_type,
+                                    "visual_type": visual_type,
+                                },
+                            },
+                        })
 
-                        assistant_msg_id = assistant_msg_result.data[0]["id"] if assistant_msg_result.data else None
+                        assistant_msg_id = assistant_msg["id"]
 
                         # Send the image suggestion event so frontend shows the options dialog
                         suggestion_event = {
@@ -1120,19 +1066,13 @@ Output ONLY the concise image prompt, nothing else."""
                         # BUT instead of guessing, we should confirm with the user
                         logger.info("Message is vague - checking conversation history and will confirm with user")
 
-                        context_messages_result = (
-                            supabase.table("messages")
-                            .select("role,content,created_at")
-                            .eq("conversation_id", chat_request.conversation_id)
-                            .order("created_at", desc=True)
-                            .limit(20)
-                            .execute()
+                        context_messages_list = _get_recent_messages(
+                            chat_request.conversation_id, limit=20,
+                            fields="role,content,created",
                         )
 
-                        context_messages = context_messages_result.data or []
-
-                        if context_messages:
-                            context_messages.reverse()
+                        if context_messages_list:
+                            context_messages_list.reverse()
 
                             # Use Gemini to understand what the user likely wants
                             genai.configure(api_key=os.environ.get("GOOGLE_GENERATIVE_AI_API_KEY"))
@@ -1141,7 +1081,7 @@ Output ONLY the concise image prompt, nothing else."""
                             context_text = "\n\n".join(
                                 [
                                     f"{msg['role'].upper()}: {msg['content'][:1500]}"
-                                    for msg in context_messages[-10:]  # Last 10 messages
+                                    for msg in context_messages_list[-10:]  # Last 10 messages
                                 ]
                             )
 
@@ -1164,37 +1104,29 @@ Your response (be specific about what to visualize):"""
                             prompt_from_context = f"{visual_type} showing: {suggested_content}"
 
                             # Save user message
-                            supabase.table("messages").insert(
-                                {
-                                    "conversation_id": chat_request.conversation_id,
-                                    "role": "user",
-                                    "content": chat_request.message,
-                                }
-                            ).execute()
+                            pb.create_record("messages", {
+                                "conversation_id": chat_request.conversation_id,
+                                "role": "user",
+                                "content": chat_request.message,
+                            })
 
                             # Create assistant message with pending image suggestion
-                            assistant_msg_result = (
-                                supabase.table("messages")
-                                .insert(
-                                    {
-                                        "conversation_id": chat_request.conversation_id,
-                                        "role": "assistant",
-                                        "content": "",
-                                        "metadata": {
-                                            "awaiting_image_confirmation": True,
-                                            "image_suggestion": {
-                                                "suggested_prompt": prompt_from_context,
-                                                "reason": f"Based on our conversation, I can create a {visual_type} showing:\n\n{suggested_content}",
-                                                "image_type": visual_type,
-                                                "visual_type": visual_type,
-                                            },
-                                        },
-                                    }
-                                )
-                                .execute()
-                            )
+                            assistant_msg = pb.create_record("messages", {
+                                "conversation_id": chat_request.conversation_id,
+                                "role": "assistant",
+                                "content": "",
+                                "metadata": {
+                                    "awaiting_image_confirmation": True,
+                                    "image_suggestion": {
+                                        "suggested_prompt": prompt_from_context,
+                                        "reason": f"Based on our conversation, I can create a {visual_type} showing:\n\n{suggested_content}",
+                                        "image_type": visual_type,
+                                        "visual_type": visual_type,
+                                    },
+                                },
+                            })
 
-                            assistant_msg_id = assistant_msg_result.data[0]["id"] if assistant_msg_result.data else None
+                            assistant_msg_id = assistant_msg["id"]
 
                             # Send image suggestion event for user to choose options
                             suggestion_event = {
@@ -1221,7 +1153,7 @@ Could you tell me what specific content, items, or concepts you'd like me to vis
                                 yield f"data: {json.dumps({'type': 'token', 'content': char})}\n\n"
                                 await asyncio.sleep(0.005)
 
-                            messages_to_insert = [
+                            _insert_messages([
                                 {
                                     "conversation_id": chat_request.conversation_id,
                                     "role": "user",
@@ -1232,8 +1164,7 @@ Could you tell me what specific content, items, or concepts you'd like me to vis
                                     "role": "assistant",
                                     "content": no_context_response,
                                 },
-                            ]
-                            supabase.table("messages").insert(messages_to_insert).execute()
+                            ])
 
                             yield f"data: {json.dumps({'type': 'done', 'tokens': {'input': 0, 'output': 0, 'total': 0}})}\n\n"
                             return  # Exit - wait for user to provide content
@@ -1257,7 +1188,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
 
                         # Save the exchange
                         if chat_request.conversation_id:
-                            messages_to_insert = [
+                            _insert_messages([
                                 {
                                     "conversation_id": chat_request.conversation_id,
                                     "role": "user",
@@ -1272,8 +1203,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                                         "requested_visual_type": visual_type,
                                     },
                                 },
-                            ]
-                            supabase.table("messages").insert(messages_to_insert).execute()
+                            ])
 
                         yield f"data: {json.dumps({'type': 'done', 'tokens': {'input': 0, 'output': 0, 'total': 0}})}\n\n"
                         return  # Exit - don't fall through to normal chat
@@ -1290,18 +1220,13 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
 
             # Check if the previous message has pending task proposals awaiting confirmation
             if chat_request.conversation_id:
-                last_msg_for_tasks = (
-                    supabase.table("messages")
-                    .select("id, metadata")
-                    .eq("conversation_id", chat_request.conversation_id)
-                    .eq("role", "assistant")
-                    .order("created_at", desc=True)
-                    .limit(1)
-                    .execute()
+                last_msg_for_tasks_list = _get_recent_messages(
+                    chat_request.conversation_id, limit=1, role="assistant",
+                    fields="id,metadata",
                 )
 
-                if last_msg_for_tasks.data and last_msg_for_tasks.data[0].get("metadata"):
-                    task_meta = last_msg_for_tasks.data[0]["metadata"]
+                if last_msg_for_tasks_list and last_msg_for_tasks_list[0].get("metadata"):
+                    task_meta = pb.parse_json_field(last_msg_for_tasks_list[0]["metadata"], {})
                     pending_proposals = task_meta.get("task_proposals")
                     if pending_proposals and not task_meta.get("tasks_created"):
                         user_msg_lower = chat_request.message.lower().strip()
@@ -1339,33 +1264,17 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                             logger.info("User confirmed task proposals - creating tasks")
 
                             # Get project_id from conversation
-                            conv_result_for_tasks = (
-                                supabase.table("conversations")
-                                .select("project_id")
-                                .eq("id", chat_request.conversation_id)
-                                .single()
-                                .execute()
+                            project_id_for_tasks = _get_conversation_field(
+                                chat_request.conversation_id, "project_id"
                             )
-                            project_id_for_tasks = (
-                                conv_result_for_tasks.data.get("project_id") if conv_result_for_tasks.data else None
-                            )
-
-                            user_id = current_user["id"]
-                            task_client_id = current_user.get("client_id")
 
                             # Look up project department for auto-filling team
                             project_department_for_tasks = None
                             if project_id_for_tasks:
                                 try:
-                                    proj_dept_result = (
-                                        supabase.table("ai_projects")
-                                        .select("department")
-                                        .eq("id", project_id_for_tasks)
-                                        .single()
-                                        .execute()
-                                    )
-                                    if proj_dept_result.data:
-                                        project_department_for_tasks = proj_dept_result.data.get("department")
+                                    proj = pb.get_record("ai_projects", project_id_for_tasks)
+                                    if proj:
+                                        project_department_for_tasks = proj.get("department")
                                 except Exception:
                                     pass
 
@@ -1373,16 +1282,15 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                             seq_to_uuid = {}  # Map sequence numbers to created UUIDs
 
                             # Get starting position so tasks appear in sequence order on the board
-                            pos_result = (
-                                supabase.table("project_tasks")
-                                .select("position")
-                                .eq("client_id", task_client_id)
-                                .eq("status", "pending")
-                                .order("position", desc=True)
-                                .limit(1)
-                                .execute()
+                            pos_result = pb.list_records(
+                                "project_tasks",
+                                filter="status='pending'",
+                                sort="-position",
+                                per_page=1,
+                                fields="position",
                             )
-                            next_position = (pos_result.data[0]["position"] + 1) if pos_result.data else 0
+                            pos_items = pos_result.get("items", [])
+                            next_position = (pos_items[0]["position"] + 1) if pos_items else 0
 
                             for proposal in pending_proposals:
                                 seq = proposal.get("sequence", 0)
@@ -1397,7 +1305,6 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                                 due_date_val = proposal.get("due_date")
 
                                 task_record = {
-                                    "client_id": task_client_id,
                                     "title": (proposal.get("title") or "Untitled task").strip()[:500],
                                     "description": proposal.get("description"),
                                     "status": "pending",
@@ -1410,28 +1317,23 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                                     "source_type": "conversation",
                                     "source_conversation_id": chat_request.conversation_id,
                                     "linked_project_id": project_id_for_tasks,
-                                    "created_by": user_id,
-                                    "updated_by": user_id,
                                     "position": next_position,
                                     "sequence_number": seq,
                                     "depends_on": depends_on_uuids,
                                 }
 
                                 try:
-                                    result = supabase.table("project_tasks").insert(task_record).execute()
-                                    if result.data:
-                                        task_id = result.data[0]["id"]
-                                        created_task_ids.append(task_id)
-                                        seq_to_uuid[seq] = task_id
-                                        next_position += 1
+                                    created_task = pb.create_record("project_tasks", task_record)
+                                    task_id = created_task["id"]
+                                    created_task_ids.append(task_id)
+                                    seq_to_uuid[seq] = task_id
+                                    next_position += 1
                                 except Exception as task_err:
                                     logger.warning(f"Failed to create task '{proposal.get('title')}': {task_err}")
 
                             # Mark proposals as created in the original message metadata
                             updated_meta = {**task_meta, "tasks_created": True, "created_task_ids": created_task_ids}
-                            supabase.table("messages").update({"metadata": updated_meta}).eq(
-                                "id", last_msg_for_tasks.data[0]["id"]
-                            ).execute()
+                            pb.update_record("messages", last_msg_for_tasks_list[0]["id"], {"metadata": updated_meta})
 
                             # Stream confirmation message
                             count = len(created_task_ids)
@@ -1449,7 +1351,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                             yield f"data: {json.dumps({'type': 'tasks_created', 'count': count, 'task_ids': created_task_ids})}\n\n"
 
                             # Save messages
-                            messages_to_insert = [
+                            _insert_messages([
                                 {
                                     "conversation_id": chat_request.conversation_id,
                                     "role": "user",
@@ -1466,8 +1368,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                                         "created_task_count": count,
                                     },
                                 },
-                            ]
-                            supabase.table("messages").insert(messages_to_insert).execute()
+                            ])
 
                             yield f"data: {json.dumps({'type': 'done', 'tokens': {'input': 0, 'output': 0, 'total': 0}})}\n\n"
                             return  # Early return - don't send to Claude
@@ -1503,40 +1404,30 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
             # Pre-fetch project-linked document IDs for project_agent RAG scoping
             project_document_ids = None
             project_id_for_context = None
-            client_id = current_user.get("client_id")
 
             if chat_request.conversation_id:
                 try:
-                    conv_result = await asyncio.to_thread(
-                        lambda: supabase.table("conversations")
-                        .select("project_id")
-                        .eq("id", chat_request.conversation_id)
-                        .single()
-                        .execute()
+                    project_id_for_context = _get_conversation_field(
+                        chat_request.conversation_id, "project_id"
                     )
-                    project_id_for_context = conv_result.data.get("project_id") if conv_result.data else None
 
                     # Backfill: if frontend knows the project but conversation doesn't, update it
                     if not project_id_for_context and chat_request.project_id:
                         project_id_for_context = chat_request.project_id
-                        await asyncio.to_thread(
-                            lambda: supabase.table("conversations")
-                            .update({"project_id": chat_request.project_id})
-                            .eq("id", chat_request.conversation_id)
-                            .execute()
+                        convos_repo.update_conversation(
+                            chat_request.conversation_id,
+                            {"project_id": chat_request.project_id},
                         )
                         logger.info(
                             f"Backfilled project_id {chat_request.project_id} on conversation {chat_request.conversation_id}"
                         )
                     if project_id_for_context:
-                        pd_result = await asyncio.to_thread(
-                            lambda: supabase.table("project_documents")
-                            .select("document_id")
-                            .eq("project_id", project_id_for_context)
-                            .execute()
+                        pd_records = pb.get_all(
+                            "project_documents",
+                            filter=f"project_id='{pb.escape_filter(project_id_for_context)}'",
                         )
-                        if pd_result.data:
-                            project_document_ids = [row["document_id"] for row in pd_result.data]
+                        if pd_records:
+                            project_document_ids = [row["document_id"] for row in pd_records]
                             logger.info(
                                 f"Scoping RAG to {len(project_document_ids)} project-linked documents"
                                 f" for project {project_id_for_context}"
@@ -1562,7 +1453,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                 # conversation_id is passed to prioritize files referenced in the conversation
                 search_results = search_similar_chunks(
                     chat_request.message,
-                    client_id,
+                    None,
                     limit=5,
                     min_similarity=0.0,  # Use adaptive threshold based on query type
                     document_ids=rag_document_ids,
@@ -1590,12 +1481,11 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
             # Get fallback instruction (per-user) in case no agent instruction found
             try:
                 fallback_instruction = get_system_instructions_for_user(
-                    user_id=current_user["id"], user_data=current_user
+                    user_id="default", user_data={}
                 )
             except FileNotFoundError:
-                user_name = current_user.get("name", "User")
                 fallback_instruction = (
-                    f"You are Thesis, a helpful AI assistant for {user_name}. "
+                    "You are Thesis, a helpful AI assistant. "
                     "Provide clear, accurate, and professional assistance."
                 )
 
@@ -1631,52 +1521,35 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                 try:
                     pid = project_id_for_context
                     if not pid and chat_request.conversation_id:
-                        conv_result = await asyncio.to_thread(
-                            lambda: supabase.table("conversations")
-                            .select("project_id")
-                            .eq("id", chat_request.conversation_id)
-                            .single()
-                            .execute()
-                        )
-                        pid = conv_result.data.get("project_id") if conv_result.data else None
+                        pid = _get_conversation_field(chat_request.conversation_id, "project_id")
                     if pid:
-                        proj_result = await asyncio.to_thread(
-                            lambda: supabase.table("ai_projects").select("*").eq("id", pid).single().execute()
-                        )
-                        if proj_result.data:
+                        proj = pb.get_record("ai_projects", pid)
+                        if proj:
                             # Run all context fetches in parallel
                             from services.document_digests import get_project_document_digests
 
                             _pid_ctx = pid
 
                             async def _fetch_related_docs():
-                                return await asyncio.to_thread(
-                                    lambda: get_scoring_related_documents(
-                                        project=proj_result.data, client_id=client_id, limit=5
-                                    )
+                                return get_scoring_related_documents(
+                                    project=proj, client_id=None, limit=5
                                 )
 
                             async def _fetch_tasks():
                                 try:
-                                    result = await asyncio.to_thread(
-                                        lambda: supabase.table("project_tasks")
-                                        .select("id, title, status, priority, assignee_name, due_date, blocker_reason")
-                                        .eq("linked_project_id", _pid_ctx)
-                                        .neq("status", "completed")
-                                        .order("priority")
-                                        .limit(30)
-                                        .execute()
+                                    tasks = pb.get_all(
+                                        "project_tasks",
+                                        filter=f"linked_project_id='{pb.escape_filter(_pid_ctx)}' && status!='completed'",
+                                        sort="priority",
                                     )
-                                    return result.data or []
+                                    return tasks[:30]
                                 except Exception as e:
                                     logger.warning(f"Failed to load task context: {e}")
                                     return []
 
                             async def _fetch_digests():
                                 try:
-                                    return await asyncio.to_thread(
-                                        lambda: get_project_document_digests(_pid_ctx, supabase)
-                                    )
+                                    return get_project_document_digests(_pid_ctx)
                                 except Exception as e:
                                     logger.warning(f"Failed to load doc digests: {e}")
                                     return []
@@ -1685,7 +1558,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                                 _fetch_related_docs(), _fetch_tasks(), _fetch_digests()
                             )
 
-                            project_context_text = build_project_context(proj_result.data, related_docs)
+                            project_context_text = build_project_context(proj, related_docs)
 
                             task_context_text = ""
                             if tasks_data:
@@ -1754,35 +1627,28 @@ RULES:
                 try:
                     iid = None
                     if chat_request.conversation_id:
-                        conv_result = await asyncio.to_thread(
-                            lambda: supabase.table("conversations")
-                            .select("initiative_id")
-                            .eq("id", chat_request.conversation_id)
-                            .single()
-                            .execute()
-                        )
-                        iid = conv_result.data.get("initiative_id") if conv_result.data else None
+                        iid = _get_conversation_field(chat_request.conversation_id, "initiative_id")
                     if iid:
-                        initiative_context_text = await build_initiative_context(iid, current_user["id"])
+                        initiative_context_text = await build_initiative_context(iid, "default")
 
                         # Detect most common document folder for this initiative
                         default_folder_hint = ""
                         try:
-                            linked_docs = await asyncio.to_thread(
-                                lambda: supabase.table("disco_initiative_documents")
-                                .select("document_id, documents(obsidian_file_path)")
-                                .eq("initiative_id", iid)
-                                .execute()
+                            linked_docs = pb.get_all(
+                                "disco_initiative_documents",
+                                filter=f"initiative_id='{pb.escape_filter(iid)}'",
                             )
-                            if linked_docs.data:
+                            if linked_docs:
                                 from collections import Counter
 
                                 folder_paths = []
-                                for row in linked_docs.data:
-                                    doc = row.get("documents") or {}
-                                    fp = doc.get("obsidian_file_path") or ""
-                                    if "/" in fp:
-                                        folder_paths.append(fp.rsplit("/", 1)[0])
+                                for row in linked_docs:
+                                    doc_id = row.get("document_id")
+                                    if doc_id:
+                                        doc = docs_repo.get_document(doc_id)
+                                        fp = (doc or {}).get("obsidian_file_path", "")
+                                        if "/" in fp:
+                                            folder_paths.append(fp.rsplit("/", 1)[0])
                                 if folder_paths:
                                     most_common = Counter(folder_paths).most_common(1)[0][0]
                                     default_folder_hint = (
@@ -1925,30 +1791,25 @@ Instructions:
 
             if chat_request.conversation_id:
                 # Fetch recent conversation history (limit 50 for performance)
-                history_result = (
-                    supabase.table("messages")
-                    .select("role,content,metadata")
-                    .eq("conversation_id", chat_request.conversation_id)
-                    .order("created_at", desc=True)
-                    .limit(50)
-                    .execute()
+                history = _get_recent_messages(
+                    chat_request.conversation_id, limit=50,
+                    fields="role,content,metadata",
                 )
                 # Reverse to chronological order after limiting
-                if history_result.data:
-                    history_result.data.reverse()
+                if history:
+                    history.reverse()
 
-                if history_result.data:
                     # Track if a different agent was previously responding
                     previous_agent = None
-                    for msg in history_result.data:
+                    for msg in history:
                         if msg["role"] in ["user", "assistant"] and msg.get("content"):
                             # Skip empty placeholder messages from image flows
-                            metadata = msg.get("metadata") or {}
-                            if metadata.get("awaiting_image_confirmation") and not msg["content"]:
+                            msg_metadata = pb.parse_json_field(msg.get("metadata"), {})
+                            if msg_metadata.get("awaiting_image_confirmation") and not msg["content"]:
                                 continue
                             # Track previous agent from assistant messages
-                            if msg["role"] == "assistant" and metadata.get("agent_name"):
-                                previous_agent = metadata["agent_name"]
+                            if msg["role"] == "assistant" and msg_metadata.get("agent_name"):
+                                previous_agent = msg_metadata["agent_name"]
                             conversation_messages.append({"role": msg["role"], "content": msg["content"]})
 
                     logger.info(f"Loaded {len(conversation_messages)} messages from conversation history")
@@ -1960,7 +1821,7 @@ Instructions:
                             f"[System note: The previous responses in this conversation were from "
                             f"{AGENT_DISPLAY_NAMES.get(previous_agent, previous_agent)}. "
                             f"You are now responding as {agent_display_name}. "
-                            f"Do NOT identify as {AGENT_DISPLAY_NAMES.get(previous_agent, previous_agent)} — "
+                            f"Do NOT identify as {AGENT_DISPLAY_NAMES.get(previous_agent, previous_agent)} -- "
                             f"you are {agent_display_name}. Use your own expertise and capabilities.]"
                         )
                         conversation_messages.append({"role": "user", "content": handoff_note})
@@ -2169,8 +2030,6 @@ Instructions:
                     if doc_content.strip():
                         import uuid as _uuid
 
-                        client_id = current_user.get("client_id") or "default"
-                        user_id = current_user["id"]
                         now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
 
                         markdown_content = (
@@ -2182,26 +2041,16 @@ Instructions:
                         if not safe_fn.endswith(".md"):
                             safe_fn += ".md"
                         unique_filename = f"{safe_fn.rsplit('.', 1)[0]}_{_uuid.uuid4().hex[:8]}.md"
-                        storage_path = f"{client_id}/{unique_filename}"
+                        storage_path = f"default/{unique_filename}"
 
                         # Build obsidian_file_path for reverse sync
                         obsidian_file_path = f"{doc_folder}/{safe_fn}" if doc_folder else safe_fn
 
-                        # Upload to storage
-                        await asyncio.to_thread(
-                            lambda: supabase.storage.from_("documents").upload(
-                                storage_path, file_content, file_options={"content-type": "text/markdown"}
-                            )
-                        )
-
-                        storage_url = (
-                            f"{os.environ.get('SUPABASE_URL', '')}/storage/v1/object/public/documents/{storage_path}"
-                        )
+                        # Upload to storage -- this uses PocketBase file upload or external storage
+                        # For now, store the content in the document record directly
+                        storage_url = f"/storage/documents/{storage_path}"
 
                         doc_record = {
-                            "client_id": client_id,
-                            "uploaded_by": user_id,
-                            "user_id": user_id,
                             "title": doc_title.strip(),
                             "filename": unique_filename,
                             "storage_path": storage_path,
@@ -2214,24 +2063,19 @@ Instructions:
                             "needs_reverse_sync": True,
                         }
 
-                        doc_result = await asyncio.to_thread(
-                            lambda: supabase.table("documents").insert(doc_record).execute()
-                        )
-                        document_id = doc_result.data[0]["id"]
+                        created_doc = docs_repo.create_document(doc_record)
+                        document_id = created_doc["id"]
 
                         # Link to initiative
-                        await asyncio.to_thread(
-                            lambda: supabase.table("disco_initiative_documents")
-                            .upsert(
-                                {
-                                    "initiative_id": initiative_id_for_context,
-                                    "document_id": document_id,
-                                    "linked_by": user_id,
-                                },
-                                on_conflict="initiative_id,document_id",
-                            )
-                            .execute()
+                        existing_link = pb.get_first(
+                            "disco_initiative_documents",
+                            filter=f"initiative_id='{pb.escape_filter(initiative_id_for_context)}' && document_id='{pb.escape_filter(document_id)}'",
                         )
+                        if not existing_link:
+                            pb.create_record("disco_initiative_documents", {
+                                "initiative_id": initiative_id_for_context,
+                                "document_id": document_id,
+                            })
 
                         # Queue background processing (chunking/embedding)
                         from document_processor import process_document
@@ -2267,7 +2111,7 @@ Instructions:
             image_suggestion_data = None  # Will hold suggestion to send as SSE event
 
             if chat_request.conversation_id:
-                # Batch insert both messages in a single DB call
+                # Save messages
                 def save_messages():
                     nonlocal image_suggestion_data
 
@@ -2275,16 +2119,7 @@ Instructions:
                     conversation_service = get_conversation_service()
 
                     # Get recent messages for context
-                    recent_messages_result = (
-                        supabase.table("messages")
-                        .select("*")
-                        .eq("conversation_id", chat_request.conversation_id)
-                        .order("created_at", desc=True)
-                        .limit(5)
-                        .execute()
-                    )
-
-                    recent_messages = recent_messages_result.data if recent_messages_result.data else []
+                    recent_messages = _get_recent_messages(chat_request.conversation_id, limit=5)
 
                     # Check if we should suggest an image
                     suggestion = conversation_service.should_suggest_image(
@@ -2365,27 +2200,23 @@ Instructions:
                             "metadata": assistant_metadata if assistant_metadata else None,
                         },
                     ]
-                    result = supabase.table("messages").insert(messages_to_insert).execute()
+                    inserted = _insert_messages(messages_to_insert)
 
                     # Store the assistant message ID for the suggestion event
-                    if image_suggestion_data and result.data and len(result.data) > 1:
-                        image_suggestion_data["message_id"] = result.data[1]["id"]
+                    if image_suggestion_data and len(inserted) > 1:
+                        image_suggestion_data["message_id"] = inserted[1]["id"]
 
                     # Link uploaded documents to the user's message
                     if chat_request.document_ids and len(chat_request.document_ids) > 0:
                         # Get the user message ID (first inserted message)
-                        user_message_id = result.data[0]["id"]
+                        user_message_id = inserted[0]["id"]
 
                         # Create message-document links
-                        message_docs_to_insert = [
-                            {"message_id": user_message_id, "document_id": doc_id}
-                            for doc_id in chat_request.document_ids
-                        ]
-
-                        supabase.table("message_documents").insert(message_docs_to_insert).execute()
+                        for doc_id in chat_request.document_ids:
+                            convos_repo.link_message_document(user_message_id, doc_id)
                         logger.info(f"Linked {len(chat_request.document_ids)} documents to message")
 
-                    return result
+                    return inserted
 
                 # Run DB insert in thread pool to avoid blocking
                 save_result = await asyncio.to_thread(save_messages)
@@ -2394,11 +2225,11 @@ Instructions:
                 # Extract message IDs for the frontend
                 assistant_message_id = None
                 user_message_id_saved = None
-                if save_result and save_result.data:
-                    if len(save_result.data) > 0:
-                        user_message_id_saved = save_result.data[0]["id"]
-                    if len(save_result.data) > 1:
-                        assistant_message_id = save_result.data[1]["id"]
+                if save_result:
+                    if len(save_result) > 0:
+                        user_message_id_saved = save_result[0]["id"]
+                    if len(save_result) > 1:
+                        assistant_message_id = save_result[1]["id"]
 
                 # Trigger semantic evaluation if warranted (fire-and-forget)
                 if should_semantic_evaluate(compliance, selected_agent):
@@ -2434,14 +2265,7 @@ Instructions:
                 tp_project_id = None
                 if chat_request.conversation_id:
                     try:
-                        tp_conv = (
-                            supabase.table("conversations")
-                            .select("project_id")
-                            .eq("id", chat_request.conversation_id)
-                            .single()
-                            .execute()
-                        )
-                        tp_project_id = tp_conv.data.get("project_id") if tp_conv.data else None
+                        tp_project_id = _get_conversation_field(chat_request.conversation_id, "project_id")
                     except Exception:
                         pass
                 yield f"data: {json.dumps({'type': 'task_proposals', 'tasks': task_proposals_data, 'project_id': tp_project_id, 'conversation_id': chat_request.conversation_id})}\n\n"
@@ -2452,14 +2276,7 @@ Instructions:
                 tu_project_id = None
                 if chat_request.conversation_id:
                     try:
-                        tu_conv = (
-                            supabase.table("conversations")
-                            .select("project_id")
-                            .eq("id", chat_request.conversation_id)
-                            .single()
-                            .execute()
-                        )
-                        tu_project_id = tu_conv.data.get("project_id") if tu_conv.data else None
+                        tu_project_id = _get_conversation_field(chat_request.conversation_id, "project_id")
                     except Exception:
                         pass
                 yield f"data: {json.dumps({'type': 'task_updates', 'updates': task_updates_data, 'project_id': tu_project_id})}\n\n"
@@ -2470,14 +2287,7 @@ Instructions:
                 pu_project_id = project_updates_data.get("project_id")
                 if not pu_project_id and chat_request.conversation_id:
                     try:
-                        pu_conv = (
-                            supabase.table("conversations")
-                            .select("project_id")
-                            .eq("id", chat_request.conversation_id)
-                            .single()
-                            .execute()
-                        )
-                        pu_project_id = pu_conv.data.get("project_id") if pu_conv.data else None
+                        pu_project_id = _get_conversation_field(chat_request.conversation_id, "project_id")
                     except Exception:
                         pass
                 if pu_project_id:
@@ -2515,7 +2325,6 @@ Instructions:
             logger.exception(
                 "Error processing streaming chat request",
                 exc_info=True,
-                extra={"user_id": current_user["id"]},
             )
             # Send error to client
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
@@ -2564,7 +2373,6 @@ class DigDeeperSectionRequest(BaseModel):
 async def track_copy_event(
     conversation_id: str,
     data: dict,
-    current_user: dict = Depends(get_current_user),
 ):
     """Track when a user copies substantial content from a chat message.
 
@@ -2578,7 +2386,7 @@ async def track_copy_event(
         from services.useable_output_detector import mark_useable_output
 
         result = await asyncio.to_thread(
-            mark_useable_output, conversation_id, message_id, "copy_event", current_user["id"]
+            mark_useable_output, conversation_id, message_id, "copy_event", "default"
         )
         return {"success": result}
     except Exception as e:
@@ -2593,7 +2401,7 @@ async def track_copy_event(
 
 @router.post("/dig-deeper")
 @limiter.limit("15/minute")
-async def dig_deeper(request: Request, dig_request: DigDeeperRequest, current_user: dict = Depends(get_current_user)):
+async def dig_deeper(request: Request, dig_request: DigDeeperRequest):
     """Dig deeper into a previous assistant response.
 
     Takes an existing assistant message and asks for more detail, examples,
@@ -2608,7 +2416,6 @@ async def dig_deeper(request: Request, dig_request: DigDeeperRequest, current_us
     logger.info(
         "Dig deeper request received",
         extra={
-            "user_id": current_user["id"],
             "conversation_id": dig_request.conversation_id,
             "message_id": dig_request.message_id,
         },
@@ -2647,31 +2454,23 @@ Maintain the same format and style as your original response, but provide more c
 
             # Load system instructions
             try:
-                system_prompt = get_system_instructions_for_user(user_id=current_user["id"], user_data=current_user)
+                system_prompt = get_system_instructions_for_user(user_id="default", user_data={})
             except FileNotFoundError as e:
                 logger.warning(f"Could not load system instructions: {e}")
-                user_name = current_user.get("name", "User")
                 system_prompt = (
-                    f"You are Thesis, a helpful AI assistant for {user_name}. "
+                    "You are Thesis, a helpful AI assistant. "
                     "Provide clear, accurate, and professional assistance."
                 )
 
             # Get conversation history for context
             conversation_messages = []
             if dig_request.conversation_id:
-                history_result = (
-                    supabase.table("messages")
-                    .select("role,content")
-                    .eq("conversation_id", dig_request.conversation_id)
-                    .order("created_at", desc=True)
-                    .limit(50)
-                    .execute()
+                history = _get_recent_messages(
+                    dig_request.conversation_id, limit=50, fields="role,content",
                 )
-                if history_result.data:
-                    history_result.data.reverse()
-
-                if history_result.data:
-                    for msg in history_result.data:
+                if history:
+                    history.reverse()
+                    for msg in history:
                         if msg["role"] in ["user", "assistant"] and msg.get("content"):
                             conversation_messages.append({"role": msg["role"], "content": msg["content"]})
 
@@ -2709,7 +2508,7 @@ Maintain the same format and style as your original response, but provide more c
             # Save the dig deeper exchange to the conversation
             if dig_request.conversation_id:
                 # Save as a special "dig deeper" exchange
-                messages_to_insert = [
+                _insert_messages([
                     {
                         "conversation_id": dig_request.conversation_id,
                         "role": "user",
@@ -2728,8 +2527,7 @@ Maintain the same format and style as your original response, but provide more c
                             "original_message_id": dig_request.message_id,
                         },
                     },
-                ]
-                await asyncio.to_thread(lambda: supabase.table("messages").insert(messages_to_insert).execute())
+                ])
                 logger.info("Dig deeper messages saved to conversation")
 
             # Send completion
@@ -2811,7 +2609,6 @@ SECTION_TOPIC_MAP = {
 async def dig_deeper_section(
     request: Request,
     section_request: DigDeeperSectionRequest,
-    current_user: dict = Depends(get_current_user),
 ):
     """Expand a specific section of an assistant response (inline dig-deeper).
 
@@ -2823,7 +2620,6 @@ async def dig_deeper_section(
     logger.info(
         "Dig deeper section request received",
         extra={
-            "user_id": current_user["id"],
             "conversation_id": section_request.conversation_id,
             "message_id": section_request.message_id,
             "section_id": section_request.section_id,
@@ -2861,28 +2657,24 @@ That's it. Keep it SHORT."""
 
         # Load system instructions
         try:
-            system_prompt = get_system_instructions_for_user(user_id=current_user["id"], user_data=current_user)
+            system_prompt = get_system_instructions_for_user(user_id="default", user_data={})
         except FileNotFoundError:
-            user_name = current_user.get("name", "User")
             system_prompt = (
-                f"You are Thesis, a helpful AI assistant for {user_name}. "
+                "You are Thesis, a helpful AI assistant. "
                 "Provide clear, accurate, and professional assistance."
             )
 
         # Get conversation history for context (limited to recent messages)
         conversation_messages = []
         if section_request.conversation_id:
-            history_result = (
-                supabase.table("messages")
-                .select("role,content")
-                .eq("conversation_id", section_request.conversation_id)
-                .order("created_at", desc=False)
-                .limit(10)
-                .execute()
+            history = _get_recent_messages(
+                section_request.conversation_id, limit=10, fields="role,content",
             )
 
-            if history_result.data:
-                for msg in history_result.data:
+            if history:
+                # Already sorted desc, reverse to chronological
+                history.reverse()
+                for msg in history:
                     if msg["role"] in ["user", "assistant"] and msg.get("content"):
                         conversation_messages.append({"role": msg["role"], "content": msg["content"]})
 
@@ -2906,17 +2698,15 @@ That's it. Keep it SHORT."""
         # This avoids cluttering the chat but preserves the data
         if section_request.conversation_id:
             try:
-                # Update the original message's metadata to include expansions
-                await asyncio.to_thread(
-                    lambda: supabase.rpc(
-                        "append_message_expansion",
-                        {
-                            "p_message_id": section_request.message_id,
-                            "p_section_id": section_request.section_id,
-                            "p_expanded_content": expanded_content,
-                        },
-                    ).execute()
-                )
+                # Try to update the original message's metadata to include expansions
+                # Note: PocketBase doesn't have RPC like Supabase, so we do a read-modify-write
+                original_msg = convos_repo.get_message(section_request.message_id)
+                if original_msg:
+                    msg_metadata = pb.parse_json_field(original_msg.get("metadata"), {})
+                    expansions = msg_metadata.get("expansions", {})
+                    expansions[section_request.section_id] = expanded_content
+                    msg_metadata["expansions"] = expansions
+                    pb.update_record("messages", section_request.message_id, {"metadata": msg_metadata})
             except Exception as save_err:
                 # Log but don't fail - expansion still works even if save fails
                 logger.warning(f"Could not save expansion to message metadata: {save_err}")

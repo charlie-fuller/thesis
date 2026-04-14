@@ -3,24 +3,21 @@
 Handles creation, retrieval, updating, and deletion of conversations.
 """
 
-import asyncio
 import os
 from typing import Optional
 
 from anthropic import Anthropic
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
-from auth import get_current_user
-from config import get_default_client_id
-from database import get_supabase
+import pb_client as pb
 from document_processor import process_conversation_to_kb, remove_conversation_from_kb
 from logger_config import get_logger
+from repositories import conversations as convos_repo
 from validation import validate_uuid
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
-supabase = get_supabase()
 anthropic_client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 
@@ -58,17 +55,13 @@ class GenerateTitleRequest(BaseModel):
 
 
 @router.post("/create")
-async def create_conversation(request: ConversationCreateRequest, current_user: dict = Depends(get_current_user)):
+async def create_conversation(request: ConversationCreateRequest):
     """Create a new conversation."""
     try:
-        # Auto-assign default client if not provided (single-tenant mode)
-        client_id = request.client_id or get_default_client_id()
-        logger.info(f"💬 Creating conversation for client: {client_id}")
+        logger.info(f"Creating conversation")
 
         # Build conversation data
         conversation_data = {
-            "client_id": client_id,
-            "user_id": request.user_id,
             "title": request.title,
         }
         # Only include agent_id if provided (NULL means auto/coordinator mode)
@@ -84,116 +77,80 @@ async def create_conversation(request: ConversationCreateRequest, current_user: 
             conversation_data["initiative_id"] = request.initiative_id
 
         # Create conversation in database
-        result = await asyncio.to_thread(lambda: supabase.table("conversations").insert(conversation_data).execute())
-
-        conversation = result.data[0]
-        logger.info(f"✅ Conversation created: {conversation['id']}")
+        conversation = convos_repo.create_conversation(conversation_data)
+        logger.info(f"Conversation created: {conversation['id']}")
 
         return {
             "success": True,
             "conversation_id": conversation["id"],
-            "client_id": conversation["client_id"],
-            "user_id": conversation["user_id"],
+            "client_id": conversation.get("client_id"),
+            "user_id": conversation.get("user_id"),
             "title": conversation["title"],
             "agent_id": conversation.get("agent_id"),
             "project_id": conversation.get("project_id"),
             "initiative_id": conversation.get("initiative_id"),
-            "created_at": conversation["created_at"],
+            "created_at": conversation.get("created"),
         }
 
     except Exception as e:
-        logger.error(f"❌ Error creating conversation: {str(e)}")
+        logger.error(f"Error creating conversation: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{conversation_id}")
-async def get_conversation(conversation_id: str, current_user: dict = Depends(get_current_user)):
+async def get_conversation(conversation_id: str):
     """Get a single conversation by ID."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
-        # Fetch conversation with client and user details
-        result = await asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .select("*, clients(name), users(name, email)")
-            .eq("id", conversation_id)
-            .single()
-            .execute()
-        )
-
-        if not result.data:
+        conversation = convos_repo.get_conversation(conversation_id)
+        if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
-        conversation = result.data
-
-        # Check access: admins can see all, regular users only their own
-        is_admin = current_user.get("role") == "admin"
-        if not is_admin and conversation.get("user_id") != current_user.get("id"):
-            raise HTTPException(status_code=403, detail="Access denied")
-
         # Get message count
-        msg_result = await asyncio.to_thread(
-            lambda: supabase.table("messages")
-            .select("id", count="exact")
-            .eq("conversation_id", conversation_id)
-            .execute()
-        )
-        conversation["message_count"] = msg_result.count or 0
+        msg_count = pb.count("messages", filter=f"conversation_id='{pb.escape_filter(conversation_id)}'")
+        conversation["message_count"] = msg_count
 
         return {"success": True, "conversation": conversation}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error fetching conversation: {str(e)}")
+        logger.error(f"Error fetching conversation: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{conversation_id}/messages")
-async def get_conversation_messages(conversation_id: str, current_user: dict = Depends(get_current_user)):
+async def get_conversation_messages(conversation_id: str):
     """Get all messages in a conversation."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
-        # Fetch messages ordered by created_at
-        result = await asyncio.to_thread(
-            lambda: supabase.table("messages")
-            .select("*")
-            .eq("conversation_id", conversation_id)
-            .order("created_at", desc=False)
-            .execute()
-        )
-
-        messages = result.data
+        # Fetch messages ordered by created ascending
+        messages = convos_repo.get_conversation_messages(conversation_id)
 
         # Fetch associated documents for each message
         message_ids = [msg["id"] for msg in messages]
         if message_ids:
-            # Query message_documents with document details
-            docs_result = await asyncio.to_thread(
-                lambda: supabase.table("message_documents")
-                .select("message_id, document_id, documents(id, filename, mime_type)")
-                .in_("message_id", message_ids)
-                .execute()
-            )
-
             # Build a map of message_id -> list of documents
-            message_docs_map = {}
-            for link in docs_result.data:
-                msg_id = link["message_id"]
-                if msg_id not in message_docs_map:
-                    message_docs_map[msg_id] = []
-
-                # Extract document details from the nested join
-                doc_data = link.get("documents")
-                if doc_data:
-                    message_docs_map[msg_id].append(
-                        {
-                            "id": doc_data["id"],
-                            "filename": doc_data["filename"],
-                            "mime_type": doc_data.get("mime_type"),
-                        }
-                    )
+            message_docs_map: dict[str, list] = {}
+            for msg_id in message_ids:
+                msg_docs = convos_repo.get_message_documents(msg_id)
+                if msg_docs:
+                    docs_list = []
+                    for link in msg_docs:
+                        doc_id = link.get("document_id")
+                        if doc_id:
+                            from repositories import documents as docs_repo
+                            doc = docs_repo.get_document(doc_id)
+                            if doc:
+                                docs_list.append({
+                                    "id": doc["id"],
+                                    "filename": doc.get("filename"),
+                                    "mime_type": doc.get("mime_type"),
+                                })
+                    if docs_list:
+                        message_docs_map[msg_id] = docs_list
 
             # Attach documents to each message
             for msg in messages:
@@ -211,7 +168,7 @@ async def get_conversation_messages(conversation_id: str, current_user: dict = D
         }
 
     except Exception as e:
-        logger.error(f"❌ Error fetching messages: {str(e)}")
+        logger.error(f"Error fetching messages: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
@@ -219,47 +176,43 @@ async def get_conversation_messages(conversation_id: str, current_user: dict = D
 async def update_conversation(
     conversation_id: str,
     request: ConversationUpdateRequest,
-    current_user: dict = Depends(get_current_user),
 ):
     """Update conversation (rename)."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
-        # Update conversation title
-        result = await asyncio.to_thread(
-            lambda: supabase.table("conversations").update({"title": request.title}).eq("id", conversation_id).execute()
-        )
-
-        if not result.data:
+        conversation = convos_repo.get_conversation(conversation_id)
+        if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
-        return {"success": True, "conversation": result.data[0]}
+        updated = convos_repo.update_conversation(conversation_id, {"title": request.title})
+        return {"success": True, "conversation": updated}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error updating conversation: {str(e)}")
+        logger.error(f"Error updating conversation: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/{conversation_id}")
-async def delete_conversation(conversation_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_conversation(conversation_id: str):
     """Delete a conversation and all its messages."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
         # Delete messages first (foreign key constraint)
-        await asyncio.to_thread(
-            lambda: supabase.table("messages").delete().eq("conversation_id", conversation_id).execute()
-        )
+        msgs = convos_repo.get_conversation_messages(conversation_id)
+        for msg in msgs:
+            convos_repo.delete_message(msg["id"])
 
         # Delete conversation
-        await asyncio.to_thread(lambda: supabase.table("conversations").delete().eq("id", conversation_id).execute())
+        convos_repo.delete_conversation(conversation_id)
 
         return {"success": True, "message": "Conversation deleted successfully"}
 
     except Exception as e:
-        logger.error(f"❌ Error deleting conversation: {str(e)}")
+        logger.error(f"Error deleting conversation: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
@@ -267,7 +220,6 @@ async def delete_conversation(conversation_id: str, current_user: dict = Depends
 async def generate_conversation_title(
     conversation_id: str,
     request: GenerateTitleRequest,
-    current_user: dict = Depends(get_current_user),
 ):
     """Generate a concise title for a conversation based on the initial message.
 
@@ -278,19 +230,17 @@ async def generate_conversation_title(
         validate_uuid(conversation_id, "conversation_id")
 
         # Generate title using Claude
-        response = await asyncio.to_thread(
-            lambda: anthropic_client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=50,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": f"""Generate a concise title (3-6 words) for a conversation that starts with this message. The title should capture the main topic or intent. Do not use quotes or punctuation. Just output the title, nothing else.
+        response = anthropic_client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=50,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"""Generate a concise title (3-6 words) for a conversation that starts with this message. The title should capture the main topic or intent. Do not use quotes or punctuation. Just output the title, nothing else.
 
 Message: {request.message[:500]}""",
-                    }
-                ],
-            )
+                }
+            ],
         )
 
         # Extract the title from the response
@@ -309,12 +259,11 @@ Message: {request.message[:500]}""",
             title = title[:97] + "..."
 
         # Update the conversation title in the database
-        result = await asyncio.to_thread(
-            lambda: supabase.table("conversations").update({"title": title}).eq("id", conversation_id).execute()
-        )
-
-        if not result.data:
+        existing = convos_repo.get_conversation(conversation_id)
+        if not existing:
             raise HTTPException(status_code=404, detail="Conversation not found")
+
+        convos_repo.update_conversation(conversation_id, {"title": title})
 
         logger.info(f"Generated title for conversation {conversation_id}: {title}")
 
@@ -342,70 +291,56 @@ async def list_conversations(
     include_archived: bool = False,
     limit: int = 100,
     offset: int = 0,
-    current_user: dict = Depends(get_current_user),
 ):
-    """List conversations - all for admins, user-specific for regular users.
+    """List conversations.
 
     Supports filtering by project_id and/or initiative_id for context-scoped views.
     """
     try:
-        # Admins can see all conversations, regular users only see their own
-        is_admin = current_user.get("role") == "admin"
-
-        # Build query
-        query = supabase.table("conversations").select("*, clients(name), users(name, email)", count="exact")
-
-        # Apply filters
-        if not is_admin:
-            # Regular users can only see their own conversations
-            query = query.eq("user_id", current_user["id"])
-        elif user_id:
-            # Admin filtering by specific user
-            query = query.eq("user_id", user_id)
-
-        if client_id:
-            query = query.eq("client_id", client_id)
+        # Build PocketBase filter
+        parts = []
 
         # Filter by project_id if provided
         if project_id:
             validate_uuid(project_id, "project_id")
-            query = query.eq("project_id", project_id)
+            parts.append(f"project_id='{pb.escape_filter(project_id)}'")
 
         # Filter by initiative_id if provided
         if initiative_id:
             validate_uuid(initiative_id, "initiative_id")
-            query = query.eq("initiative_id", initiative_id)
+            parts.append(f"initiative_id='{pb.escape_filter(initiative_id)}'")
 
         # Exclude archived by default
         if not include_archived:
-            query = query.or_("archived.is.null,archived.eq.false")
+            parts.append("(archived=false || archived=null)")
 
-        # Apply ordering and pagination
-        query = query.order("updated_at", desc=True).range(offset, offset + limit - 1)
+        filter_str = " && ".join(parts)
 
-        result = await asyncio.to_thread(lambda: query.execute())
+        # Fetch conversations with pagination
+        page = (offset // limit) + 1 if limit else 1
+        result = pb.list_records(
+            "conversations",
+            filter=filter_str,
+            sort="-updated",
+            page=page,
+            per_page=limit,
+        )
 
-        # Get message counts for all conversations in a single batch query
-        conversations = result.data
+        conversations = result.get("items", [])
+        total = result.get("totalItems", 0)
+
+        # Get message counts for all conversations
         if conversations:
-            conv_ids = [c["id"] for c in conversations]
-            # Single query to get all messages for these conversations
-            msg_result = await asyncio.to_thread(
-                lambda: supabase.table("messages").select("conversation_id").in_("conversation_id", conv_ids).execute()
-            )
-            # Count messages per conversation
-            msg_counts = {}
-            for msg in msg_result.data:
-                conv_id = msg["conversation_id"]
-                msg_counts[conv_id] = msg_counts.get(conv_id, 0) + 1
-            # Apply counts to conversations
             for conv in conversations:
-                conv["message_count"] = msg_counts.get(conv["id"], 0)
+                conv["message_count"] = pb.count(
+                    "messages",
+                    filter=f"conversation_id='{pb.escape_filter(conv['id'])}'",
+                )
 
-        return {"success": True, "conversations": conversations, "total": result.count}
+        return {"success": True, "conversations": conversations, "total": total}
 
     except Exception as e:
-        logger.error(f"❌ Error listing conversations: {str(e)}")
+        logger.error(f"Error listing conversations: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
@@ -418,7 +353,6 @@ async def list_conversations(
 async def add_conversation_to_knowledge_base(
     conversation_id: str,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user),
 ):
     """Add conversation to knowledge base for RAG search."""
     try:
@@ -434,12 +368,12 @@ async def add_conversation_to_knowledge_base(
         }
 
     except Exception as e:
-        logger.error(f"❌ Error adding conversation to KB: {str(e)}")
+        logger.error(f"Error adding conversation to KB: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{conversation_id}/remove-from-kb")
-async def remove_conversation_from_knowledge_base(conversation_id: str, current_user: dict = Depends(get_current_user)):
+async def remove_conversation_from_knowledge_base(conversation_id: str):
     """Remove conversation from knowledge base."""
     try:
         validate_uuid(conversation_id, "conversation_id")
@@ -454,7 +388,7 @@ async def remove_conversation_from_knowledge_base(conversation_id: str, current_
         }
 
     except Exception as e:
-        logger.error(f"❌ Error removing conversation from KB: {str(e)}")
+        logger.error(f"Error removing conversation from KB: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
@@ -464,44 +398,40 @@ async def remove_conversation_from_knowledge_base(conversation_id: str, current_
 
 
 @router.post("/{conversation_id}/archive")
-async def archive_conversation(conversation_id: str, current_user: dict = Depends(get_current_user)):
+async def archive_conversation(conversation_id: str):
     """Archive a conversation."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("conversations").update({"archived": True}).eq("id", conversation_id).execute()
-        )
-
-        if not result.data:
+        existing = convos_repo.get_conversation(conversation_id)
+        if not existing:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
-        return {"success": True, "message": "Conversation archived", "conversation": result.data[0]}
+        updated = convos_repo.update_conversation(conversation_id, {"archived": True})
+        return {"success": True, "message": "Conversation archived", "conversation": updated}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error archiving conversation: {str(e)}")
+        logger.error(f"Error archiving conversation: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{conversation_id}/restore")
-async def restore_conversation(conversation_id: str, current_user: dict = Depends(get_current_user)):
+async def restore_conversation(conversation_id: str):
     """Restore an archived conversation."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("conversations").update({"archived": False}).eq("id", conversation_id).execute()
-        )
-
-        if not result.data:
+        existing = convos_repo.get_conversation(conversation_id)
+        if not existing:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
-        return {"success": True, "message": "Conversation restored", "conversation": result.data[0]}
+        updated = convos_repo.update_conversation(conversation_id, {"archived": False})
+        return {"success": True, "message": "Conversation restored", "conversation": updated}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error restoring conversation: {str(e)}")
+        logger.error(f"Error restoring conversation: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
