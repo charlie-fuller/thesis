@@ -1,0 +1,5 @@
+fastapi>=0.115.0
+uvicorn>=0.32.0
+sqlite-vec>=0.1.6
+voyageai>=0.3.0
+pydantic>=2.0.0
