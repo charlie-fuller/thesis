@@ -9,18 +9,18 @@ Note: This replaces the old /api/opportunities endpoints. The frontend should be
 updated to use /api/projects instead.
 """
 
-import asyncio
 import json
 import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from auth import get_current_user
-from database import get_supabase
+import pb_client as pb
+from repositories import projects as projects_repo
+from repositories import stakeholders as sh_repo
 from services.goal_alignment_analyzer import (
     analyze_goal_alignment,
     batch_analyze_all,
@@ -329,28 +329,25 @@ def _format_project(proj: dict, owner_name: Optional[str] = None) -> dict:
     }
 
 
-async def _get_owner_names(supabase, project_ids: List[str]) -> dict:
+def _get_owner_names(project_ids: List[str]) -> dict:
     """Get owner names for a list of projects."""
     if not project_ids:
         return {}
 
-    # Get projects with owner IDs
-    result = supabase.table("ai_projects").select("id, owner_stakeholder_id").in_("id", project_ids).execute()
+    owner_map = {}
+    seen_owners: dict[str, str] = {}
 
-    owner_ids = [p["owner_stakeholder_id"] for p in result.data if p.get("owner_stakeholder_id")]
+    for pid in project_ids:
+        proj = projects_repo.get_project(pid)
+        if not proj or not proj.get("owner_stakeholder_id"):
+            continue
+        oid = proj["owner_stakeholder_id"]
+        if oid not in seen_owners:
+            stakeholder = sh_repo.get_stakeholder(oid)
+            seen_owners[oid] = stakeholder["name"] if stakeholder else None
+        owner_map[pid] = seen_owners[oid]
 
-    if not owner_ids:
-        return {}
-
-    # Get stakeholder names
-    stakeholders = supabase.table("stakeholders").select("id, name").in_("id", owner_ids).execute()
-
-    stakeholder_map = {s["id"]: s["name"] for s in stakeholders.data}
-
-    # Map project ID to owner name
-    return {
-        p["id"]: stakeholder_map.get(p["owner_stakeholder_id"]) for p in result.data if p.get("owner_stakeholder_id")
-    }
+    return owner_map
 
 
 # ============================================================================
@@ -369,17 +366,17 @@ def _is_valid_uuid(value: str) -> bool:
         return False
 
 
-async def _resolve_initiative_id(initiative_id: str, supabase) -> Optional[str]:
+def _resolve_initiative_id(initiative_id: str) -> Optional[str]:
     """Resolve an initiative ID (UUID or name) to its UUID."""
     if _is_valid_uuid(initiative_id):
         return initiative_id
 
-    # Look up by name (use maybe_single to avoid exception on 0 rows)
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("disco_initiatives").select("id").eq("name", initiative_id).maybe_single().execute()
+        record = pb.get_first(
+            "disco_initiatives",
+            filter=f"name='{pb.escape_filter(initiative_id)}'",
         )
-        return result.data["id"] if result.data else None
+        return record["id"] if record else None
     except Exception:
         return None
 
@@ -393,39 +390,34 @@ async def list_projects(
     initiative_id: Optional[str] = Query(None, description="Filter by linked initiative ID"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """List all projects for the current client.
 
     Supports filtering by department, tier, status, owner, and initiative.
     """
-    query = supabase.table("ai_projects").select("*").eq("client_id", current_user["client_id"])
+    projects = projects_repo.list_projects(
+        department=department or "",
+        tier=tier or 0,
+        status=status or "",
+        owner_stakeholder_id=owner_stakeholder_id or "",
+        limit=limit,
+        offset=offset,
+    )
 
-    if department:
-        query = query.eq("department", department)
-    if tier:
-        query = query.eq("tier", tier)
-    if status:
-        query = query.eq("status", status)
-    if owner_stakeholder_id:
-        query = query.eq("owner_stakeholder_id", owner_stakeholder_id)
     if initiative_id:
-        # Resolve initiative_id if it's a name
-        resolved_id = await _resolve_initiative_id(initiative_id, supabase)
+        resolved_id = _resolve_initiative_id(initiative_id)
         if resolved_id:
-            query = query.contains("initiative_ids", [resolved_id])
+            projects = [
+                p for p in projects
+                if resolved_id in (p.get("initiative_ids") or [])
+            ]
         else:
-            # Initiative not found, return empty results
             return []
 
-    result = query.order("total_score", desc=True).range(offset, offset + limit - 1).execute()
+    proj_ids = [p["id"] for p in projects]
+    owner_names = _get_owner_names(proj_ids)
 
-    # Get owner names
-    proj_ids = [p["id"] for p in result.data]
-    owner_names = await _get_owner_names(supabase, proj_ids)
-
-    return [_format_project(p, owner_names.get(p["id"])) for p in result.data]
+    return [_format_project(p, owner_names.get(p["id"])) for p in projects]
 
 
 @router.get("/by-tier")
@@ -433,34 +425,25 @@ async def get_projects_by_tier(
     department: Optional[str] = None,
     status: Optional[str] = None,
     max_per_tier: int = Query(50, ge=1, le=200, description="Max projects per tier"),
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get projects grouped by tier.
 
     Returns a dict with tier keys (1-4) and lists of projects.
     Use max_per_tier to limit results (default 50 per tier, max 200).
     """
-    query = supabase.table("ai_projects").select("*").eq("client_id", current_user["client_id"])
+    projects = projects_repo.list_projects(
+        department=department or "",
+        status=status or "",
+    )
 
-    if department:
-        query = query.eq("department", department)
-    if status:
-        query = query.eq("status", status)
+    proj_ids = [p["id"] for p in projects]
+    owner_names = _get_owner_names(proj_ids)
 
-    # Limit total results to prevent OOM (4 tiers * max_per_tier)
-    result = query.order("total_score", desc=True).limit(max_per_tier * 4).execute()
-
-    # Get owner names
-    proj_ids = [p["id"] for p in result.data]
-    owner_names = await _get_owner_names(supabase, proj_ids)
-
-    # Group by tier (respecting max_per_tier limit)
     grouped = {1: [], 2: [], 3: [], 4: []}
-    for proj in result.data:
-        tier = proj.get("tier", 4)
-        if len(grouped[tier]) < max_per_tier:
-            grouped[tier].append(_format_project(proj, owner_names.get(proj["id"])))
+    for proj in projects:
+        t = proj.get("tier", 4)
+        if len(grouped[t]) < max_per_tier:
+            grouped[t].append(_format_project(proj, owner_names.get(proj["id"])))
 
     return {
         "tier_1": grouped[1],
@@ -472,7 +455,7 @@ async def get_projects_by_tier(
             "tier_2_count": len(grouped[2]),
             "tier_3_count": len(grouped[3]),
             "tier_4_count": len(grouped[4]),
-            "total": len(result.data),
+            "total": sum(len(g) for g in grouped.values()),
         },
     }
 
@@ -481,26 +464,18 @@ async def get_projects_by_tier(
 async def get_projects_by_department(
     tier: Optional[int] = Query(None, ge=1, le=4),
     status: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get projects grouped by department."""
-    query = supabase.table("ai_projects").select("*").eq("client_id", current_user["client_id"])
+    projects = projects_repo.list_projects(
+        tier=tier or 0,
+        status=status or "",
+    )
 
-    if tier:
-        query = query.eq("tier", tier)
-    if status:
-        query = query.eq("status", status)
+    proj_ids = [p["id"] for p in projects]
+    owner_names = _get_owner_names(proj_ids)
 
-    result = query.order("total_score", desc=True).execute()
-
-    # Get owner names
-    proj_ids = [p["id"] for p in result.data]
-    owner_names = await _get_owner_names(supabase, proj_ids)
-
-    # Group by department
     grouped = {}
-    for proj in result.data:
+    for proj in projects:
         dept = proj.get("department") or "unassigned"
         if dept not in grouped:
             grouped[dept] = []
@@ -516,83 +491,43 @@ async def get_projects_by_department(
 async def get_top_projects(
     limit: int = Query(10, ge=1, le=50),
     exclude_status: Optional[str] = "completed",
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get top projects by score.
 
     Excludes completed projects by default.
     """
-    query = supabase.table("ai_projects").select("*").eq("client_id", current_user["client_id"])
+    all_projects = projects_repo.list_projects()
 
     if exclude_status:
-        query = query.neq("status", exclude_status)
+        all_projects = [p for p in all_projects if p.get("status") != exclude_status]
 
-    result = query.order("total_score", desc=True).limit(limit).execute()
+    all_projects.sort(key=lambda p: p.get("total_score", 0), reverse=True)
+    projects = all_projects[:limit]
 
-    # Get owner names
-    proj_ids = [p["id"] for p in result.data]
-    owner_names = await _get_owner_names(supabase, proj_ids)
+    proj_ids = [p["id"] for p in projects]
+    owner_names = _get_owner_names(proj_ids)
 
-    return [_format_project(p, owner_names.get(p["id"])) for p in result.data]
+    return [_format_project(p, owner_names.get(p["id"])) for p in projects]
 
 
 @router.get("/blocked")
-async def get_blocked_projects(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
+async def get_blocked_projects():
     """Get all blocked projects."""
-    result = (
-        supabase.table("ai_projects")
-        .select("*")
-        .eq("client_id", current_user["client_id"])
-        .eq("status", "blocked")
-        .order("total_score", desc=True)
-        .execute()
-    )
+    projects = projects_repo.list_projects(status="blocked")
 
-    # Get owner names
-    proj_ids = [p["id"] for p in result.data]
-    owner_names = await _get_owner_names(supabase, proj_ids)
+    proj_ids = [p["id"] for p in projects]
+    owner_names = _get_owner_names(proj_ids)
 
-    return [_format_project(p, owner_names.get(p["id"])) for p in result.data]
+    return [_format_project(p, owner_names.get(p["id"])) for p in projects]
 
 
 @router.get("/summary")
-async def get_projects_summary(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
+async def get_projects_summary():
     """Get a summary of all projects.
 
     Returns counts by tier, status, and department.
     """
-    result = (
-        supabase.table("ai_projects")
-        .select("tier, status, department")
-        .eq("client_id", current_user["client_id"])
-        .execute()
-    )
-
-    # Count by tier
-    tier_counts = {1: 0, 2: 0, 3: 0, 4: 0}
-    status_counts = {}
-    dept_counts = {}
-
-    for proj in result.data:
-        # Tier
-        tier = proj.get("tier", 4)
-        tier_counts[tier] = tier_counts.get(tier, 0) + 1
-
-        # Status
-        status = proj.get("status", "backlog")
-        status_counts[status] = status_counts.get(status, 0) + 1
-
-        # Department
-        dept = proj.get("department") or "unassigned"
-        dept_counts[dept] = dept_counts.get(dept, 0) + 1
-
-    return {
-        "total": len(result.data),
-        "by_tier": tier_counts,
-        "by_status": status_counts,
-        "by_department": dept_counts,
-    }
+    return projects_repo.get_projects_summary()
 
 
 # ============================================================================
@@ -612,34 +547,22 @@ class ProjectAgentRunRequest(BaseModel):
 async def run_project_agent(
     project_id: str,
     data: ProjectAgentRunRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Run a DISCO agent on a project with streaming response."""
     from services.disco import run_agent
 
-    # Verify project exists and user has access
-    client_id = current_user.get("client_id")
-    if not client_id:
-        from database import get_default_client_id
-
-        client_id = get_default_client_id()
-
-    project = (
-        supabase.table("ai_projects").select("id").eq("id", project_id).eq("client_id", client_id).single().execute()
-    )
-    if not project.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     async def event_stream():
-        # Send initial padding to force proxy buffer flush
         yield ": " + " " * 2048 + "\n\n"
 
         try:
             agent_gen = run_agent(
                 project_id=project_id,
                 agent_type=data.agent_type,
-                user_id=current_user["id"],
+                user_id="",
                 document_ids=data.document_ids,
                 kb_tags=data.kb_tags,
             )
@@ -679,77 +602,45 @@ async def run_project_agent(
 async def get_project_agent_outputs(
     project_id: str,
     agent_type: Optional[str] = Query(None),
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get all agent outputs for a project."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        from database import get_default_client_id
-
-        client_id = get_default_client_id()
-
-    # Verify project access
-    project = (
-        supabase.table("ai_projects").select("id").eq("id", project_id).eq("client_id", client_id).single().execute()
-    )
-    if not project.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    query = (
-        supabase.table("disco_outputs")
-        .select(
-            "id, agent_type, version, title, recommendation, confidence_level, executive_summary, content_markdown, content_structured, source_outputs, created_at, triage_suggestions"
-        )
-        .eq("project_id", project_id)
-        .order("created_at", desc=True)
-    )
-
+    esc_pid = pb.escape_filter(project_id)
+    parts = [f"project_id='{esc_pid}'"]
     if agent_type:
-        query = query.eq("agent_type", agent_type)
+        parts.append(f"agent_type='{pb.escape_filter(agent_type)}'")
+    filter_str = " && ".join(parts)
 
-    result = query.execute()
+    outputs = pb.get_all("disco_outputs", filter=filter_str, sort="-created")
 
-    return {"success": True, "outputs": result.data or []}
+    return {"success": True, "outputs": outputs}
 
 
 @router.get("/{project_id}/agents/outputs/latest/{agent_type}")
 async def get_project_agent_latest_output(
     project_id: str,
     agent_type: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get the latest output of a specific agent type for a project."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        from database import get_default_client_id
-
-        client_id = get_default_client_id()
-
-    # Verify project access
-    project = (
-        supabase.table("ai_projects").select("id").eq("id", project_id).eq("client_id", client_id).single().execute()
-    )
-    if not project.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    result = (
-        supabase.table("disco_outputs")
-        .select(
-            "id, agent_type, version, title, recommendation, confidence_level, executive_summary, content_markdown, content_structured, source_outputs, created_at, triage_suggestions"
-        )
-        .eq("project_id", project_id)
-        .eq("agent_type", agent_type)
-        .order("version", desc=True)
-        .limit(1)
-        .execute()
+    esc_pid = pb.escape_filter(project_id)
+    esc_at = pb.escape_filter(agent_type)
+    record = pb.get_first(
+        "disco_outputs",
+        filter=f"project_id='{esc_pid}' && agent_type='{esc_at}'",
+        sort="-version",
     )
 
-    if not result.data:
+    if not record:
         return {"success": True, "output": None}
 
-    return {"success": True, "output": result.data[0]}
+    return {"success": True, "output": record}
 
 
 # ============================================================================
@@ -762,8 +653,6 @@ async def get_project_agent_latest_output(
 async def get_project_related_documents(
     project_id: str,
     limit: int = Query(8, ge=1, le=20),
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get documents related to a project's scoring.
 
@@ -773,22 +662,12 @@ async def get_project_related_documents(
 
     Documents are sorted by relevance score (highest first).
     """
-    # Fetch the full project
-    result = (
-        supabase.table("ai_projects")
-        .select("*")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not result.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Get scoring-relevant documents
     related_docs = get_scoring_related_documents(
-        project=result.data, client_id=current_user["client_id"], limit=limit, min_similarity=0.25
+        project=project, client_id="", limit=limit, min_similarity=0.25
     )
 
     return related_docs
@@ -802,48 +681,29 @@ async def get_project_related_documents(
 @router.get("/{project_id}/documents", response_model=List[LinkedDocumentResponse])
 async def get_project_linked_documents(
     project_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get documents manually linked to a project.
 
     Returns documents linked via the project_documents junction table,
     sorted by linked_at descending (most recent first).
     """
-    if not current_user.get("client_id"):
-        raise HTTPException(status_code=401, detail="User profile not found")
-    # Verify project exists and belongs to client
-    project_result = (
-        supabase.table("ai_projects")
-        .select("id")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not project_result.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Get linked documents with document details
-    result = (
-        supabase.table("project_documents")
-        .select("id, document_id, linked_at, linked_by, notes, documents(filename, title)")
-        .eq("project_id", project_id)
-        .order("linked_at", desc=True)
-        .execute()
-    )
+    doc_links = projects_repo.get_project_documents(project_id)
 
     linked_docs = []
-    for row in result.data or []:
-        doc_info = row.get("documents", {}) or {}
+    for row in doc_links:
+        doc = pb.get_record("documents", row.get("document_id", ""))
+        doc_info = doc or {}
         linked_docs.append(
             LinkedDocumentResponse(
                 id=row["id"],
                 document_id=row["document_id"],
                 document_name=doc_info.get("filename", "Unknown"),
                 title=doc_info.get("title"),
-                linked_at=row["linked_at"],
+                linked_at=row.get("linked_at", row.get("created", "")),
                 linked_by=row.get("linked_by"),
                 notes=row.get("notes"),
             )
@@ -856,50 +716,27 @@ async def get_project_linked_documents(
 async def link_documents_to_project(
     project_id: str,
     request: LinkDocumentsRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Link KB documents to a project.
 
     Creates links in the project_documents junction table.
     Duplicates are handled gracefully (upsert).
     """
-    # Verify project exists and belongs to client
-    project_result = (
-        supabase.table("ai_projects")
-        .select("id, title")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not project_result.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    user_id = current_user["id"]
     linked_count = 0
     errors = []
 
     for doc_id in request.document_ids:
         try:
-            # Verify document exists
-            doc_result = supabase.table("documents").select("id, filename").eq("id", doc_id).single().execute()
-
-            if not doc_result.data:
+            doc = pb.get_record("documents", doc_id)
+            if not doc:
                 errors.append({"document_id": doc_id, "error": "Document not found"})
                 continue
 
-            # Create link (upsert to handle duplicates)
-            supabase.table("project_documents").upsert(
-                {
-                    "project_id": project_id,
-                    "document_id": doc_id,
-                    "linked_by": user_id,
-                },
-                on_conflict="project_id,document_id",
-            ).execute()
-
+            projects_repo.link_document(project_id, doc_id)
             linked_count += 1
 
         except Exception as e:
@@ -917,37 +754,16 @@ async def link_documents_to_project(
 async def unlink_document_from_project(
     project_id: str,
     document_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Unlink a document from a project.
 
     Removes the link from project_documents but does not delete the document from KB.
     """
-    # Verify project exists and belongs to client
-    project_result = (
-        supabase.table("ai_projects")
-        .select("id")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not project_result.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Delete the link
-    result = (
-        supabase.table("project_documents")
-        .delete()
-        .eq("project_id", project_id)
-        .eq("document_id", document_id)
-        .execute()
-    )
-
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Document link not found")
+    projects_repo.unlink_document(project_id, document_id)
 
     return {"success": True, "message": "Document unlinked from project"}
 
@@ -957,31 +773,17 @@ async def get_project_conversation_history(
     project_id: str,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get Q&A conversation history for a project.
 
     Returns conversations newest first.
     """
-    if not current_user.get("client_id"):
-        raise HTTPException(status_code=401, detail="User profile not found")
-    # Verify project exists and belongs to client
-    proj = (
-        supabase.table("ai_projects")
-        .select("id")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not proj.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Get conversations
     conversations = await get_project_conversations(
-        project_id=project_id, client_id=current_user["client_id"], limit=limit, offset=offset
+        project_id=project_id, client_id="", limit=limit, offset=offset
     )
 
     return conversations
@@ -991,8 +793,6 @@ async def get_project_conversation_history(
 async def ask_question_about_project(
     project_id: str,
     request: AskQuestionRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Ask a question about a project.
 
@@ -1007,28 +807,18 @@ async def ask_question_about_project(
     GET /{project_id}/conversations.
     """
     logger.warning(f"Deprecated endpoint /projects/{project_id}/ask called. Use /chat?project_id={project_id} instead.")
-    # Verify project exists and belongs to client
-    proj = (
-        supabase.table("ai_projects")
-        .select("id")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not proj.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     try:
         result = await ask_about_project(
             project_id=project_id,
             question=request.question,
-            client_id=current_user["client_id"],
-            user_id=current_user["id"],
+            client_id="",
+            user_id="",
         )
 
-        # Format sources for response model
         formatted_sources = []
         for source in result.get("sources", []):
             formatted_sources.append(
@@ -1074,8 +864,6 @@ class TaskmasterChatResponse(BaseModel):
 async def taskmaster_chat_for_project(
     project_id: str,
     request: TaskmasterChatRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Chat with Taskmaster to break down a project into tasks.
 
@@ -1087,20 +875,11 @@ async def taskmaster_chat_for_project(
 
     Only available for active projects.
     """
-    # Verify project exists, belongs to client, and is active
-    proj = (
-        supabase.table("ai_projects")
-        .select("id, project_name, status")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not proj.data:
+    proj = projects_repo.get_project(project_id)
+    if not proj:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if not proj.data.get("project_name") and proj.data.get("status") != "active":
+    if not proj.get("project_name") and proj.get("status") != "active":
         raise HTTPException(
             status_code=400,
             detail="Taskmaster is only available for active projects",
@@ -1110,9 +889,8 @@ async def taskmaster_chat_for_project(
         result = await chat_with_taskmaster(
             project_id=project_id,
             message=request.message,
-            client_id=current_user["client_id"],
-            user_id=current_user["id"],
-            supabase=supabase,
+            client_id="",
+            user_id="",
         )
 
         return result
@@ -1131,7 +909,7 @@ async def taskmaster_chat_for_project(
 
 @router.post("/{project_id}/generate-justifications")
 async def generate_justifications_for_project(
-    project_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
+    project_id: str,
 ):
     """Generate AI-powered justifications for a project's scores.
 
@@ -1142,22 +920,13 @@ async def generate_justifications_for_project(
     This is automatically called when scores are updated, but can also
     be triggered manually to regenerate justifications.
     """
-    # Verify project exists and belongs to client
-    proj = (
-        supabase.table("ai_projects")
-        .select("id")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not proj.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     try:
         justifications = await generate_project_justifications(
-            project_id=project_id, client_id=current_user["client_id"]
+            project_id=project_id, client_id=""
         )
         return {
             "message": "Justifications generated successfully",
@@ -1169,9 +938,7 @@ async def generate_justifications_for_project(
 
 
 @router.post("/generate-all-justifications")
-async def generate_all_project_justifications(
-    current_user: dict = Depends(get_current_user),
-):
+async def generate_all_project_justifications():
     """Generate justifications for all projects belonging to the current client.
 
     This is useful for backfilling justifications for existing projects
@@ -1180,7 +947,7 @@ async def generate_all_project_justifications(
     Returns counts of successful and failed generations.
     """
     try:
-        result = await generate_all_justifications(client_id=current_user["client_id"])
+        result = await generate_all_justifications(client_id="")
         return result
     except Exception as e:
         logger.error(f"Failed to generate all justifications: {e}")
@@ -1193,9 +960,7 @@ async def generate_all_project_justifications(
 
 
 @router.post("/analyze-goal-alignment/all")
-async def analyze_all_goal_alignment(
-    current_user: dict = Depends(get_current_user),
-):
+async def analyze_all_goal_alignment():
     """Analyze goal alignment for all projects belonging to the current client.
 
     Evaluates each project against IS team FY27 strategic goals:
@@ -1207,7 +972,7 @@ async def analyze_all_goal_alignment(
     Returns counts, average score, and distribution across alignment levels.
     """
     try:
-        result = await batch_analyze_all(client_id=current_user["client_id"])
+        result = await batch_analyze_all(client_id="")
         return result
     except Exception as e:
         logger.error(f"Failed to analyze goal alignment: {e}")
@@ -1216,7 +981,7 @@ async def analyze_all_goal_alignment(
 
 @router.post("/{project_id}/analyze-goal-alignment")
 async def analyze_project_goal_alignment(
-    project_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
+    project_id: str,
 ):
     """Analyze a single project's alignment with IS team strategic goals.
 
@@ -1232,21 +997,12 @@ async def analyze_project_goal_alignment(
     - 40-59: Low alignment - tangential connection
     - 0-39: Minimal alignment - limited strategic value
     """
-    # Verify project exists and belongs to client
-    proj = (
-        supabase.table("ai_projects")
-        .select("id")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not proj.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     try:
-        score, details = await analyze_goal_alignment(project_id=project_id, client_id=current_user["client_id"])
+        score, details = await analyze_goal_alignment(project_id=project_id, client_id="")
         return {
             "project_id": project_id,
             "goal_alignment_score": score,
@@ -1266,45 +1022,27 @@ async def analyze_project_goal_alignment(
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
-async def get_project(project_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
+async def get_project(project_id: str):
     """Get a single project by ID."""
-    result = (
-        supabase.table("ai_projects")
-        .select("*")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not result.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Get owner name if exists
     owner_name = None
-    if result.data.get("owner_stakeholder_id"):
-        owner_result = (
-            supabase.table("stakeholders")
-            .select("name")
-            .eq("id", result.data["owner_stakeholder_id"])
-            .single()
-            .execute()
-        )
-        if owner_result.data:
-            owner_name = owner_result.data["name"]
+    if project.get("owner_stakeholder_id"):
+        stakeholder = sh_repo.get_stakeholder(project["owner_stakeholder_id"])
+        if stakeholder:
+            owner_name = stakeholder["name"]
 
-    return _format_project(result.data, owner_name)
+    return _format_project(project, owner_name)
 
 
 @router.post("/", response_model=ProjectResponse)
 async def create_project(
     project: ProjectCreate,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Create a new project."""
     data = {
-        "client_id": current_user["client_id"],
         "project_code": project.project_code.upper(),
         "title": project.title,
         "description": project.description,
@@ -1328,15 +1066,12 @@ async def create_project(
     }
 
     try:
-        result = supabase.table("ai_projects").insert(data).execute()
+        created_proj = projects_repo.create_project(data)
     except Exception as e:
         if "duplicate" in str(e).lower():
             raise HTTPException(status_code=409, detail=f"Project code {project.project_code} already exists") from None
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
-    created_proj = result.data[0]
-
-    # Generate justifications if scores are provided
     has_scores = any(
         [
             project.roi_potential,
@@ -1347,27 +1082,19 @@ async def create_project(
     )
     if has_scores:
         try:
-            await generate_project_justifications(project_id=created_proj["id"], client_id=current_user["client_id"])
-            # Refetch to get updated justifications
-            updated = supabase.table("ai_projects").select("*").eq("id", created_proj["id"]).single().execute()
-            created_proj = updated.data
+            await generate_project_justifications(project_id=created_proj["id"], client_id="")
+            created_proj = projects_repo.get_project(created_proj["id"])
         except Exception as e:
             logger.warning(f"Failed to generate justifications on create: {e}")
 
-    # Evaluate confidence score (fast rubric check, no AI call)
     try:
         from services.project_confidence import evaluate_project_confidence
 
         confidence, questions = evaluate_project_confidence(created_proj)
-        supabase.table("ai_projects").update(
-            {
-                "scoring_confidence": confidence,
-                "confidence_questions": questions,
-            }
-        ).eq("id", created_proj["id"]).execute()
-        # Refetch to include confidence in response
-        updated = supabase.table("ai_projects").select("*").eq("id", created_proj["id"]).single().execute()
-        created_proj = updated.data
+        created_proj = projects_repo.update_project(created_proj["id"], {
+            "scoring_confidence": confidence,
+            "confidence_questions": questions,
+        })
     except Exception as e:
         logger.warning(f"Failed to evaluate confidence on create: {e}")
 
@@ -1378,24 +1105,12 @@ async def create_project(
 async def update_project(
     project_id: str,
     update: ProjectUpdate,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Update a project."""
-    # Verify ownership
-    existing = (
-        supabase.table("ai_projects")
-        .select("id")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not existing.data:
+    existing = projects_repo.get_project(project_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Build update dict
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
 
     if update_data.get("project_code"):
@@ -1404,58 +1119,42 @@ async def update_project(
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
 
-    result = supabase.table("ai_projects").update(update_data).eq("id", project_id).execute()
+    updated = projects_repo.update_project(project_id, update_data)
 
-    return _format_project(result.data[0])
+    return _format_project(updated)
 
 
 @router.patch("/{project_id}/scores", response_model=ProjectResponse)
 async def update_project_scores(
     project_id: str,
     scores: ProjectScoreUpdate,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Update just the scores for a project.
 
     Convenience endpoint for quick score updates without touching other fields.
     Automatically regenerates justifications when scores change.
     """
-    # Get existing project with current scores
-    existing = (
-        supabase.table("ai_projects")
-        .select("id, roi_potential, implementation_effort, strategic_alignment, stakeholder_readiness")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not existing.data:
+    existing = projects_repo.get_project(project_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    old_scores = existing.data
+    old_scores = existing
     update_data = {k: v for k, v in scores.model_dump().items() if v is not None}
 
     if not update_data:
         raise HTTPException(status_code=400, detail="No scores to update")
 
-    result = supabase.table("ai_projects").update(update_data).eq("id", project_id).execute()
+    updated_proj = projects_repo.update_project(project_id, update_data)
 
-    updated_proj = result.data[0]
-
-    # Regenerate justifications if scores changed
     try:
         regenerated = await regenerate_if_scores_changed(
             project_id=project_id,
             old_scores=old_scores,
             new_scores=update_data,
-            client_id=current_user["client_id"],
+            client_id="",
         )
         if regenerated:
-            # Refetch to get updated justifications
-            refreshed = supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
-            updated_proj = refreshed.data
+            updated_proj = projects_repo.get_project(project_id)
     except Exception as e:
         logger.warning(f"Failed to regenerate justifications on score update: {e}")
 
@@ -1475,8 +1174,6 @@ class StatusUpdateRequest(BaseModel):
 async def update_project_status(
     project_id: str,
     request: StatusUpdateRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Update project status.
 
@@ -1486,52 +1183,33 @@ async def update_project_status(
     if request.status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
 
-    # Verify ownership and get current data
-    existing = (
-        supabase.table("ai_projects")
-        .select("id, project_name, status")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not existing.data:
+    existing = projects_repo.get_project(project_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Project not found")
 
     update_data = {"status": request.status}
     if request.next_step is not None:
         update_data["next_step"] = request.next_step
-    # Allow explicitly setting project_name (including to null for deactivation)
     if request.project_name is not None:
         update_data["project_name"] = request.project_name if request.project_name else None
     if request.project_description:
         update_data["project_description"] = request.project_description
 
-    result = supabase.table("ai_projects").update(update_data).eq("id", project_id).execute()
+    updated = projects_repo.update_project(project_id, update_data)
 
-    return _format_project(result.data[0])
+    return _format_project(updated)
 
 
 @router.delete("/{project_id}")
 async def delete_project(
-    project_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
+    project_id: str,
 ):
     """Delete a project."""
-    # Verify ownership
-    existing = (
-        supabase.table("ai_projects")
-        .select("id")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not existing.data:
+    existing = projects_repo.get_project(project_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    supabase.table("ai_projects").delete().eq("id", project_id).execute()
+    projects_repo.delete_project(project_id)
 
     return {"message": "Project deleted"}
 
@@ -1543,95 +1221,53 @@ async def delete_project(
 
 @router.get("/{project_id}/stakeholders", response_model=List[StakeholderLinkResponse])
 async def get_project_stakeholders(
-    project_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
+    project_id: str,
 ):
     """Get all stakeholders linked to a project."""
-    if not current_user.get("client_id"):
-        raise HTTPException(status_code=401, detail="User profile not found")
-    # Verify project exists and belongs to client
-    proj = (
-        supabase.table("ai_projects")
-        .select("id")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not proj.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Get links with stakeholder info
-    result = (
-        supabase.table("project_stakeholder_link")
-        .select("*, stakeholders(name, role, department)")
-        .eq("project_id", project_id)
-        .execute()
-    )
+    links = projects_repo.get_project_stakeholder_links(project_id)
 
-    return [
-        {
+    result = []
+    for link in links:
+        stakeholder = sh_repo.get_stakeholder(link["stakeholder_id"])
+        result.append({
             "id": link["id"],
             "project_id": link["project_id"],
             "stakeholder_id": link["stakeholder_id"],
-            "stakeholder_name": link["stakeholders"]["name"] if link.get("stakeholders") else None,
-            "stakeholder_role": link["stakeholders"]["role"] if link.get("stakeholders") else None,
-            "stakeholder_department": link["stakeholders"]["department"] if link.get("stakeholders") else None,
+            "stakeholder_name": stakeholder["name"] if stakeholder else None,
+            "stakeholder_role": stakeholder.get("role") if stakeholder else None,
+            "stakeholder_department": stakeholder.get("department") if stakeholder else None,
             "role": link["role"],
             "notes": link.get("notes"),
             "created_at": link["created_at"],
-        }
-        for link in result.data
-    ]
+        })
+
+    return result
 
 
 @router.post("/{project_id}/stakeholders", response_model=StakeholderLinkResponse)
 async def link_stakeholder_to_project(
     project_id: str,
     link: StakeholderLinkCreate,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Link a stakeholder to a project."""
-    # Verify project exists
-    proj = (
-        supabase.table("ai_projects")
-        .select("id")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not proj.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Verify stakeholder exists
-    stakeholder = (
-        supabase.table("stakeholders")
-        .select("id, name, role, department")
-        .eq("id", link.stakeholder_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not stakeholder.data:
+    stakeholder = sh_repo.get_stakeholder(link.stakeholder_id)
+    if not stakeholder:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
 
-    # Create link
     try:
-        result = (
-            supabase.table("project_stakeholder_link")
-            .insert(
-                {
-                    "project_id": project_id,
-                    "stakeholder_id": link.stakeholder_id,
-                    "role": link.role,
-                    "notes": link.notes,
-                }
-            )
-            .execute()
+        created = projects_repo.link_stakeholder(
+            project_id=project_id,
+            stakeholder_id=link.stakeholder_id,
+            role=link.role,
+            notes=link.notes or "",
         )
     except Exception as e:
         if "duplicate" in str(e).lower():
@@ -1639,15 +1275,15 @@ async def link_stakeholder_to_project(
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
     return {
-        "id": result.data[0]["id"],
+        "id": created["id"],
         "project_id": project_id,
         "stakeholder_id": link.stakeholder_id,
-        "stakeholder_name": stakeholder.data["name"],
-        "stakeholder_role": stakeholder.data.get("role"),
-        "stakeholder_department": stakeholder.data.get("department"),
+        "stakeholder_name": stakeholder["name"],
+        "stakeholder_role": stakeholder.get("role"),
+        "stakeholder_department": stakeholder.get("department"),
         "role": link.role,
         "notes": link.notes,
-        "created_at": result.data[0]["created_at"],
+        "created_at": created["created_at"],
     }
 
 
@@ -1655,26 +1291,13 @@ async def link_stakeholder_to_project(
 async def unlink_stakeholder_from_project(
     project_id: str,
     stakeholder_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Remove a stakeholder link from a project."""
-    # Verify project exists
-    proj = (
-        supabase.table("ai_projects")
-        .select("id")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not proj.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    supabase.table("project_stakeholder_link").delete().eq("project_id", project_id).eq(
-        "stakeholder_id", stakeholder_id
-    ).execute()
+    projects_repo.unlink_stakeholder(project_id, stakeholder_id)
 
     return {"message": "Stakeholder unlinked from project"}
 
@@ -1732,24 +1355,15 @@ async def list_project_candidates(
     status: str = "pending",
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """List project candidates for review.
 
     Candidates are extracted from meeting documents and await user review
     before becoming real projects.
     """
-    query = (
-        supabase.table("project_candidates")
-        .select("*")
-        .eq("client_id", current_user["client_id"])
-        .eq("status", status)
-        .order("created_at", desc=True)
-        .range(offset, offset + limit - 1)
+    candidates = projects_repo.list_project_candidates(
+        status=status, limit=limit, offset=offset
     )
-
-    result = query.execute()
 
     return [
         {
@@ -1773,33 +1387,23 @@ async def list_project_candidates(
             "match_reason": c.get("match_reason"),
             "created_at": c["created_at"],
         }
-        for c in result.data
+        for c in candidates
     ]
 
 
 @router.get("/candidates/count")
-async def get_project_candidates_count(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
+async def get_project_candidates_count():
     """Get count of pending project candidates.
 
     Used for dashboard badge display.
     """
-    result = (
-        supabase.table("project_candidates")
-        .select("id", count="exact")
-        .eq("client_id", current_user["client_id"])
-        .eq("status", "pending")
-        .execute()
-    )
-
-    return {"count": result.count or 0}
+    return {"count": projects_repo.count_pending_candidates()}
 
 
 @router.post("/candidates/{candidate_id}/accept", response_model=ProjectResponse)
 async def accept_project_candidate(
     candidate_id: str,
     accept_data: ProjectCandidateAccept = None,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Accept a project candidate, creating a new project.
 
@@ -1810,71 +1414,38 @@ async def accept_project_candidate(
     if accept_data is None:
         accept_data = ProjectCandidateAccept()
 
-    # Get the candidate
-    candidate = (
-        supabase.table("project_candidates")
-        .select("*")
-        .eq("id", candidate_id)
-        .eq("client_id", current_user["client_id"])
-        .eq("status", "pending")
-        .single()
-        .execute()
-    )
-
-    if not candidate.data:
+    cand = projects_repo.get_project_candidate(candidate_id)
+    if not cand or cand.get("status") != "pending":
         raise HTTPException(status_code=404, detail="Candidate not found or already processed")
 
-    cand = candidate.data
     now = datetime.now(timezone.utc).isoformat()
 
-    # If linking to existing project
     if accept_data.link_to_existing and cand.get("matched_project_id"):
-        # Just update the existing project's source_notes with this new info
-        existing_proj = (
-            supabase.table("ai_projects").select("*").eq("id", cand["matched_project_id"]).single().execute()
-        )
+        existing_proj = projects_repo.get_project(cand["matched_project_id"])
 
-        if existing_proj.data:
-            # Append source info to notes
-            existing_notes = existing_proj.data.get("source_notes") or ""
+        if existing_proj:
+            existing_notes = existing_proj.get("source_notes") or ""
             new_notes = f"{existing_notes}\n\nLinked from: {cand.get('source_document_name', 'Document')}\nQuote: {cand.get('source_text', '')[:200]}"
 
-            supabase.table("ai_projects").update({"source_notes": new_notes.strip()}).eq(
-                "id", cand["matched_project_id"]
-            ).execute()
+            projects_repo.update_project(cand["matched_project_id"], {"source_notes": new_notes.strip()})
 
-            # Mark candidate as accepted
-            supabase.table("project_candidates").update(
-                {
-                    "status": "accepted",
-                    "accepted_at": now,
-                    "accepted_by": current_user["id"],
-                    "created_project_id": cand["matched_project_id"],
-                }
-            ).eq("id", candidate_id).execute()
+            projects_repo.update_project_candidate(candidate_id, {
+                "status": "accepted",
+                "accepted_at": now,
+                "created_project_id": cand["matched_project_id"],
+            })
 
-            return _format_project(existing_proj.data)
+            refreshed = projects_repo.get_project(cand["matched_project_id"])
+            return _format_project(refreshed)
 
-    # Create new project
     dept = accept_data.department or cand.get("department") or "General"
     dept_prefix = dept[0].upper() if dept else "G"
 
-    # Get next project code using RPC (avoids PostgREST ilike issues)
-    try:
-        existing_codes = supabase.rpc(
-            "count_project_codes_by_prefix",
-            {"p_client_id": current_user["client_id"], "p_prefix": dept_prefix},
-        ).execute()
-        code_count = existing_codes.data[0].get("code_count", 0) if existing_codes.data else 0
-    except Exception as rpc_err:
-        logger.warning(f"RPC count_project_codes_by_prefix failed: {rpc_err}")
-        code_count = 0
-
+    code_count = pb.count("ai_projects", filter=f"project_code~'^{dept_prefix}'")
     next_num = code_count + 1
     proj_code = f"{dept_prefix}{next_num:02d}"
 
     proj_data = {
-        "client_id": current_user["client_id"],
         "project_code": proj_code,
         "title": accept_data.title or cand["title"],
         "description": accept_data.description or cand.get("description"),
@@ -1891,25 +1462,17 @@ async def accept_project_candidate(
     }
 
     try:
-        result = supabase.table("ai_projects").insert(proj_data).execute()
-        new_proj = result.data[0]
+        new_proj = projects_repo.create_project(proj_data)
 
-        # Mark candidate as accepted
-        supabase.table("project_candidates").update(
-            {
-                "status": "accepted",
-                "accepted_at": now,
-                "accepted_by": current_user["id"],
-                "created_project_id": new_proj["id"],
-            }
-        ).eq("id", candidate_id).execute()
+        projects_repo.update_project_candidate(candidate_id, {
+            "status": "accepted",
+            "accepted_at": now,
+            "created_project_id": new_proj["id"],
+        })
 
-        # Generate justifications for the new project
         try:
-            await generate_project_justifications(project_id=new_proj["id"], client_id=current_user["client_id"])
-            # Refetch to get updated justifications
-            updated = supabase.table("ai_projects").select("*").eq("id", new_proj["id"]).single().execute()
-            new_proj = updated.data
+            await generate_project_justifications(project_id=new_proj["id"], client_id="")
+            new_proj = projects_repo.get_project(new_proj["id"])
         except Exception as e:
             logger.warning(f"Failed to generate justifications for accepted candidate: {e}")
 
@@ -1925,8 +1488,6 @@ async def accept_project_candidate(
 async def reject_project_candidate(
     candidate_id: str,
     reject_data: ProjectCandidateReject = None,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Reject a project candidate.
 
@@ -1935,30 +1496,17 @@ async def reject_project_candidate(
     if reject_data is None:
         reject_data = ProjectCandidateReject()
 
-    # Verify candidate exists and is pending
-    candidate = (
-        supabase.table("project_candidates")
-        .select("id")
-        .eq("id", candidate_id)
-        .eq("client_id", current_user["client_id"])
-        .eq("status", "pending")
-        .single()
-        .execute()
-    )
-
-    if not candidate.data:
+    cand = projects_repo.get_project_candidate(candidate_id)
+    if not cand or cand.get("status") != "pending":
         raise HTTPException(status_code=404, detail="Candidate not found or already processed")
 
     now = datetime.now(timezone.utc).isoformat()
 
-    supabase.table("project_candidates").update(
-        {
-            "status": "rejected",
-            "rejected_at": now,
-            "rejected_by": current_user["id"],
-            "rejection_reason": reject_data.reason,
-        }
-    ).eq("id", candidate_id).execute()
+    projects_repo.update_project_candidate(candidate_id, {
+        "status": "rejected",
+        "rejected_at": now,
+        "rejection_reason": reject_data.reason,
+    })
 
     return {"message": "Candidate rejected"}
 
@@ -1973,52 +1521,23 @@ class LinkProjectCandidateRequest(BaseModel):
 async def link_project_candidate(
     candidate_id: str,
     body: LinkProjectCandidateRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Link a project candidate to an existing project instead of creating a new one.
 
     This is used when a duplicate is detected and the user wants to associate
     the candidate's context with an existing project rather than creating a new one.
     """
-    client_id = current_user.get("client_id")
-    user_id = current_user["id"]
-
-    # Verify candidate exists and is pending
-    candidate_result = (
-        supabase.table("project_candidates")
-        .select("*")
-        .eq("id", candidate_id)
-        .eq("client_id", client_id)
-        .eq("status", "pending")
-        .single()
-        .execute()
-    )
-
-    if not candidate_result.data:
+    cand = projects_repo.get_project_candidate(candidate_id)
+    if not cand or cand.get("status") != "pending":
         raise HTTPException(status_code=404, detail="Candidate not found or already processed")
 
-    candidate = candidate_result.data
-
-    # Verify target project exists
-    proj_result = (
-        supabase.table("ai_projects")
-        .select("id, title, project_name, description")
-        .eq("id", body.project_id)
-        .eq("client_id", client_id)
-        .single()
-        .execute()
-    )
-
-    if not proj_result.data:
+    project = projects_repo.get_project(body.project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Target project not found")
 
-    project = proj_result.data
-
-    # Append candidate context to the existing project's description
     existing_desc = project.get("description") or ""
-    candidate_source = candidate.get("source_document_name") or ""
-    candidate_quote = candidate.get("source_text") or ""
+    candidate_source = cand.get("source_document_name") or ""
+    candidate_quote = cand.get("source_text") or ""
 
     if candidate_source or candidate_quote:
         linked_note = f"\n\n---\nLinked from: {candidate_source}"
@@ -2026,18 +1545,14 @@ async def link_project_candidate(
             linked_note += f'\nQuote: "{candidate_quote[:200]}..."'
         new_description = existing_desc + linked_note
 
-        supabase.table("ai_projects").update({"description": new_description}).eq("id", body.project_id).execute()
+        projects_repo.update_project(body.project_id, {"description": new_description})
 
-    # Mark candidate as accepted with reference to the linked project
     now = datetime.now(timezone.utc).isoformat()
-    supabase.table("project_candidates").update(
-        {
-            "status": "accepted",
-            "created_project_id": body.project_id,
-            "accepted_at": now,
-            "accepted_by": user_id,
-        }
-    ).eq("id", candidate_id).execute()
+    projects_repo.update_project_candidate(candidate_id, {
+        "status": "accepted",
+        "created_project_id": body.project_id,
+        "accepted_at": now,
+    })
 
     logger.info(f"Project candidate {candidate_id} linked to existing project {body.project_id}")
 
@@ -2055,9 +1570,7 @@ async def link_project_candidate(
 
 
 @router.post("/evaluate-confidence")
-async def evaluate_all_confidence(
-    current_user: dict = Depends(get_current_user),
-):
+async def evaluate_all_confidence():
     """Evaluate confidence scores for all projects.
 
     Uses a rubric based on information completeness:
@@ -2071,7 +1584,7 @@ async def evaluate_all_confidence(
     from services.project_confidence import evaluate_all_projects
 
     try:
-        result = await evaluate_all_projects(current_user["client_id"])
+        result = await evaluate_all_projects("")
         return result
     except Exception as e:
         logger.error(f"Failed to evaluate confidence: {e}")
@@ -2080,57 +1593,37 @@ async def evaluate_all_confidence(
 
 @router.post("/{project_id}/evaluate-confidence")
 async def evaluate_single_confidence(
-    project_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
+    project_id: str,
 ):
     """Evaluate and update confidence score for a single project.
 
     Uses context-aware LLM-generated questions that reference the project's
     description, tasks, and other known details instead of generic templates.
     """
-    import asyncio
-
     from services.project_confidence import evaluate_project_confidence_smart
 
-    # Fetch project
-    result = (
-        supabase.table("ai_projects")
-        .select("*")
-        .eq("id", project_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not result.data:
+    project = projects_repo.get_project(project_id)
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    project = result.data
-
-    # Fetch linked tasks for additional context
     tasks = []
     try:
-        tasks_result = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks")
-            .select("title,status,notes,category")
-            .eq("source_project_id", project_id)
-            .eq("client_id", current_user["client_id"])
-            .limit(10)
-            .execute()
+        esc_pid = pb.escape_filter(project_id)
+        tasks_result = pb.list_records(
+            "project_tasks",
+            filter=f"source_project_id='{esc_pid}'",
+            per_page=10,
         )
-        tasks = tasks_result.data or []
+        tasks = tasks_result.get("items", [])
     except Exception as e:
         logger.warning(f"Failed to fetch tasks for confidence context: {e}")
 
-    # Evaluate confidence with context-aware questions
     confidence, questions = await evaluate_project_confidence_smart(project, tasks)
 
-    # Update in database
-    supabase.table("ai_projects").update(
-        {
-            "scoring_confidence": confidence,
-            "confidence_questions": questions,
-        }
-    ).eq("id", project_id).execute()
+    projects_repo.update_project(project_id, {
+        "scoring_confidence": confidence,
+        "confidence_questions": questions,
+    })
 
     return {
         "project_id": project_id,
@@ -2156,24 +1649,14 @@ async def evaluate_single_confidence(
 @router.post("/{project_id}/kraken/evaluate")
 async def kraken_evaluate_tasks(
     project_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Phase 1: Evaluate project tasks for agentic workability. Returns SSE stream."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        # Fall back to default client
-        from database import get_default_client_id
-
-        client_id = get_default_client_id()
-
     async def event_stream():
         try:
             async for event in evaluate_project_tasks(
                 project_id=project_id,
-                client_id=client_id,
-                user_id=current_user["id"],
-                supabase=supabase,
+                client_id="",
+                user_id="",
             ):
                 event_type = event.get("type", "unknown")
                 event_data = event.get("data", "")
@@ -2203,29 +1686,17 @@ async def kraken_evaluate_tasks(
 async def kraken_evaluate_single_task(
     project_id: str,
     body: KrakenEvaluateTaskRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Evaluate a single task for agentic workability. Returns JSON (not SSE).
 
     Called by the frontend in a loop, one task at a time, to avoid
     timeout issues with long-running SSE streams.
     """
-    client_id = current_user.get("client_id")
-    if not client_id:
-        from database import get_default_client_id
-
-        client_id = get_default_client_id()
-
-    import asyncio
-
     try:
-        evaluation = await asyncio.to_thread(
-            evaluate_one_task_standalone,
+        evaluation = evaluate_one_task_standalone(
             task_id=body.task_id,
             project_id=project_id,
-            client_id=client_id,
-            supabase=supabase,
+            client_id="",
         )
         return {"evaluation": evaluation}
     except ValueError as e:
@@ -2239,22 +1710,13 @@ async def kraken_evaluate_single_task(
 async def kraken_finalize_evaluation(
     project_id: str,
     body: KrakenFinalizeRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Compute summary, store evaluation on project. Called after all tasks evaluated."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        from database import get_default_client_id
-
-        client_id = get_default_client_id()
-
     try:
         result = finalize_evaluation(
             project_id=project_id,
-            client_id=client_id,
+            client_id="",
             evaluations=body.evaluations,
-            supabase=supabase,
         )
         return result
     except Exception as e:
@@ -2266,24 +1728,15 @@ async def kraken_finalize_evaluation(
 async def kraken_execute_tasks(
     project_id: str,
     body: KrakenExecuteRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Phase 2: Execute approved tasks. Returns SSE stream."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        from database import get_default_client_id
-
-        client_id = get_default_client_id()
-
     async def event_stream():
         try:
             async for event in execute_approved_tasks(
                 project_id=project_id,
                 task_ids=body.task_ids,
-                client_id=client_id,
-                user_id=current_user["id"],
-                supabase=supabase,
+                client_id="",
+                user_id="",
             ):
                 event_type = event.get("type", "unknown")
                 event_data = event.get("data", "")
@@ -2326,81 +1779,40 @@ class ProjectLinkFolderRequest(BaseModel):
 async def api_link_project_folder(
     project_id: str,
     data: ProjectLinkFolderRequest,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Link a vault folder to a project.
 
     New documents synced into this folder will be automatically linked.
     Optionally backfills existing documents in the folder.
     """
-    user_id = current_user["id"]
     folder_path = data.folder_path.strip().strip("/")
 
     if not folder_path:
         raise HTTPException(status_code=400, detail="folder_path is required")
 
-    # Upsert folder link
-    await asyncio.to_thread(
-        lambda: supabase.table("project_folders")
-        .upsert(
-            {
-                "project_id": project_id,
-                "folder_path": folder_path,
-                "recursive": data.recursive,
-                "linked_by": user_id,
-            },
-            on_conflict="project_id,folder_path",
-        )
-        .execute()
-    )
+    projects_repo.link_folder(project_id, folder_path, recursive=data.recursive)
 
     logger.info(f"Linked folder '{folder_path}' to project {project_id} (recursive={data.recursive})")
 
     backfilled = 0
 
     if data.backfill:
-        # Find documents in this folder
-        query = supabase.table("documents").select("id")
-        if data.recursive:
-            query = query.ilike("obsidian_file_path", f"{folder_path}/%")
-        else:
-            query = query.ilike("obsidian_file_path", f"{folder_path}/%")
+        esc_path = pb.escape_filter(folder_path)
+        docs = pb.get_all("documents", filter=f"obsidian_file_path~'{esc_path}/%'")
 
-        docs_result = await asyncio.to_thread(lambda: query.execute())
+        for doc in docs:
+            doc_id = doc["id"]
+            try:
+                if not data.recursive:
+                    path = doc.get("obsidian_file_path", "")
+                    remainder = path[len(folder_path) + 1:]
+                    if "/" in remainder:
+                        continue
 
-        if docs_result.data:
-            for doc in docs_result.data:
-                doc_id = doc["id"]
-                try:
-                    if not data.recursive:
-                        doc_detail = await asyncio.to_thread(
-                            lambda did=doc_id: supabase.table("documents")
-                            .select("obsidian_file_path")
-                            .eq("id", did)
-                            .single()
-                            .execute()
-                        )
-                        if doc_detail.data:
-                            path = doc_detail.data["obsidian_file_path"]
-                            remainder = path[len(folder_path) + 1 :]
-                            if "/" in remainder:
-                                continue  # Skip subfolder docs
-
-                    await asyncio.to_thread(
-                        lambda did=doc_id: supabase.table("project_documents")
-                        .upsert(
-                            {
-                                "project_id": project_id,
-                                "document_id": did,
-                            },
-                            on_conflict="project_id,document_id",
-                        )
-                        .execute()
-                    )
-                    backfilled += 1
-                except Exception as e:
-                    logger.warning(f"Failed to backfill document {doc_id} to project: {e}")
+                projects_repo.link_document(project_id, doc_id)
+                backfilled += 1
+            except Exception as e:
+                logger.warning(f"Failed to backfill document {doc_id} to project: {e}")
 
         logger.info(f"Backfilled {backfilled} documents from folder '{folder_path}' to project {project_id}")
 
@@ -2415,36 +1827,19 @@ async def api_link_project_folder(
 @router.get("/{project_id}/folders")
 async def api_list_project_folders(
     project_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """List all folder subscriptions for a project."""
-    result = await asyncio.to_thread(
-        lambda: supabase.table("project_folders")
-        .select("id, folder_path, recursive, linked_at, linked_by")
-        .eq("project_id", project_id)
-        .order("folder_path")
-        .execute()
-    )
-
-    return {"folders": result.data or []}
+    folders = projects_repo.get_project_folders(project_id)
+    return {"folders": folders}
 
 
 @router.delete("/{project_id}/folders/{folder_path:path}")
 async def api_unlink_project_folder(
     project_id: str,
     folder_path: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Unlink a folder from this project."""
-    await asyncio.to_thread(
-        lambda: supabase.table("project_folders")
-        .delete()
-        .eq("project_id", project_id)
-        .eq("folder_path", folder_path)
-        .execute()
-    )
+    projects_repo.unlink_folder(project_id, folder_path)
 
     logger.info(f"Unlinked folder '{folder_path}' from project {project_id}")
 
@@ -2454,17 +1849,9 @@ async def api_unlink_project_folder(
 @router.get("/{project_id}/kraken/evaluation")
 async def kraken_get_evaluation(
     project_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Get stored evaluation results for a project."""
-    client_id = current_user.get("client_id")
-    if not client_id:
-        from database import get_default_client_id
-
-        client_id = get_default_client_id()
-
-    result = await get_kraken_evaluation(project_id, client_id, supabase)
+    result = await get_kraken_evaluation(project_id, "")
 
     if not result:
         return {"evaluation": None, "agenticity_score": None, "is_stale": False}

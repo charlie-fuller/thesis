@@ -7,11 +7,11 @@ KPIs are scoped to client_id via JWT authentication.
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from auth import get_current_user
-from database import get_supabase
+import pb_client as pb
+from repositories import misc as misc_repo
 
 logger = logging.getLogger(__name__)
 
@@ -152,64 +152,35 @@ async def list_kpis(
     department: Optional[str] = None,
     fiscal_year: Optional[str] = None,
     status: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """List KPIs, filterable by department, fiscal_year, and status."""
-    query = (
-        supabase.table("department_kpis")
-        .select("*")
-        .eq("client_id", current_user["client_id"])
-    )
-
+    kwargs = {}
     if department:
-        query = query.eq("department", department)
+        kwargs["department"] = department
     if fiscal_year:
-        query = query.eq("fiscal_year", fiscal_year)
+        kwargs["fiscal_year"] = fiscal_year
     if status:
-        query = query.eq("status", status)
+        kwargs["status"] = status
 
-    result = query.order("department").order("sort_order").execute()
-
-    return result.data or []
+    return misc_repo.list_department_kpis(sort="department,sort_order", **kwargs)
 
 
 @router.post("/kpis", response_model=KPIResponse)
 async def create_kpi(
     kpi: KPICreate,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Create a new KPI."""
-    data = {
-        "client_id": current_user["client_id"],
-        **kpi.model_dump(),
-    }
-
-    result = supabase.table("department_kpis").insert(data).execute()
-
-    return result.data[0]
+    return misc_repo.create_department_kpi(kpi.model_dump())
 
 
 @router.patch("/kpis/{kpi_id}", response_model=KPIResponse)
 async def update_kpi(
     kpi_id: str,
     update: KPIUpdate,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Update a KPI."""
-    # Verify ownership
-    existing = (
-        supabase.table("department_kpis")
-        .select("id")
-        .eq("id", kpi_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not existing.data:
+    existing = misc_repo.get_department_kpi(kpi_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="KPI not found")
 
     update_data = update.model_dump(exclude_unset=True)
@@ -217,36 +188,19 @@ async def update_kpi(
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
 
-    result = (
-        supabase.table("department_kpis")
-        .update(update_data)
-        .eq("id", kpi_id)
-        .execute()
-    )
-
-    return result.data[0]
+    return misc_repo.update_department_kpi(kpi_id, update_data)
 
 
 @router.delete("/kpis/{kpi_id}")
 async def delete_kpi(
     kpi_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Delete a KPI."""
-    existing = (
-        supabase.table("department_kpis")
-        .select("id")
-        .eq("id", kpi_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not existing.data:
+    existing = misc_repo.get_department_kpi(kpi_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="KPI not found")
 
-    supabase.table("department_kpis").delete().eq("id", kpi_id).execute()
+    misc_repo.delete_department_kpi(kpi_id)
 
     return {"message": "KPI deleted"}
 
@@ -254,25 +208,18 @@ async def delete_kpi(
 @router.get("/kpis/summary")
 async def kpi_summary(
     fiscal_year: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Aggregate stats: count by status and by department."""
-    query = (
-        supabase.table("department_kpis")
-        .select("department, status")
-        .eq("client_id", current_user["client_id"])
-    )
-
+    kwargs = {}
     if fiscal_year:
-        query = query.eq("fiscal_year", fiscal_year)
+        kwargs["fiscal_year"] = fiscal_year
 
-    result = query.execute()
+    kpis = misc_repo.list_department_kpis(**kwargs)
 
     status_counts = {"green": 0, "yellow": 0, "red": 0}
     dept_counts: dict = {}
 
-    for kpi in result.data or []:
+    for kpi in kpis:
         s = kpi.get("status", "yellow")
         status_counts[s] = status_counts.get(s, 0) + 1
 
@@ -280,7 +227,7 @@ async def kpi_summary(
         dept_counts[dept] = dept_counts.get(dept, 0) + 1
 
     return {
-        "total": len(result.data or []),
+        "total": len(kpis),
         "by_status": status_counts,
         "by_department": dept_counts,
     }
@@ -296,63 +243,37 @@ async def list_goals(
     level: Optional[str] = Query(None, pattern="^(company|team)$"),
     department: Optional[str] = None,
     fiscal_year: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """List strategic goals, filterable by level, department, and fiscal_year."""
-    query = (
-        supabase.table("strategic_goals")
-        .select("*")
-        .eq("client_id", current_user["client_id"])
-    )
-
+    parts = []
     if level:
-        query = query.eq("level", level)
+        parts.append(f"level='{pb.escape_filter(level)}'")
     if department:
-        query = query.eq("department", department)
+        parts.append(f"department='{pb.escape_filter(department)}'")
     if fiscal_year:
-        query = query.eq("fiscal_year", fiscal_year)
+        parts.append(f"fiscal_year='{pb.escape_filter(fiscal_year)}'")
+    filter_str = " && ".join(parts)
 
-    result = query.order("priority").execute()
-
-    return result.data or []
+    return pb.get_all("strategic_goals", filter=filter_str, sort="priority")
 
 
 @router.post("/goals", response_model=GoalResponse)
 async def create_goal(
     goal: GoalCreate,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Create a new strategic goal."""
-    data = {
-        "client_id": current_user["client_id"],
-        **goal.model_dump(),
-    }
-
-    result = supabase.table("strategic_goals").insert(data).execute()
-
-    return result.data[0]
+    data = goal.model_dump()
+    return pb.create_record("strategic_goals", data)
 
 
 @router.patch("/goals/{goal_id}", response_model=GoalResponse)
 async def update_goal(
     goal_id: str,
     update: GoalUpdate,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Update a strategic goal."""
-    existing = (
-        supabase.table("strategic_goals")
-        .select("id")
-        .eq("id", goal_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not existing.data:
+    existing = pb.get_record("strategic_goals", goal_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Goal not found")
 
     update_data = update.model_dump(exclude_unset=True)
@@ -360,35 +281,18 @@ async def update_goal(
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
 
-    result = (
-        supabase.table("strategic_goals")
-        .update(update_data)
-        .eq("id", goal_id)
-        .execute()
-    )
-
-    return result.data[0]
+    return pb.update_record("strategic_goals", goal_id, update_data)
 
 
 @router.delete("/goals/{goal_id}")
 async def delete_goal(
     goal_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase),
 ):
     """Delete a strategic goal. Linked KPIs get linked_goal_id set to null (DB cascade)."""
-    existing = (
-        supabase.table("strategic_goals")
-        .select("id")
-        .eq("id", goal_id)
-        .eq("client_id", current_user["client_id"])
-        .single()
-        .execute()
-    )
-
-    if not existing.data:
+    existing = pb.get_record("strategic_goals", goal_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Goal not found")
 
-    supabase.table("strategic_goals").delete().eq("id", goal_id).execute()
+    pb.delete_record("strategic_goals", goal_id)
 
     return {"message": "Goal deleted"}
